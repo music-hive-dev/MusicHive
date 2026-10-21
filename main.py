@@ -3,9 +3,16 @@
 import sys
 from pathlib import Path
 
-from PySide6.QtCore import QFile, QIODevice, QStandardPaths
+from PySide6.QtCore import QFile, QIODevice, QStandardPaths, Qt
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QApplication, QFileDialog, QListWidgetItem
+from PySide6.QtWidgets import (
+    QAbstractSlider,
+    QApplication,
+    QFileDialog,
+    QListWidgetItem,
+    QProxyStyle,
+    QStyle,
+)
 
 from src.audio_player import AudioPlayer
 from src.music_library import find_audio_files
@@ -37,6 +44,13 @@ def format_time(milliseconds: int) -> str:
         return f"{hours}:{minutes:02d}:{seconds:02d}"
     return f"{minutes}:{seconds:02d}"
 
+class JumpToClickStyle(QProxyStyle):
+    """Makes a left click on a slider's groove jump straight to that position."""
+
+    def styleHint(self, hint, option=None, widget=None, returnData=None):
+        if hint == QStyle.StyleHint.SH_Slider_AbsoluteSetButtons:
+            return Qt.MouseButton.LeftButton.value
+        return super().styleHint(hint, option, widget, returnData)
 
 class MusicHive:
     """Connects the widgets from player.ui to the application logic."""
@@ -47,7 +61,13 @@ class MusicHive:
         self.tracks: list[Path] = []
         self.current_index = -1  # index into self.tracks, or -1 if none
 
+
         w = self.window
+
+        # Left-click on a slider bar jumps to that position (instead of nudging).
+        self._slider_style = JumpToClickStyle()
+        w.progressSlider.setStyle(self._slider_style)
+        w.volumeSlider.setStyle(self._slider_style)
 
         # Library
         w.chooseFolderButton.clicked.connect(self.choose_folder)
@@ -170,8 +190,14 @@ class MusicHive:
     def on_slider_released(self) -> None:
         self.player.seek(self.window.progressSlider.value())
 
-    def on_slider_action(self, _action: int) -> None:
-        """Handle clicks on the groove and keyboard changes (not drags)."""
+    def on_slider_action(self, action: int) -> None:
+        """Handle keyboard and wheel changes (arrows, PageUp/Down, Home/End).
+
+        Slider-move actions come from clicks and drags; those are handled
+        once, on release, by on_slider_released.
+        """
+        if action == QAbstractSlider.SliderAction.SliderMove.value:
+            return
         slider = self.window.progressSlider
         if not slider.isSliderDown():
             self.player.seek(slider.sliderPosition())
