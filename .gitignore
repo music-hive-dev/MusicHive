@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+build/
+dist/
+
+# Editors / IDEs
+.idea/
+.vscode/
+*.swp
+
+# Qt Designer backups
+*.ui~
+*.ui.bak
+
+# OS
+.directory
+Thumbs.db
