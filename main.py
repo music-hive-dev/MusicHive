@@ -136,7 +136,10 @@ class MusicHive:
             return
 
         for track in self.tracks:
-            self.window.libraryList.addItem(QListWidgetItem(track.name))
+            # Show the path relative to the chosen folder, so that songs
+            # with the same file name in different folders can be told apart.
+            relative = track.relative_to(folder).as_posix()
+            self.window.libraryList.addItem(QListWidgetItem(relative))
 
         if self.tracks:
             self.window.statusBar().showMessage(f"{len(self.tracks)} tracks found")
