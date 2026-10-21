@@ -5,8 +5,13 @@ from pathlib import Path
 
 from PySide6.QtCore import QFile, QIODevice, QStandardPaths, Qt
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QApplication, QFileDialog, QListWidgetItem
+from PySide6.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QListWidgetItem,
+)
 
+from src.audio_player import AudioPlayer
 from src.music_library import find_audio_files
 
 UI_FILE = Path(__file__).parent / "player.ui"
@@ -32,9 +37,13 @@ class MusicHive:
 
     def __init__(self) -> None:
         self.window = load_ui(UI_FILE)
+        self.player = AudioPlayer()
         self.tracks: list[Path] = []
 
         self.window.chooseFolderButton.clicked.connect(self.choose_folder)
+        self.window.libraryList.itemDoubleClicked.connect(self.play_item)
+        self.player.track_started.connect(self.on_track_started)
+        self.player.error_occurred.connect(self.on_player_error)
 
     def show(self) -> None:
         self.window.show()
@@ -71,10 +80,23 @@ class MusicHive:
                 "No supported audio files found in this folder"
             )
 
+    def play_item(self, item: QListWidgetItem) -> None:
+        """Called when the user double-clicks a song in the list."""
+        self.player.play_file(item.data(Qt.UserRole))
+
+    def on_track_started(self, track: Path) -> None:
+        self.window.currentTrackLabel.setText(track.stem)
+        self.window.statusBar().showMessage(f"Playing {track.name}")
+
+    def on_player_error(self, message: str) -> None:
+        self.window.currentTrackLabel.setText("Nothing playing")
+        self.window.statusBar().showMessage(message)
+
 
 def main() -> int:
     app = QApplication(sys.argv)
     music_hive = MusicHive()
+    app.aboutToQuit.connect(music_hive.player.shutdown)
     music_hive.show()
     return app.exec()
 
