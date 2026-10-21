@@ -4,6 +4,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QFile, QIODevice, QStandardPaths, Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QAbstractSlider,
@@ -18,6 +19,10 @@ from src.audio_player import AudioPlayer
 from src.music_library import find_audio_files
 
 UI_FILE = Path(__file__).parent / "player.ui"
+
+# If the track is further in than this, Previous restarts it instead of
+# going back to the previous track.
+PREVIOUS_RESTART_THRESHOLD_MS = 5000
 
 
 def load_ui(path: Path):
@@ -44,6 +49,7 @@ def format_time(milliseconds: int) -> str:
         return f"{hours}:{minutes:02d}:{seconds:02d}"
     return f"{minutes}:{seconds:02d}"
 
+
 class JumpToClickStyle(QProxyStyle):
     """Makes a left click on a slider's groove jump straight to that position."""
 
@@ -51,6 +57,7 @@ class JumpToClickStyle(QProxyStyle):
         if hint == QStyle.StyleHint.SH_Slider_AbsoluteSetButtons:
             return Qt.MouseButton.LeftButton.value
         return super().styleHint(hint, option, widget, returnData)
+
 
 class MusicHive:
     """Connects the widgets from player.ui to the application logic."""
@@ -60,7 +67,8 @@ class MusicHive:
         self.player = AudioPlayer()
         self.tracks: list[Path] = []
         self.current_index = -1  # index into self.tracks, or -1 if none
-
+        self.playback_state = "stopped"  # "playing", "paused" or "stopped"
+        self.position_ms = 0  # last reported playback position
 
         w = self.window
 
@@ -74,9 +82,7 @@ class MusicHive:
         w.libraryList.itemDoubleClicked.connect(self.play_item)
 
         # Transport buttons
-        w.playButton.clicked.connect(self.on_play)
-        w.pauseButton.clicked.connect(self.player.pause)
-        w.stopButton.clicked.connect(self.on_stop)
+        w.playButton.clicked.connect(self.on_play_pause)
         w.previousButton.clicked.connect(self.play_previous)
         w.nextButton.clicked.connect(self.play_next)
 
@@ -146,6 +152,7 @@ class MusicHive:
         if not 0 <= index < len(self.tracks):
             return
         self.current_index = index
+        self.position_ms = 0
         self.window.libraryList.setCurrentRow(index)
         self.player.play_file(self.tracks[index])
 
@@ -153,22 +160,21 @@ class MusicHive:
         """Called when the user double-clicks a song in the list."""
         self.play_index(self.window.libraryList.row(item))
 
-    def on_play(self) -> None:
-        if self.player.is_paused:
+    def on_play_pause(self) -> None:
+        """One button for both: pause while playing, resume while paused,
+        otherwise start the highlighted track (or the first one)."""
+        if self.playback_state == "playing":
+            self.player.pause()
+        elif self.playback_state == "paused":
             self.player.play()
-            return
-
-        row = self.window.libraryList.currentRow()
-        if row < 0 and self.tracks:
-            row = 0
-        if row < 0:
-            self.window.statusBar().showMessage("Choose a folder with music first")
-            return
-        self.play_index(row)
-
-    def on_stop(self) -> None:
-        self.player.stop()
-        self.window.statusBar().showMessage("Stopped")
+        else:
+            row = self.window.libraryList.currentRow()
+            if row < 0 and self.tracks:
+                row = 0
+            if row < 0:
+                self.window.statusBar().showMessage("Choose a folder with music first")
+                return
+            self.play_index(row)
 
     def play_next(self) -> None:
         if self.current_index + 1 < len(self.tracks):
@@ -177,9 +183,16 @@ class MusicHive:
             self.window.statusBar().showMessage("This is the last track")
 
     def play_previous(self) -> None:
-        if self.current_index >= 0:
-            # On the first track this restarts it.
-            self.play_index(max(0, self.current_index - 1))
+        """Restart the track if it is well underway, otherwise go back one."""
+        if self.current_index < 0:
+            return
+        if (
+            self.position_ms > PREVIOUS_RESTART_THRESHOLD_MS
+            or self.current_index == 0
+        ):
+            self.player.seek(0)  # keeps the current play/pause state
+        else:
+            self.play_index(self.current_index - 1)
 
     # ----- seek slider -----
 
@@ -214,20 +227,28 @@ class MusicHive:
             self.window.statusBar().showMessage("Reached the end of the folder")
 
     def on_state_changed(self, state: str) -> None:
+        self.playback_state = state
         w = self.window
-        w.playButton.setEnabled(state != "playing")
-        w.pauseButton.setEnabled(state == "playing")
-        w.stopButton.setEnabled(state != "stopped")
 
+        # The single transport button shows what clicking it will do.
         if state == "playing":
+            w.playButton.setText("Pause")
+            w.playButton.setIcon(QIcon.fromTheme("media-playback-pause"))
+            w.playButton.setToolTip("Pause")
             w.statusBar().showMessage(f"Playing {w.currentTrackLabel.text()}")
-        elif state == "paused":
-            w.statusBar().showMessage("Paused")
-        else:  # stopped
-            w.progressSlider.setValue(0)
-            w.currentTimeLabel.setText(format_time(0))
+        else:
+            w.playButton.setText("Play")
+            w.playButton.setIcon(QIcon.fromTheme("media-playback-start"))
+            w.playButton.setToolTip("Play")
+            if state == "paused":
+                w.statusBar().showMessage("Paused")
+            else:  # stopped
+                self.position_ms = 0
+                w.progressSlider.setValue(0)
+                w.currentTimeLabel.setText(format_time(0))
 
     def on_position_changed(self, position_ms: int) -> None:
+        self.position_ms = position_ms
         slider = self.window.progressSlider
         if slider.isSliderDown():  # the user is dragging; don't fight them
             return
@@ -246,7 +267,7 @@ class MusicHive:
 def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("MusicHive")
-    app.setDesktopFileName("musichive")  # must match musichive.desktop below
+    app.setDesktopFileName("musichive")  # must match musichive.desktop
     music_hive = MusicHive()
     app.aboutToQuit.connect(music_hive.player.shutdown)
     music_hive.show()
