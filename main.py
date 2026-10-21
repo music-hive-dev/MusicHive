@@ -245,6 +245,8 @@ class MusicHive:
 
 def main() -> int:
     app = QApplication(sys.argv)
+    app.setApplicationName("MusicHive")
+    app.setDesktopFileName("musichive")  # must match musichive.desktop below
     music_hive = MusicHive()
     app.aboutToQuit.connect(music_hive.player.shutdown)
     music_hive.show()
