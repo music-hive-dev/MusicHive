@@ -1,7 +1,14 @@
-"""Per-library SQLite databases: one database file per music library."""
+"""Per-library SQLite databases, stored in a hidden folder in the Music folder.
+
+Everything lives in ~/Music/.musichive/. Each library gets its own subfolder
+there, ~/Music/.musichive/<library name>/, holding its database (musichive.db)
+and any other files MusicHive keeps for that library.
+"""
 
 import hashlib
+import json
 import os
+import shutil
 import sqlite3
 from contextlib import contextmanager
 from dataclasses import dataclass
@@ -11,6 +18,8 @@ from pathlib import Path
 from src.track_metadata import TrackInfo
 
 SCHEMA_VERSION = 1
+DB_NAME = "musichive.db"
+DATA_DIR_NAME = ".musichive"
 
 _SCHEMA = """
 CREATE TABLE meta (
@@ -42,8 +51,8 @@ CREATE TABLE tracks (
 class LibraryInfo:
     id: str
     name: str
-    root: Path
-    db_path: Path
+    root: Path  # the folder that holds the music
+    db_path: Path  # <Music folder>/<library name>/musichive.db
     scanned_at: str | None  # ISO timestamp of the last scan; None if never scanned
     track_count: int
 
@@ -63,15 +72,62 @@ class LoadedLibrary:
     covers: dict[str, bytes]  # cover_key -> JPEG thumbnail bytes
 
 
-def libraries_dir() -> Path:
-    """Folder holding one database file per library."""
+@dataclass
+class SavedSession:
+    rel_path: str  # the playing track, relative to the library root
+    position_ms: int  # how far into the track
+    order: list[int]  # the whole play order, as library rows
+    order_position: int  # where the playing track is within `order`
+
+
+# ----- where things live -----
+
+
+def music_dir() -> Path:
+    """The user's Music folder: the XDG setting, or ~/Music."""
+    home = Path.home()
+    config_home = os.environ.get("XDG_CONFIG_HOME") or str(home / ".config")
+    try:
+        text = (Path(config_home) / "user-dirs.dirs").read_text(encoding="utf-8")
+        for line in text.splitlines():
+            if line.startswith("XDG_MUSIC_DIR="):
+                value = line.split("=", 1)[1].strip().strip('"')
+                path = Path(value.replace("$HOME", str(home)))
+                if path != home:  # "$HOME/" means the Music folder is disabled
+                    return path
+    except OSError:
+        pass
+    return home / "Music"
+
+def data_dir() -> Path:
+    """The hidden folder where MusicHive keeps its per-library data."""
+    return music_dir() / DATA_DIR_NAME
+
+
+def old_libraries_dir() -> Path:
+    """Where earlier versions kept the databases (see migrate_old_libraries)."""
     base = os.environ.get("XDG_DATA_HOME") or str(Path.home() / ".local" / "share")
     return Path(base) / "musichive" / "libraries"
 
 
-def library_id_for(root: Path) -> str:
-    """Stable id for a library folder (also the database's file name)."""
-    return hashlib.sha1(str(root.resolve()).encode("utf-8")).hexdigest()[:16]
+def _id_for(root_text: str) -> str:
+    """Stable id for a library, derived from its music folder's path."""
+    return hashlib.sha1(root_text.encode("utf-8")).hexdigest()[:16]
+
+
+def _free_folder(name: str) -> Path:
+    """A folder inside the data folder for a new library called `name`.
+
+    "Name" if no other library uses it, otherwise "Name (2)", "Name (3)", ...
+    """
+    base = data_dir()
+    name = name.strip() or "Library"
+    folder = base / name
+    number = 2
+    while (folder / DB_NAME).exists():
+        folder = base / f"{name} ({number})"
+        number += 1
+    return folder
 
 
 @contextmanager
@@ -84,53 +140,133 @@ def connect(db_path: Path):
         conn.close()
 
 
-def add_library(root: Path) -> tuple[LibraryInfo, bool]:
-    """Create the database for `root` if needed.
+# ----- libraries -----
 
-    Returns (library, created). `created` is False if it already existed.
-    Raises OSError or sqlite3.Error on failure.
+
+def add_library(root: Path) -> tuple[LibraryInfo, bool]:
+    """Create a library for the music folder `root`.
+
+    Returns (library, created). `created` is False if that folder already is
+    a library. Raises OSError or sqlite3.Error on failure.
     """
     root = root.resolve()
-    db_path = libraries_dir() / f"{library_id_for(root)}.db"
-    created = not db_path.exists()
+    for existing in list_libraries():
+        if existing.root == root:
+            return existing, False
 
-    if created:
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            with connect(db_path) as conn:
-                conn.executescript(_SCHEMA)
-                with conn:
-                    conn.executemany(
-                        "INSERT INTO meta (key, value) VALUES (?, ?)",
-                        [("name", root.name or str(root)), ("root", str(root))],
-                    )
-                    conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
-        except Exception:
-            db_path.unlink(missing_ok=True)  # never leave a half-made database
-            raise
+    name = root.name or "Library"
+    folder = _free_folder(name)
+    db_path = folder / DB_NAME
+    folder_is_new = not folder.exists()
+    try:
+        folder.mkdir(parents=True, exist_ok=True)
+        with connect(db_path) as conn:
+            conn.executescript(_SCHEMA)
+            with conn:
+                conn.executemany(
+                    "INSERT INTO meta (key, value) VALUES (?, ?)",
+                    [("name", name), ("root", str(root))],
+                )
+                conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+    except Exception:
+        db_path.unlink(missing_ok=True)  # never leave a half-made database
+        if folder_is_new:
+            try:
+                folder.rmdir()
+            except OSError:
+                pass
+        raise
 
     info = _read_info(db_path)
     if info is None:
         raise sqlite3.DatabaseError(f"Library database is unreadable: {db_path}")
-    return info, created
+    return info, True
 
 
 def list_libraries() -> list[LibraryInfo]:
-    """All readable libraries, sorted by name."""
-    directory = libraries_dir()
-    if not directory.is_dir():
+    """All readable libraries, sorted by name.
+
+    A library is any folder directly inside the data folder that contains a
+    musichive.db file.
+    """
+    try:
+        folders = [entry for entry in data_dir().iterdir() if entry.is_dir()]
+    except OSError:
         return []
+
     libraries = []
-    for path in directory.glob("*.db"):
-        info = _read_info(path)
-        if info is not None:
-            libraries.append(info)
+    for folder in folders:
+        db_path = folder / DB_NAME
+        if db_path.is_file():
+            info = _read_info(db_path)
+            if info is not None:
+                libraries.append(info)
     return sorted(libraries, key=lambda library: library.name.lower())
 
 
-def remove_library(library_id: str) -> None:
-    """Delete a library's database. The music files are never touched."""
-    (libraries_dir() / f"{library_id}.db").unlink(missing_ok=True)
+def remove_library(info: LibraryInfo) -> None:
+    """Delete a library's database and its folder. Music files are never touched."""
+    info.db_path.unlink(missing_ok=True)
+    try:
+        info.db_path.parent.rmdir()  # fails, harmlessly, if anything else is in it
+    except OSError:
+        pass
+
+
+def _old_database_paths() -> list[Path]:
+    """Databases left over from earlier versions' storage locations."""
+    paths: list[Path] = []
+
+    # First layout: ~/.local/share/musichive/libraries/<id>.db
+    try:
+        paths += sorted(old_libraries_dir().glob("*.db"))
+    except OSError:
+        pass
+
+    # Second layout: ~/Music/<library name>/musichive.db
+    try:
+        for folder in sorted(music_dir().iterdir()):
+            if folder.is_dir() and not folder.name.startswith("."):
+                candidate = folder / DB_NAME
+                if candidate.is_file():
+                    paths.append(candidate)
+    except OSError:
+        pass
+
+    return paths
+
+
+def migrate_old_libraries() -> int:
+    """Move databases from earlier locations into the data folder.
+
+    Returns how many were moved. Anything that cannot be moved is left where
+    it is, untouched.
+    """
+    known_roots = {library.root for library in list_libraries()}
+    moved = 0
+    for old_path in _old_database_paths():
+        info = _read_info(old_path)
+        if info is None or info.root in known_roots:
+            continue
+        folder = _free_folder(info.name)
+        try:
+            folder.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(old_path), str(folder / DB_NAME))
+        except OSError:
+            continue
+        known_roots.add(info.root)
+        moved += 1
+
+        # Remove the old folder if the move left it empty. This fails,
+        # harmlessly, for a folder that still holds music.
+        try:
+            old_path.parent.rmdir()
+        except OSError:
+            pass
+    return moved
+
+
+# ----- tracks -----
 
 
 def load_library(info: LibraryInfo) -> LoadedLibrary:
@@ -207,6 +343,51 @@ def save_scan(
             )
 
 
+# ----- saved session -----
+
+
+def save_session(db_path: Path, session: SavedSession) -> None:
+    """Remember what was playing, in the library's own database."""
+    values = [
+        ("session_track", session.rel_path),
+        ("session_position_ms", str(session.position_ms)),
+        ("session_order", json.dumps(session.order, separators=(",", ":"))),
+        ("session_order_position", str(session.order_position)),
+    ]
+    with connect(db_path) as conn:
+        with conn:
+            conn.executemany(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)", values
+            )
+
+
+def load_session(db_path: Path) -> SavedSession | None:
+    """The saved session, or None if there is none or it is unreadable."""
+    with connect(db_path) as conn:
+        meta = dict(conn.execute("SELECT key, value FROM meta"))
+    try:
+        return SavedSession(
+            rel_path=meta["session_track"],
+            position_ms=max(0, int(meta["session_position_ms"])),
+            order=[int(row) for row in json.loads(meta["session_order"])],
+            order_position=int(meta["session_order_position"]),
+        )
+    except (KeyError, ValueError, TypeError):
+        return None
+
+
+def clear_session(db_path: Path) -> None:
+    with connect(db_path) as conn:
+        with conn:
+            conn.execute(
+                "DELETE FROM meta WHERE key IN ('session_track', "
+                "'session_position_ms', 'session_order', 'session_order_position')"
+            )
+
+
+# ----- internal -----
+
+
 def _read_info(db_path: Path) -> LibraryInfo | None:
     try:
         with connect(db_path) as conn:
@@ -218,7 +399,7 @@ def _read_info(db_path: Path) -> LibraryInfo | None:
         return None
     root = Path(meta["root"])
     return LibraryInfo(
-        id=db_path.stem,
+        id=_id_for(meta["root"]),
         name=meta.get("name") or root.name or str(root),
         root=root,
         db_path=db_path,
