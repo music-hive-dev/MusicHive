@@ -55,6 +55,26 @@ class PlayOrder:
         if mode in self.REPEAT_MODES:
             self.repeat = mode
 
+    # ----- saving and restoring -----
+
+    def snapshot(self) -> tuple[list[int], int]:
+        """The whole order and the playing position, for saving."""
+        return list(self._order), self._position
+
+    def restore(self, order: list[int], position: int) -> bool:
+        """Put back a saved order. Returns False, changing nothing, if it
+        does not fit the current library."""
+        count = len(self._order)
+        if (
+            len(order) != count
+            or sorted(order) != list(range(count))
+            or not 0 <= position < count
+        ):
+            return False
+        self._order = list(order)
+        self._position = position
+        return True
+
     # ----- choosing a track -----
 
     def start_at(self, row: int) -> None:

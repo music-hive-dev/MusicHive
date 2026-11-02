@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1064</width>
-    <height>954</height>
+    <width>1538</width>
+    <height>960</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -22,18 +22,18 @@
      <colorrole role="WindowText">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Button">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>24</red>
-        <green>24</green>
-        <blue>24</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
@@ -76,9 +76,9 @@
      <colorrole role="Text">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
@@ -94,27 +94,27 @@
      <colorrole role="ButtonText">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Base">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>24</red>
-        <green>24</green>
-        <blue>24</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
@@ -156,10 +156,10 @@
      </colorrole>
      <colorrole role="PlaceholderText">
       <brush brushstyle="SolidPattern">
-       <color alpha="127">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+       <color alpha="128">
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
@@ -177,18 +177,18 @@
      <colorrole role="WindowText">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Button">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>24</red>
-        <green>24</green>
-        <blue>24</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
@@ -231,9 +231,9 @@
      <colorrole role="Text">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
@@ -249,27 +249,27 @@
      <colorrole role="ButtonText">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Base">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>24</red>
-        <green>24</green>
-        <blue>24</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
@@ -311,10 +311,10 @@
      </colorrole>
      <colorrole role="PlaceholderText">
       <brush brushstyle="SolidPattern">
-       <color alpha="127">
-        <red>255</red>
-        <green>255</green>
-        <blue>255</blue>
+       <color alpha="128">
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
@@ -332,18 +332,18 @@
      <colorrole role="WindowText">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>12</red>
-        <green>12</green>
-        <blue>12</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Button">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>24</red>
-        <green>24</green>
-        <blue>24</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
@@ -386,9 +386,9 @@
      <colorrole role="Text">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>12</red>
-        <green>12</green>
-        <blue>12</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
@@ -404,27 +404,27 @@
      <colorrole role="ButtonText">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>12</red>
-        <green>12</green>
-        <blue>12</blue>
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Base">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>24</red>
-        <green>24</green>
-        <blue>24</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>24</red>
-        <green>24</green>
-        <blue>24</blue>
+        <red>23</red>
+        <green>25</green>
+        <blue>29</blue>
        </color>
       </brush>
      </colorrole>
@@ -466,10 +466,10 @@
      </colorrole>
      <colorrole role="PlaceholderText">
       <brush brushstyle="SolidPattern">
-       <color alpha="127">
-        <red>12</red>
-        <green>12</green>
-        <blue>12</blue>
+       <color alpha="128">
+        <red>224</red>
+        <green>226</green>
+        <blue>230</blue>
        </color>
       </brush>
      </colorrole>
@@ -487,7 +487,8 @@
   </property>
   <property name="font">
    <font>
-    <family>Noto Sans</family>
+    <family>Inter</family>
+    <pointsize>10</pointsize>
     <italic>false</italic>
     <bold>false</bold>
     <underline>false</underline>
@@ -511,27 +512,275 @@
   <property name="windowOpacity">
    <double>1.000000000000000</double>
   </property>
+  <property name="styleSheet">
+   <string notr="true">
+/* =================================
+   Minimal Dark Qt Stylesheet
+   Flat colours / No borders
+   ================================= */
+
+/* Global */
+QWidget {
+    background-color: #17191D;
+    color: #E0E2E6;
+    font-family: &quot;Inter&quot;, &quot;Segoe UI&quot;, sans-serif;
+    font-size: 10pt;
+    border: none;
+}
+
+/* Main window */
+QMainWindow {
+    background-color: #17191D;
+}
+
+/* Labels */
+QLabel {
+    background: transparent;
+    color: #E0E2E6;
+}
+
+/* Buttons */
+QPushButton {
+    background-color: #30343C;
+    color: #E0E2E6;
+    border: none;
+    border-radius: 9px;
+    padding: 9px 16px;
+}
+
+QPushButton:hover {
+    background-color: #3A3F49;
+}
+
+QPushButton:pressed {
+    background-color: #454B57;
+}
+
+QPushButton:disabled {
+    background-color: #24272D;
+    color: #666C76;
+}
+
+/* Primary button */
+QPushButton#primaryButton {
+    background-color: #668DB8;
+    color: #FFFFFF;
+}
+
+QPushButton#primaryButton:hover {
+    background-color: #779BC3;
+}
+
+QPushButton#primaryButton:pressed {
+    background-color: #527BA6;
+}
+
+/* Input fields */
+QLineEdit,
+QTextEdit,
+QPlainTextEdit,
+QSpinBox,
+QDoubleSpinBox {
+    background-color: #24272D;
+    color: #E0E2E6;
+    border: none;
+    border-radius: 9px;
+    padding: 9px;
+    selection-background-color: #668DB8;
+    selection-color: #FFFFFF;
+}
+
+QLineEdit:focus,
+QTextEdit:focus,
+QPlainTextEdit:focus,
+QSpinBox:focus {
+    background-color: #2C3038;
+}
+
+/* Combo boxes */
+QComboBox {
+    background-color: #24272D;
+    color: #E0E2E6;
+    border: none;
+    border-radius: 9px;
+    padding: 9px 12px;
+}
+
+QComboBox:hover {
+    background-color: #30343C;
+}
+
+QComboBox QAbstractItemView {
+    background-color: #24272D;
+    color: #E0E2E6;
+    border: none;
+    selection-background-color: #363D48;
+    selection-color: #FFFFFF;
+    outline: none;
+}
+
+/* Checkboxes */
+QCheckBox {
+    spacing: 9px;
+    background: transparent;
+}
+
+QCheckBox::indicator {
+    width: 17px;
+    height: 17px;
+    border-radius: 5px;
+    border: none;
+    background-color: #363A43;
+}
+
+QCheckBox::indicator:checked {
+    background-color: #668DB8;
+}
+
+/* Radio buttons */
+QRadioButton {
+    spacing: 8px;
+    background: transparent;
+}
+
+QRadioButton::indicator {
+    width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    background-color: #363A43;
+}
+
+QRadioButton::indicator:checked {
+    background-color: #668DB8;
+}
+
+/* Group boxes */
+QGroupBox {
+    background-color: #22252B;
+    border: none;
+    border-radius: 12px;
+    margin-top: 16px;
+    padding: 14px;
+    font-weight: bold;
+}
+
+QGroupBox::title {
+    subcontrol-origin: margin;
+    left: 12px;
+    padding: 0 5px;
+    color: #AEB4BE;
+}
+
+/* Tabs */
+QTabWidget::pane {
+    background-color: #22252B;
+    border: none;
+    border-radius: 10px;
+}
+
+QTabBar::tab {
+    background-color: transparent;
+    color: #9299A4;
+    padding: 10px 16px;
+    margin-right: 4px;
+    border: none;
+    border-radius: 8px;
+}
+
+QTabBar::tab:selected {
+    background-color: #30343C;
+    color: #FFFFFF;
+}
+
+QTabBar::tab:hover {
+    background-color: #282C33;
+}
+
+/* Tables */
+QTableWidget,
+QTableView {
+    background-color: #22252B;
+    alternate-background-color: #272A31;
+    border: none;
+    border-radius: 10px;
+    gridline-color: transparent;
+    selection-background-color: #363D48;
+    selection-color: #FFFFFF;
+}
+
+QHeaderView::section {
+    background-color: #282C33;
+    color: #AEB4BE;
+    border: none;
+    padding: 10px;
+    font-weight: bold;
+}
+
+/* Sliders */
+QSlider::groove:horizontal {
+    background-color: #363A43;
+    height: 5px;
+    border: none;
+    border-radius: 2px;
+}
+
+QSlider::handle:horizontal {
+    background-color: #668DB8;
+    width: 15px;
+    height: 15px;
+    margin: -5px 0;
+    border: none;
+    border-radius: 7px;
+}
+
+/* Progress bars */
+QProgressBar {
+    background-color: #30343C;
+    border: none;
+    border-radius: 5px;
+    text-align: center;
+    height: 10px;
+    color: #FFFFFF;
+}
+
+QProgressBar::chunk {
+    background-color: #668DB8;
+    border: none;
+    border-radius: 5px;
+}
+
+/* Scrollbars */
+QScrollBar:vertical {
+    background-color: transparent;
+    width: 9px;
+    margin: 2px;
+}
+
+QScrollBar::handle:vertical {
+    background-color: #454B55;
+    border: none;
+    border-radius: 4px;
+    min-height: 30px;
+}
+
+QScrollBar::handle:vertical:hover {
+    background-color: #59616E;
+}
+
+QScrollBar::add-line:vertical,
+QScrollBar::sub-line:vertical {
+    height: 0px;
+    border: none;
+}
+
+QScrollBar::add-page:vertical,
+QScrollBar::sub-page:vertical {
+    background: transparent;
+}
+</string>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
-    <item>
-     <widget class="Line" name="line_8">
-      <property name="enabled">
-       <bool>true</bool>
-      </property>
-      <property name="frameShadow">
-       <enum>QFrame::Shadow::Sunken</enum>
-      </property>
-      <property name="lineWidth">
-       <number>1</number>
-      </property>
-      <property name="midLineWidth">
-       <number>0</number>
-      </property>
-      <property name="orientation">
-       <enum>Qt::Orientation::Horizontal</enum>
-      </property>
-     </widget>
-    </item>
     <item>
      <layout class="QHBoxLayout" name="horizontalLayout_2">
       <property name="leftMargin">
@@ -543,54 +792,6 @@
       <property name="bottomMargin">
        <number>10</number>
       </property>
-      <item>
-       <layout class="QVBoxLayout" name="leftMenu">
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>Library</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="Line" name="line_7">
-          <property name="orientation">
-           <enum>Qt::Orientation::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="pushButton">
-          <property name="text">
-           <string>Music</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="pushButton_2">
-          <property name="text">
-           <string>Podcasts</string>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <spacer name="verticalSpacer">
-          <property name="orientation">
-           <enum>Qt::Orientation::Vertical</enum>
-          </property>
-          <property name="sizeHint" stdset="0">
-           <size>
-            <width>20</width>
-            <height>40</height>
-           </size>
-          </property>
-         </spacer>
-        </item>
-       </layout>
-      </item>
       <item>
        <widget class="Line" name="line_2">
         <property name="orientation">
@@ -615,45 +816,11 @@
          </widget>
         </item>
         <item>
-         <widget class="QListView" name="libraryList"/>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="horizontalLayout">
-          <item>
-           <layout class="QHBoxLayout" name="libraryHeaderLayout">
-            <item>
-             <widget class="QComboBox" name="libraryCombo">
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Expanding" vsizetype="Fixed">
-                <horstretch>0</horstretch>
-                <verstretch>0</verstretch>
-               </sizepolicy>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="addLibraryButton">
-              <property name="toolTip">
-               <string>Add a new library.</string>
-              </property>
-              <property name="text">
-               <string>Add...</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QPushButton" name="rescanButton">
-              <property name="toolTip">
-               <string>Rescan the current library.</string>
-              </property>
-              <property name="text">
-               <string>Rescan</string>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
+         <widget class="QListView" name="libraryList">
+          <property name="alternatingRowColors">
+           <bool>true</bool>
+          </property>
+         </widget>
         </item>
        </layout>
       </item>
@@ -664,453 +831,6 @@
         </property>
        </widget>
       </item>
-      <item>
-       <layout class="QVBoxLayout" name="rightMenu">
-        <property name="sizeConstraint">
-         <enum>QLayout::SizeConstraint::SetDefaultConstraint</enum>
-        </property>
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <layout class="QVBoxLayout" name="rightMenuInternal">
-          <property name="leftMargin">
-           <number>0</number>
-          </property>
-          <item>
-           <widget class="QLabel" name="upcomingTracksLabel">
-            <property name="text">
-             <string>Upcoming Tracks</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="Line" name="line_5">
-            <property name="orientation">
-             <enum>Qt::Orientation::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QListView" name="upcomingTracksList">
-            <property name="maximumSize">
-             <size>
-              <width>256</width>
-              <height>16777215</height>
-             </size>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <layout class="QVBoxLayout" name="verticalLayout_2">
-            <property name="topMargin">
-             <number>20</number>
-            </property>
-            <item>
-             <widget class="QLabel" name="trackInfoLabel">
-              <property name="text">
-               <string>Track Information</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="Line" name="line_4">
-              <property name="orientation">
-               <enum>Qt::Orientation::Horizontal</enum>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="trackInfoTitle">
-              <property name="text">
-               <string>Title</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="trackInfoArtist">
-              <property name="text">
-               <string>Artist</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="trackInfoAlbumYear">
-              <property name="text">
-               <string>Album (Year)</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="trackInfoFile">
-              <property name="text">
-               <string>File Info</string>
-              </property>
-             </widget>
-            </item>
-            <item>
-             <widget class="QLabel" name="trackInfoCoverImg">
-              <property name="enabled">
-               <bool>true</bool>
-              </property>
-              <property name="sizePolicy">
-               <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
-                <horstretch>0</horstretch>
-                <verstretch>222</verstretch>
-               </sizepolicy>
-              </property>
-              <property name="minimumSize">
-               <size>
-                <width>128</width>
-                <height>128</height>
-               </size>
-              </property>
-              <property name="maximumSize">
-               <size>
-                <width>256</width>
-                <height>256</height>
-               </size>
-              </property>
-              <property name="cursor">
-               <cursorShape>PointingHandCursor</cursorShape>
-              </property>
-              <property name="text">
-               <string/>
-              </property>
-              <property name="pixmap">
-               <pixmap>musichive_colour.svg</pixmap>
-              </property>
-              <property name="scaledContents">
-               <bool>true</bool>
-              </property>
-              <property name="alignment">
-               <set>Qt::AlignmentFlag::AlignCenter</set>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <widget class="Line" name="line_3">
-      <property name="orientation">
-       <enum>Qt::Orientation::Horizontal</enum>
-      </property>
-     </widget>
-    </item>
-    <item>
-     <layout class="QHBoxLayout" name="controlsLayout">
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_3">
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QPushButton" name="previousButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>assets/prev.svg</normaloff>assets/prev.svg</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="playButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Maximum">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>assets/play.svg</normaloff>assets/play.svg</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="nextButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Maximum">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>0</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>assets/next.svg</normaloff>assets/next.svg</iconset>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer">
-        <property name="orientation">
-         <enum>Qt::Orientation::Horizontal</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Policy::Minimum</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="verticalLayout_3">
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <property name="topMargin">
-         <number>0</number>
-        </property>
-        <property name="bottomMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QLabel" name="currentTrackLabel">
-          <property name="minimumSize">
-           <size>
-            <width>300</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="font">
-           <font>
-            <family>Noto Sans</family>
-            <pointsize>12</pointsize>
-            <italic>false</italic>
-            <bold>true</bold>
-            <underline>false</underline>
-            <strikeout>false</strikeout>
-            <kerning>true</kerning>
-           </font>
-          </property>
-          <property name="text">
-           <string>Nothing playing</string>
-          </property>
-          <property name="alignment">
-           <set>Qt::AlignmentFlag::AlignCenter</set>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <layout class="QHBoxLayout" name="progressLayout">
-          <item>
-           <widget class="QLabel" name="currentTimeLabel">
-            <property name="toolTip">
-             <string>Current track time</string>
-            </property>
-            <property name="text">
-             <string>00:00</string>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QSlider" name="progressSlider">
-            <property name="orientation">
-             <enum>Qt::Orientation::Horizontal</enum>
-            </property>
-           </widget>
-          </item>
-          <item>
-           <widget class="QLabel" name="durationLabel">
-            <property name="toolTip">
-             <string>Track duration</string>
-            </property>
-            <property name="autoFillBackground">
-             <bool>false</bool>
-            </property>
-            <property name="text">
-             <string>00:00</string>
-            </property>
-            <property name="scaledContents">
-             <bool>false</bool>
-            </property>
-            <property name="textInteractionFlags">
-             <set>Qt::TextInteractionFlag::LinksAccessibleByMouse</set>
-            </property>
-           </widget>
-          </item>
-         </layout>
-        </item>
-       </layout>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer_2">
-        <property name="orientation">
-         <enum>Qt::Orientation::Horizontal</enum>
-        </property>
-        <property name="sizeType">
-         <enum>QSizePolicy::Policy::Minimum</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>20</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-      <item>
-       <layout class="QHBoxLayout" name="horizontalLayout_4">
-        <property name="leftMargin">
-         <number>0</number>
-        </property>
-        <item>
-         <widget class="QPushButton" name="volumeButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>assets/volume.svg</normaloff>assets/volume.svg</iconset>
-          </property>
-          <property name="shortcut">
-           <string>M</string>
-          </property>
-          <property name="checkable">
-           <bool>false</bool>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QSlider" name="volumeSlider">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="minimumSize">
-           <size>
-            <width>100</width>
-            <height>0</height>
-           </size>
-          </property>
-          <property name="maximumSize">
-           <size>
-            <width>100</width>
-            <height>16777215</height>
-           </size>
-          </property>
-          <property name="toolTip">
-           <string>50%</string>
-          </property>
-          <property name="toolTipDuration">
-           <number>-1</number>
-          </property>
-          <property name="maximum">
-           <number>100</number>
-          </property>
-          <property name="value">
-           <number>50</number>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Orientation::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="repeatButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>assets/repeat_all.svg</normaloff>assets/repeat_all.svg</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="shuffleButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>assets/shuffle.svg</normaloff>assets/shuffle.svg</iconset>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QPushButton" name="equalizerButton">
-          <property name="sizePolicy">
-           <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-            <horstretch>0</horstretch>
-            <verstretch>0</verstretch>
-           </sizepolicy>
-          </property>
-          <property name="text">
-           <string/>
-          </property>
-          <property name="icon">
-           <iconset>
-            <normaloff>assets/shuffle_off.svg</normaloff>assets/shuffle_off.svg</iconset>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </item>
      </layout>
     </item>
    </layout>
@@ -1119,17 +839,20 @@
    <property name="enabled">
     <bool>true</bool>
    </property>
+   <property name="autoFillBackground">
+    <bool>false</bool>
+   </property>
   </widget>
   <widget class="QMenuBar" name="menuBar_2">
    <property name="geometry">
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1064</width>
-     <height>23</height>
+     <width>1538</width>
+     <height>21</height>
     </rect>
    </property>
-   <widget class="QMenu" name="menu_File">
+   <widget class="QMenu" name="menuFile">
     <property name="title">
      <string>&amp;File</string>
     </property>
@@ -1138,7 +861,7 @@
     <addaction name="actionRemoveLibrary"/>
     <addaction name="actionQuit"/>
    </widget>
-   <widget class="QMenu" name="menu_Playback">
+   <widget class="QMenu" name="menuPlayback">
     <property name="title">
      <string>&amp;Playback</string>
     </property>
@@ -1146,37 +869,659 @@
     <addaction name="actionPrevious"/>
     <addaction name="actionNext"/>
    </widget>
-   <widget class="QMenu" name="menu_Help">
+   <widget class="QMenu" name="menuHelp">
     <property name="title">
      <string>&amp;Help</string>
     </property>
     <addaction name="actionAbout"/>
    </widget>
-   <widget class="QMenu" name="menu_Edit">
+   <widget class="QMenu" name="menuEdit">
     <property name="title">
      <string>&amp;Edit</string>
     </property>
    </widget>
-   <widget class="QMenu" name="menu_Tools">
+   <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>&amp;Tools</string>
     </property>
    </widget>
-   <widget class="QMenu" name="menu_View">
+   <widget class="QMenu" name="menuView">
     <property name="title">
      <string>&amp;View</string>
     </property>
    </widget>
-   <addaction name="menu_File"/>
-   <addaction name="menu_Edit"/>
-   <addaction name="menu_Playback"/>
-   <addaction name="menu_View"/>
-   <addaction name="menu_Tools"/>
-   <addaction name="menu_Help"/>
+   <addaction name="menuFile"/>
+   <addaction name="menuEdit"/>
+   <addaction name="menuPlayback"/>
+   <addaction name="menuView"/>
+   <addaction name="menuTools"/>
+   <addaction name="menuHelp"/>
+  </widget>
+  <widget class="QDockWidget" name="upcomingDock">
+   <property name="maximumSize">
+    <size>
+     <width>256</width>
+     <height>524287</height>
+    </size>
+   </property>
+   <property name="features">
+    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable</set>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::DockWidgetArea::RightDockWidgetArea</set>
+   </property>
+   <property name="windowTitle">
+    <string>Upcoming Tracks</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>2</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents">
+    <layout class="QVBoxLayout" name="verticalLayout_4">
+     <item>
+      <widget class="QListView" name="upcomingList"/>
+     </item>
+     <item>
+      <layout class="QVBoxLayout" name="verticalLayout_2">
+       <property name="topMargin">
+        <number>20</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="trackInfoLabel">
+         <property name="text">
+          <string>Track Information</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="Line" name="line_4">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="trackInfoTitle">
+         <property name="text">
+          <string>Title</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="trackInfoArtistAlbumArtist">
+         <property name="text">
+          <string>Artist</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="trackInfoAlbumYear">
+         <property name="text">
+          <string>Album (Year)</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="trackInfoFile">
+         <property name="text">
+          <string>File Info</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QLabel" name="trackInfoCoverImg">
+         <property name="enabled">
+          <bool>true</bool>
+         </property>
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
+           <horstretch>0</horstretch>
+           <verstretch>222</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="minimumSize">
+          <size>
+           <width>128</width>
+           <height>128</height>
+          </size>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>256</width>
+           <height>256</height>
+          </size>
+         </property>
+         <property name="baseSize">
+          <size>
+           <width>0</width>
+           <height>0</height>
+          </size>
+         </property>
+         <property name="cursor">
+          <cursorShape>PointingHandCursor</cursorShape>
+         </property>
+         <property name="text">
+          <string/>
+         </property>
+         <property name="pixmap">
+          <pixmap>musichive_colour.svg</pixmap>
+         </property>
+         <property name="scaledContents">
+          <bool>true</bool>
+         </property>
+         <property name="alignment">
+          <set>Qt::AlignmentFlag::AlignCenter</set>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="libraryDock">
+   <property name="maximumSize">
+    <size>
+     <width>512</width>
+     <height>524285</height>
+    </size>
+   </property>
+   <property name="features">
+    <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::DockWidgetArea::LeftDockWidgetArea</set>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="QWidget" name="libraryDockContents">
+    <layout class="QVBoxLayout" name="verticalLayout_5">
+     <item>
+      <layout class="QVBoxLayout" name="leftMenu">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="label">
+         <property name="styleSheet">
+          <string notr="true"/>
+         </property>
+         <property name="text">
+          <string>Library</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QComboBox" name="libraryCombo">
+         <property name="sizePolicy">
+          <sizepolicy hsizetype="Maximum" vsizetype="Fixed">
+           <horstretch>0</horstretch>
+           <verstretch>0</verstretch>
+          </sizepolicy>
+         </property>
+         <property name="maximumSize">
+          <size>
+           <width>256</width>
+           <height>16777215</height>
+          </size>
+         </property>
+         <property name="styleSheet">
+          <string notr="true"/>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout">
+         <item>
+          <layout class="QHBoxLayout" name="libraryHeaderLayout">
+           <item>
+            <widget class="QPushButton" name="addLibraryButton">
+             <property name="toolTip">
+              <string>Add a new library.</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>assets/plus.svg</normaloff>assets/plus.svg</iconset>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="rescanButton">
+             <property name="toolTip">
+              <string>Rescan the current library.</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>assets/refresh-cw.svg</normaloff>assets/refresh-cw.svg</iconset>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="Line" name="line_7">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton">
+         <property name="text">
+          <string>Music</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="pushButton_2">
+         <property name="text">
+          <string>Podcasts</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="verticalSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
+  </widget>
+  <widget class="QDockWidget" name="controlsWidget">
+   <property name="enabled">
+    <bool>true</bool>
+   </property>
+   <property name="features">
+    <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
+   </property>
+   <property name="allowedAreas">
+    <set>Qt::DockWidgetArea::BottomDockWidgetArea</set>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>8</number>
+   </attribute>
+   <widget class="QWidget" name="dockWidgetContents_3">
+    <layout class="QHBoxLayout" name="horizontalLayout_5">
+     <item>
+      <layout class="QHBoxLayout" name="controlsLayout">
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_3">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="previousButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>assets/skip-back.svg</normaloff>assets/skip-back.svg</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="playButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Maximum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>assets/play.svg</normaloff>assets/play.svg</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="nextButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Maximum">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>0</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>assets/skip-forward.svg</normaloff>assets/skip-forward.svg</iconset>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Maximum</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="verticalLayout_3">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="currentTrackLabel">
+           <property name="minimumSize">
+            <size>
+             <width>300</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="font">
+            <font>
+             <family>Inter</family>
+             <pointsize>10</pointsize>
+             <italic>false</italic>
+             <bold>true</bold>
+             <underline>false</underline>
+             <strikeout>false</strikeout>
+             <kerning>true</kerning>
+            </font>
+           </property>
+           <property name="text">
+            <string>Nothing playing</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="progressLayout">
+           <item>
+            <widget class="QLabel" name="currentTimeLabel">
+             <property name="font">
+              <font>
+               <family>JetBrains Mono</family>
+               <pointsize>9</pointsize>
+              </font>
+             </property>
+             <property name="toolTip">
+              <string>Current track time</string>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Global */
+QWidget {
+    background-color: transparent;
+    color: #ffffff;
+    font-family: &quot;JetBrains Mono&quot;, sans-serif;
+    font-size: 9pt;
+    border: none;
+}</string>
+             </property>
+             <property name="text">
+              <string>00:00</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QSlider" name="progressSlider">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="durationLabel">
+             <property name="font">
+              <font>
+               <family>JetBrains Mono</family>
+               <pointsize>9</pointsize>
+              </font>
+             </property>
+             <property name="toolTip">
+              <string>Track duration</string>
+             </property>
+             <property name="autoFillBackground">
+              <bool>false</bool>
+             </property>
+             <property name="styleSheet">
+              <string notr="true">/* Global */
+QWidget {
+    background-color: transparent;
+    color: #ffffff;
+    font-family: &quot;JetBrains Mono&quot;, sans-serif;
+    font-size: 9pt;
+    border: none;
+}</string>
+             </property>
+             <property name="text">
+              <string>00:00</string>
+             </property>
+             <property name="scaledContents">
+              <bool>false</bool>
+             </property>
+             <property name="textInteractionFlags">
+              <set>Qt::TextInteractionFlag::LinksAccessibleByMouse</set>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="horizontalSpacer_2">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeType">
+          <enum>QSizePolicy::Policy::Maximum</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>20</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="horizontalLayout_4">
+         <property name="leftMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QPushButton" name="volumeButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>50%</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>assets/volume-2.svg</normaloff>assets/volume-2.svg</iconset>
+           </property>
+           <property name="shortcut">
+            <string>M</string>
+           </property>
+           <property name="checkable">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QSlider" name="volumeSlider">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>100</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>100</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>50%</string>
+           </property>
+           <property name="toolTipDuration">
+            <number>-1</number>
+           </property>
+           <property name="maximum">
+            <number>100</number>
+           </property>
+           <property name="value">
+            <number>50</number>
+           </property>
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="repeatButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Change repeat mode.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>assets/repeat.svg</normaloff>assets/repeat.svg</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="shuffleButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Enable/disable shuffle.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>assets/shuffle.svg</normaloff>assets/shuffle.svg</iconset>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="equalizerButton">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="toolTip">
+            <string>Open equaliser menu.</string>
+           </property>
+           <property name="text">
+            <string/>
+           </property>
+           <property name="icon">
+            <iconset>
+             <normaloff>assets/sliders-vertical.svg</normaloff>assets/sliders-vertical.svg</iconset>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </widget>
   </widget>
   <action name="actionAddLibrary">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::ListAdd"/>
+    <iconset>
+     <normaloff>assets/plus.svg</normaloff>assets/plus.svg</iconset>
    </property>
    <property name="text">
     <string>Add Library...</string>
@@ -1193,7 +1538,8 @@
   </action>
   <action name="actionRescanLibrary">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::ViewRefresh"/>
+    <iconset>
+     <normaloff>assets/refresh-cw.svg</normaloff>assets/refresh-cw.svg</iconset>
    </property>
    <property name="text">
     <string>Rescan Libary</string>
@@ -1210,7 +1556,8 @@
   </action>
   <action name="actionRemoveLibrary">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::ListRemove"/>
+    <iconset>
+     <normaloff>assets/minus.svg</normaloff>assets/minus.svg</iconset>
    </property>
    <property name="text">
     <string>Remove Library...</string>
@@ -1224,7 +1571,8 @@
   </action>
   <action name="actionQuit">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::WindowClose"/>
+    <iconset>
+     <normaloff>assets/door-open.svg</normaloff>assets/door-open.svg</iconset>
    </property>
    <property name="text">
     <string>Quit</string>
@@ -1238,7 +1586,8 @@
   </action>
   <action name="actionPlayPause">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::MediaPlaybackStart"/>
+    <iconset>
+     <normaloff>assets/play.svg</normaloff>assets/play.svg</iconset>
    </property>
    <property name="text">
     <string>Play/Pause</string>
@@ -1255,7 +1604,8 @@
   </action>
   <action name="actionPrevious">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::MediaSkipBackward"/>
+    <iconset>
+     <normaloff>assets/skip-back.svg</normaloff>assets/skip-back.svg</iconset>
    </property>
    <property name="text">
     <string>Previous</string>
@@ -1272,7 +1622,8 @@
   </action>
   <action name="actionNext">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::MediaSkipForward"/>
+    <iconset>
+     <normaloff>assets/skip-forward.svg</normaloff>assets/skip-forward.svg</iconset>
    </property>
    <property name="text">
     <string>Next</string>
@@ -1289,7 +1640,8 @@
   </action>
   <action name="actionAbout">
    <property name="icon">
-    <iconset theme="QIcon::ThemeIcon::HelpAbout"/>
+    <iconset>
+     <normaloff>assets/info.svg</normaloff>assets/info.svg</iconset>
    </property>
    <property name="text">
     <string>About MusicHive</string>

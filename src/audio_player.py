@@ -36,6 +36,8 @@ class AudioPlayer(QObject):
         self._audio_output.setVolume(0.7)
 
         self._current_track: Path | None = None
+        # A position to jump to as soon as the loaded file is ready.
+        self._pending_seek: int | None = None
 
         self._player.playbackStateChanged.connect(self._on_state_changed)
         self._player.positionChanged.connect(self._on_position_changed)
@@ -67,9 +69,28 @@ class AudioPlayer(QObject):
             return False
 
         self._player.stop()
+        self._pending_seek = None
         self._current_track = track
         self._player.setSource(QUrl.fromLocalFile(str(track)))
         self._player.play()
+        self.track_started.emit(track)
+        return True
+
+    def load_file(self, path: str | Path, position_ms: int = 0) -> bool:
+        """Load `path` paused at `position_ms`, ready to resume with play().
+
+        Returns False (and emits error_occurred) if the file is missing.
+        """
+        track = Path(path)
+        if not track.is_file():
+            self.error_occurred.emit(f"File not found: {track.name}")
+            return False
+
+        self._player.stop()
+        self._current_track = track
+        self._pending_seek = position_ms if position_ms > 0 else None
+        self._player.setSource(QUrl.fromLocalFile(str(track)))
+        self._player.pause()
         self.track_started.emit(track)
         return True
 
@@ -94,6 +115,7 @@ class AudioPlayer(QObject):
     def unload(self) -> None:
         """Stop playback and forget the current track."""
         self._player.stop()
+        self._pending_seek = None
         self._player.setSource(QUrl())
         self._current_track = None
 
@@ -102,18 +124,27 @@ class AudioPlayer(QObject):
         self.unload()
 
     # ----- internal slots -----
+
+    def _on_state_changed(self, state: QMediaPlayer.PlaybackState) -> None:
+        self.state_changed.emit(_STATE_NAMES[state])
+
     def _on_position_changed(self, position_ms: int) -> None:
         self.position_changed.emit(int(position_ms))
 
     def _on_duration_changed(self, duration_ms: int) -> None:
         self.duration_changed.emit(int(duration_ms))
 
-    def _on_state_changed(self, state: QMediaPlayer.PlaybackState) -> None:
-        self.state_changed.emit(_STATE_NAMES[state])
-
     def _on_media_status_changed(self, status: QMediaPlayer.MediaStatus) -> None:
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
             self.track_finished.emit()
+        elif self._pending_seek is not None and status in (
+            QMediaPlayer.MediaStatus.LoadedMedia,
+            QMediaPlayer.MediaStatus.BufferedMedia,
+        ):
+            # The file is ready, so the saved position can be applied now.
+            position = self._pending_seek
+            self._pending_seek = None
+            self._player.setPosition(position)
 
     def _on_error(self, error: QMediaPlayer.Error, error_string: str) -> None:
         name = self._current_track.name if self._current_track else "track"

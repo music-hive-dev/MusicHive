@@ -13,7 +13,7 @@ from PySide6.QtCore import (
     Qt,
     QThreadPool,
 )
-from PySide6.QtGui import QIcon
+from PySide6.QtGui import QIcon, QImage
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -31,6 +31,8 @@ from src.library_db import LibraryInfo, SavedSession
 from src.library_scanner import ScanSignals, ScanTask
 from src.play_order import PlayOrder
 from src.track_list import QueueModel, TrackDelegate, TrackListModel
+from src.cover_view import SquareCover
+from src.track_metadata import read_track_details
 
 UI_FILE = Path(__file__).parent / "player.ui"
 ASSETS_DIR = Path(__file__).parent / "assets"
@@ -107,6 +109,7 @@ class MusicHive:
         self.player = AudioPlayer()
         self.settings = QSettings("MusicHive", "MusicHive")
 
+
         # Libraries
         self.libraries: list[LibraryInfo] = []
         self.current_library: LibraryInfo | None = None  # chosen in the drop-down
@@ -171,6 +174,16 @@ class MusicHive:
         self.update_repeat_button()
         w.repeatButton.clicked.connect(self.cycle_repeat)
 
+        # Track info panel (filled whenever a track starts playing)
+        self.cover_view = SquareCover(w.trackInfoCoverImg, asset_icon("eighth-notes"))
+        for label in (
+            w.trackInfoTitle,
+            w.trackInfoArtistAlbumArtist,
+            w.trackInfoAlbumYear,
+            w.trackInfoFile,
+        ):
+            label.setWordWrap(True)
+
         # Library selector and buttons
         w.libraryCombo.setPlaceholderText("No library yet")
         w.libraryCombo.activated.connect(self.on_library_chosen)
@@ -216,6 +229,7 @@ class MusicHive:
         self.scan_signals.cancelled.connect(self.on_scan_cancelled)
 
         self.on_state_changed("stopped")
+        self.clear_track_info()
         self.restore_libraries()
 
     def show(self) -> None:
@@ -356,6 +370,36 @@ class MusicHive:
 
     # ----- libraries -----
 
+    # ----- track info panel -----
+
+    def update_track_info(self, track: Path) -> None:
+        """Fill the track info panel from the file that just started playing."""
+        details = read_track_details(track)
+        w = self.window
+        w.trackInfoTitle.setText(details.title)
+        w.trackInfoArtistAlbumArtist.setText(details.artist_line)
+        w.trackInfoAlbumYear.setText(details.album_line)
+        w.trackInfoFile.setText(details.audio_format)
+        cover = QImage.fromData(details.cover) if details.cover else None
+        self.cover_view.set_image(cover)
+
+    def clear_track_info(self) -> None:
+        w = self.window
+        for label in (
+            w.trackInfoTitle,
+            w.trackInfoArtistAlbumArtist,
+            w.trackInfoAlbumYear,
+            w.trackInfoFile,
+        ):
+            label.clear()
+        self.cover_view.set_image(None)
+
+    def show_nothing_playing(self) -> None:
+        """Nothing is playing: reset the now-playing label and the info panel."""
+        self.window.currentTrackLabel.setText("Nothing playing")
+        self.clear_track_info()
+
+
     def restore_libraries(self) -> None:
         """At startup: fill the drop-down and reopen the last used library."""
         library_db.migrate_old_libraries()
@@ -400,7 +444,7 @@ class MusicHive:
         With `restore`, also put back the session saved when the app last quit.
         """
         self.player.unload()
-        self.window.currentTrackLabel.setText("Nothing playing")
+        self.show_nothing_playing()
         self.current_library = info
         self.loaded_library = None
 
@@ -506,7 +550,7 @@ class MusicHive:
             return
 
         self.player.unload()
-        self.window.currentTrackLabel.setText("Nothing playing")
+        self.show_nothing_playing()
         self.loaded_library = None  # its database is gone; nothing to save at quit
         self.tracks = []
         self.library_model.clear()
@@ -674,6 +718,7 @@ class MusicHive:
 
     def on_track_started(self, track: Path) -> None:
         self.window.currentTrackLabel.setText(track.stem)
+        self.update_track_info(track)
 
     def on_track_finished(self) -> None:
         row = self.play_order.next(ended_naturally=True)
@@ -714,7 +759,7 @@ class MusicHive:
         self.window.durationLabel.setText(format_time(duration_ms))
 
     def on_player_error(self, message: str) -> None:
-        self.window.currentTrackLabel.setText("Nothing playing")
+        self.show_nothing_playing()
         self.show_status(message)
 
 

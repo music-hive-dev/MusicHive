@@ -160,3 +160,94 @@ def _find_folder_cover(directory: str) -> str | None:
             if entry.stem.lower() == stem and entry.suffix.lower() in COVER_FILE_EXTENSIONS:
                 return str(entry)
     return None
+
+
+# ----- details for the track info panel -----
+
+_FORMAT_NAMES = {
+    "MP3": "MP3",
+    "FLAC": "FLAC",
+    "OggVorbis": "Ogg Vorbis",
+    "OggOpus": "Opus",
+    "OggFLAC": "Ogg FLAC",
+    "WAVE": "WAV",
+}
+
+
+@dataclass
+class TrackDetails:
+    """Everything the track info panel shows about one track."""
+
+    title: str
+    artist: str = ""
+    album_artist: str = ""
+    album: str = ""
+    year: str = ""
+    audio_format: str = ""  # e.g. "FLAC 44.1 kHz @ 906k Stereo"
+    cover: bytes | None = None  # the full-size cover image, as stored in the file
+
+    @property
+    def artist_line(self) -> str:
+        """Line two of the panel: artist (album artist), or whichever exists."""
+        if self.artist and self.album_artist:
+            return f"{self.artist} ({self.album_artist})"
+        return self.artist or self.album_artist
+
+    @property
+    def album_line(self) -> str:
+        """Line three of the panel: album (year), or whichever exists."""
+        line = self.album
+        if self.year:
+            line = f"{line} ({self.year})" if line else f"({self.year})"
+        return line
+
+
+def read_track_details(path: Path) -> TrackDetails:
+    """Read what the track info panel needs from one audio file."""
+    details = TrackDetails(title=path.stem)
+
+    try:
+        audio = MutagenFile(str(path))
+    except Exception:
+        audio = None
+
+    if audio is not None:
+        tags = audio.tags
+        details.title = _tag_text(tags, "TIT2", "title") or path.stem
+        details.artist = _tag_text(tags, "TPE1", "artist")
+        details.album_artist = _tag_text(tags, "TPE2", "albumartist", "album artist")
+        details.album = _tag_text(tags, "TALB", "album")
+        year = _tag_text(tags, "TDRC", "TYER", "date", "year")
+        details.year = year[:4] if year[:4].isdigit() else ""
+        details.audio_format = _describe_format(audio, path)
+        try:
+            details.cover = _embedded_cover(audio)
+        except Exception:
+            details.cover = None
+
+    if details.cover is None:
+        details.cover = _folder_cover(path.parent)
+
+    return details
+
+
+def _describe_format(audio, path: Path) -> str:
+    """For example "FLAC 44.1 kHz @ 906k Stereo". Unknown parts are left out."""
+    name = _FORMAT_NAMES.get(type(audio).__name__, path.suffix.lstrip(".").upper())
+    info = getattr(audio, "info", None)
+
+    parts = [name]
+    sample_rate = getattr(info, "sample_rate", 0)
+    if sample_rate:
+        parts.append(f"{sample_rate / 1000:g} kHz")
+    bitrate = getattr(info, "bitrate", 0)
+    if bitrate:
+        parts.append(f"@ {round(bitrate / 1000)}k")
+    channels = getattr(info, "channels", 0)
+    if channels:
+        parts.append(_channel_name(channels))
+    return " ".join(parts)
+
+
+def _channel_name(channels: int) -> str:
+    return {1: "Mono", 2: "Stereo", 6: "5.1", 8: "7.1"}.get(channels, f"{channels} ch")
