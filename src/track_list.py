@@ -83,6 +83,38 @@ class TrackListModel(QAbstractListModel):
             self._cover_images[key] = image
         return image
 
+class QueueModel(QAbstractListModel):
+    """The tracks in the order they will play, starting with the playing one.
+
+    It stores only library row numbers and reads everything else (title, tags,
+    cover) from the library model, so nothing is copied.
+    """
+
+    def __init__(self, library_model: TrackListModel, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._library = library_model
+        self._rows: list[int] = []
+        library_model.modelReset.connect(self._on_library_reset)
+
+    def set_rows(self, rows: list[int]) -> None:
+        """Show these library rows, in this order."""
+        self.beginResetModel()
+        self._rows = list(rows)
+        self.endResetModel()
+
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(self._rows)
+
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
+        if not index.isValid() or not 0 <= index.row() < len(self._rows):
+            return None
+        library_row = self._rows[index.row()]
+        return self._library.data(self._library.index(library_row), role)
+
+    def _on_library_reset(self) -> None:
+        # The library's rows were renumbered, so the old row numbers are stale.
+        self.set_rows([])
+
 
 class TrackDelegate(QStyledItemDelegate):
     """Paints a row as: [cover] Title / Artist – Album (Year)."""

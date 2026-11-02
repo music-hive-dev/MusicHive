@@ -27,15 +27,23 @@ from PySide6.QtWidgets import (
 
 from src import library_db
 from src.audio_player import AudioPlayer
-from src.library_db import LibraryInfo
+from src.library_db import LibraryInfo, SavedSession
 from src.library_scanner import ScanSignals, ScanTask
-from src.track_list import TrackDelegate, TrackListModel
+from src.play_order import PlayOrder
+from src.track_list import QueueModel, TrackDelegate, TrackListModel
 
 UI_FILE = Path(__file__).parent / "player.ui"
+ASSETS_DIR = Path(__file__).parent / "assets"
 
 # If the track is further in than this, Previous restarts it instead of
 # going back to the previous track.
 PREVIOUS_RESTART_THRESHOLD_MS = 5000
+
+REPEAT_STATUS = {
+    "off": "Repeat off",
+    "all": "Repeat all tracks",
+    "one": "Repeat current track",
+}
 
 
 def load_ui(path: Path):
@@ -63,6 +71,25 @@ def format_time(milliseconds: int) -> str:
     return f"{minutes}:{seconds:02d}"
 
 
+def asset_icon(name: str) -> QIcon:
+    """An icon from the assets folder: asset_icon("play") loads assets/play.svg."""
+    path = ASSETS_DIR / f"{name}.svg"
+    icon = QIcon(str(path))
+    if icon.isNull():
+        print(f"MusicHive: missing or unreadable icon: {path}", file=sys.stderr)
+    return icon
+
+
+def setup_track_view(view, model) -> None:
+    """Give a list view a model and the cover-and-two-lines row painter."""
+    view.setModel(model)
+    view.setItemDelegate(TrackDelegate(view))
+    view.setUniformItemSizes(True)
+    view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+    view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
+    view.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+
+
 class JumpToClickStyle(QProxyStyle):
     """Makes a left click on a slider's groove jump straight to that position."""
 
@@ -82,9 +109,13 @@ class MusicHive:
 
         # Libraries
         self.libraries: list[LibraryInfo] = []
-        self.current_library: LibraryInfo | None = None
-        self.tracks: list[Path] = []  # same order as the rows of the list
-        self.current_index = -1  # index into self.tracks, or -1 if none
+        self.current_library: LibraryInfo | None = None  # chosen in the drop-down
+        self.loaded_library: LibraryInfo | None = None  # whose tracks are shown
+        self.tracks: list[Path] = []  # same order as the rows of the library list
+        self.current_index = -1  # library row of the playing track, or -1 if none
+
+        # Which track plays next (normal order, shuffle, repeat)
+        self.play_order = PlayOrder()
 
         # Playback
         self.playback_state = "stopped"  # "playing", "paused" or "stopped"
@@ -99,6 +130,16 @@ class MusicHive:
 
         w = self.window
 
+
+        # Icons that change while the app runs. (The rest are set in Designer.)
+        self.icon_play = asset_icon("play")
+        self.icon_pause = asset_icon("pause")
+        self.repeat_icons = {
+            "off": asset_icon("repeat-off"),
+            "all": asset_icon("repeat"),
+            "one": asset_icon("repeat-1"),
+        }
+
         # Left-click on a slider bar jumps to that position (instead of nudging).
         self._slider_style = JumpToClickStyle()
         w.progressSlider.setStyle(self._slider_style)
@@ -106,13 +147,29 @@ class MusicHive:
 
         # Library list: a model holds the tracks, a delegate paints the rows.
         self.library_model = TrackListModel(w)
-        w.libraryList.setModel(self.library_model)
-        w.libraryList.setItemDelegate(TrackDelegate(w.libraryList))
-        w.libraryList.setUniformItemSizes(True)
-        w.libraryList.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
-        w.libraryList.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
-        w.libraryList.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        setup_track_view(w.libraryList, self.library_model)
         w.libraryList.doubleClicked.connect(self.play_item)
+
+        # Upcoming tracks: the playing track first, then the tracks that will
+        # follow it in play order. It reads its data from the library model.
+        self.queue_model = QueueModel(self.library_model, w)
+        setup_track_view(w.upcomingList, self.queue_model)
+        w.upcomingList.doubleClicked.connect(self.play_upcoming_item)
+        w.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, w.upcomingDock)
+        w.menuView.addAction(w.upcomingDock.toggleViewAction())
+
+        # Shuffle and repeat buttons (settings are remembered between sessions)
+        w.shuffleButton.setCheckable(True)
+        w.repeatButton.setCheckable(True)
+
+        shuffle_on = self.settings.value("shuffle", False, type=bool)
+        w.shuffleButton.setChecked(shuffle_on)
+        self.play_order.set_shuffle(shuffle_on)
+        w.shuffleButton.toggled.connect(self.on_shuffle_toggled)
+
+        self.play_order.set_repeat(self.settings.value("repeat", "off", type=str))
+        self.update_repeat_button()
+        w.repeatButton.clicked.connect(self.cycle_repeat)
 
         # Library selector and buttons
         w.libraryCombo.setPlaceholderText("No library yet")
@@ -165,10 +222,11 @@ class MusicHive:
         self.window.show()
 
     def shutdown(self) -> None:
-        """Stop background work and playback. Called when the app quits."""
+        """Save the session, stop background work and playback. Called on quit."""
         if self.scan_task is not None:
             self.scan_task.cancel()
-        self.scan_pool.waitForDone()
+        self.scan_pool.waitForDone()  # a scan must be finished before we save
+        self.save_session()
         self.player.shutdown()
 
     def show_status(self, text: str) -> None:
@@ -182,10 +240,125 @@ class MusicHive:
             "PySide6 and Qt Multimedia.",
         )
 
+    # ----- play order, shuffle and repeat -----
+
+    def refresh_upcoming(self) -> None:
+        """Show the playing track and the ones after it in the Upcoming list."""
+        self.queue_model.set_rows(self.play_order.upcoming_rows())
+        if self.queue_model.rowCount() > 0:
+            # The playing track is always the first row of the Upcoming list.
+            self.window.upcomingList.setCurrentIndex(self.queue_model.index(0, 0))
+            self.window.upcomingList.scrollToTop()
+
+    def reset_play_order(self) -> None:
+        """Nothing is playing: start a fresh play order for the current tracks."""
+        self.current_index = -1
+        self.play_order.reset(len(self.tracks))
+        self.refresh_upcoming()
+
+    def on_shuffle_toggled(self, enabled: bool) -> None:
+        self.play_order.set_shuffle(enabled)
+        self.settings.setValue("shuffle", enabled)
+        self.refresh_upcoming()
+        self.show_status("Shuffle on" if enabled else "Shuffle off")
+
+    def cycle_repeat(self) -> None:
+        """Repeat button: off -> all -> one -> off."""
+        modes = PlayOrder.REPEAT_MODES
+        mode = modes[(modes.index(self.play_order.repeat) + 1) % len(modes)]
+        self.play_order.set_repeat(mode)
+        self.settings.setValue("repeat", mode)
+        self.update_repeat_button()
+        self.show_status(REPEAT_STATUS[mode])
+
+    def update_repeat_button(self) -> None:
+        """Make the repeat button show the current mode."""
+        button = self.window.repeatButton
+        mode = self.play_order.repeat
+        button.setChecked(mode != "off")
+        button.setIcon(self.repeat_icons[mode])
+        button.setToolTip(REPEAT_STATUS[mode])
+
+    # ----- saving and restoring the session -----
+
+    def relative_path(self, path: Path) -> str:
+        """A track's path relative to the library folder, as stored in the database."""
+        return path.relative_to(self.loaded_library.root).as_posix()
+
+    def save_session(self) -> None:
+        """Remember the playing track, its position and the play order."""
+        library = self.loaded_library
+        if library is None:
+            return
+        try:
+            if 0 <= self.current_index < len(self.tracks):
+                order, order_position = self.play_order.snapshot()
+                library_db.save_session(
+                    library.db_path,
+                    SavedSession(
+                        rel_path=self.relative_path(self.tracks[self.current_index]),
+                        position_ms=self.position_ms,
+                        order=order,
+                        order_position=order_position,
+                    ),
+                )
+            else:
+                library_db.clear_session(library.db_path)
+        except (sqlite3.Error, OSError):
+            pass  # failing to save must never get in the way of quitting
+
+    def restore_session(self, info: LibraryInfo) -> bool:
+        """Put back what was playing when the app last quit, paused.
+
+        Returns False if there is nothing usable to restore.
+        """
+        try:
+            session = library_db.load_session(info.db_path)
+        except sqlite3.Error:
+            return False
+        if session is None or not self.tracks:
+            return False
+
+        # Normal case: the saved order still fits this library exactly.
+        row = -1
+        if self.play_order.restore(session.order, session.order_position):
+            row = self.play_order.current_row
+            if self.relative_path(self.tracks[row]) != session.rel_path:
+                row = -1
+
+        # Otherwise the library changed since then: keep the song if it still
+        # exists, and rebuild the order from it.
+        if row < 0:
+            self.play_order.reset(len(self.tracks))
+            row = next(
+                (
+                    index
+                    for index, path in enumerate(self.tracks)
+                    if self.relative_path(path) == session.rel_path
+                ),
+                -1,
+            )
+            if row < 0:
+                return False
+            self.play_order.start_at(row)
+
+        self.current_index = row
+        self.position_ms = session.position_ms
+        model_index = self.library_model.index(row)
+        self.window.libraryList.setCurrentIndex(model_index)
+        self.window.libraryList.scrollTo(model_index)
+        self.refresh_upcoming()
+
+        if not self.player.load_file(self.tracks[row], session.position_ms):
+            self.reset_play_order()  # the song file is gone
+            return False
+        return True
+
     # ----- libraries -----
 
     def restore_libraries(self) -> None:
         """At startup: fill the drop-down and reopen the last used library."""
+        library_db.migrate_old_libraries()
         libraries = library_db.list_libraries()
         ids = [library.id for library in libraries]
         last = self.settings.value("lastLibrary", "", type=str)
@@ -193,7 +366,7 @@ class MusicHive:
 
         self.refresh_libraries(select)
         if self.current_library is not None:
-            self.open_library(self.current_library)
+            self.open_library(self.current_library, restore=True)
         else:
             self.show_status("Add a library to get started (File → Add Library…)")
 
@@ -221,30 +394,36 @@ class MusicHive:
         if info is not None:
             self.open_library(info)
 
-    def open_library(self, info: LibraryInfo) -> None:
-        """Show a library's saved tracks (scanning first if it never was)."""
+    def open_library(self, info: LibraryInfo, restore: bool = False) -> None:
+        """Show a library's saved tracks (scanning first if it never was).
+
+        With `restore`, also put back the session saved when the app last quit.
+        """
         self.player.unload()
-        self.current_index = -1
         self.window.currentTrackLabel.setText("Nothing playing")
         self.current_library = info
+        self.loaded_library = None
 
         try:
             loaded = library_db.load_library(info)
         except sqlite3.Error as error:
             self.tracks = []
             self.library_model.clear()
+            self.reset_play_order()
             self.update_controls()
             self.show_status(f"Cannot read library '{info.name}': {error}")
             return
 
+        self.loaded_library = info
         self.tracks = loaded.paths
         self.library_model.set_library(loaded.paths, loaded.infos, loaded.covers)
+        self.reset_play_order()
         self.settings.setValue("lastLibrary", info.id)
         self.update_controls()
 
         if info.scanned_at is None:
             self.start_scan(info)
-        else:
+        elif not (restore and self.restore_session(info)):
             self.show_status(self.describe(info, len(self.tracks)))
 
     def reload_current_library(self) -> None:
@@ -263,15 +442,23 @@ class MusicHive:
             if 0 <= self.current_index < len(self.tracks)
             else None
         )
+        self.loaded_library = info
         self.tracks = loaded.paths
         self.library_model.set_library(loaded.paths, loaded.infos, loaded.covers)
+        self.play_order.reset(len(self.tracks))
 
-        # Keep Next/Previous working from the track that is still playing.
-        self.current_index = self.tracks.index(playing) if playing in self.tracks else -1
-        if self.current_index >= 0:
-            model_index = self.library_model.index(self.current_index)
+        # If the playing track is still there, rebuild the order from it so
+        # Next/Previous keep working; otherwise nothing is "playing" any more.
+        if playing in self.tracks:
+            row = self.tracks.index(playing)
+            self.play_order.start_at(row)
+            self.current_index = row
+            model_index = self.library_model.index(row)
             self.window.libraryList.setCurrentIndex(model_index)
             self.window.libraryList.scrollTo(model_index)
+        else:
+            self.current_index = -1
+        self.refresh_upcoming()
 
     def add_library(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.MusicLocation)
@@ -313,16 +500,17 @@ class MusicHive:
             return
 
         try:
-            library_db.remove_library(info.id)
+            library_db.remove_library(info)
         except OSError as error:
             QMessageBox.warning(self.window, "Cannot remove library", str(error))
             return
 
         self.player.unload()
-        self.current_index = -1
         self.window.currentTrackLabel.setText("Nothing playing")
+        self.loaded_library = None  # its database is gone; nothing to save at quit
         self.tracks = []
         self.library_model.clear()
+        self.reset_play_order()
         self.settings.remove("lastLibrary")
         self.refresh_libraries(select_id=None)
         self.show_status(f"Removed library '{info.name}'")
@@ -394,20 +582,29 @@ class MusicHive:
 
     # ----- choosing what to play -----
 
-    def play_index(self, index: int) -> None:
-        """Play the track at `index` in the list and highlight it."""
-        if not 0 <= index < len(self.tracks):
+    def play_index(self, row: int) -> None:
+        """Play library row `row`. The play order must already point at it."""
+        if not 0 <= row < len(self.tracks):
             return
-        self.current_index = index
+        self.current_index = row
         self.position_ms = 0
-        model_index = self.library_model.index(index)
+        model_index = self.library_model.index(row)
         self.window.libraryList.setCurrentIndex(model_index)
         self.window.libraryList.scrollTo(model_index)
-        self.player.play_file(self.tracks[index])
+        self.refresh_upcoming()
+        self.player.play_file(self.tracks[row])
 
     def play_item(self, model_index: QModelIndex) -> None:
-        """Called when the user double-clicks a song in the list."""
-        self.play_index(model_index.row())
+        """Called when the user double-clicks a song in the library list."""
+        row = model_index.row()
+        self.play_order.start_at(row)  # a fresh order, reshuffled if shuffle is on
+        self.play_index(row)
+
+    def play_upcoming_item(self, model_index: QModelIndex) -> None:
+        """Called when the user double-clicks a song in the Upcoming list."""
+        row = self.play_order.jump_to_upcoming(model_index.row())
+        if row >= 0:
+            self.play_index(row)
 
     def on_play_pause(self) -> None:
         """One button for both: pause while playing, resume while paused,
@@ -424,25 +621,33 @@ class MusicHive:
             if row < 0:
                 self.show_status("Choose a library with music first")
                 return
+            self.play_order.start_at(row)
             self.play_index(row)
 
     def play_next(self) -> None:
-        if self.current_index + 1 < len(self.tracks):
-            self.play_index(self.current_index + 1)
-        else:
+        if self.current_index < 0:
+            if self.tracks:  # nothing playing yet: start from the top
+                self.play_order.start_at(0)
+                self.play_index(0)
+            return
+        row = self.play_order.next()
+        if row is None:
             self.show_status("This is the last track")
+        else:
+            self.play_index(row)
 
     def play_previous(self) -> None:
         """Restart the track if it is well underway, otherwise go back one."""
         if self.current_index < 0:
             return
-        if (
-            self.position_ms > PREVIOUS_RESTART_THRESHOLD_MS
-            or self.current_index == 0
-        ):
+        if self.position_ms > PREVIOUS_RESTART_THRESHOLD_MS:
             self.player.seek(0)  # keeps the current play/pause state
+            return
+        row = self.play_order.previous()
+        if row is None:  # already at the start of the play order
+            self.player.seek(0)
         else:
-            self.play_index(self.current_index - 1)
+            self.play_index(row)
 
     # ----- seek slider -----
 
@@ -471,10 +676,11 @@ class MusicHive:
         self.window.currentTrackLabel.setText(track.stem)
 
     def on_track_finished(self) -> None:
-        if self.current_index + 1 < len(self.tracks):
-            self.play_index(self.current_index + 1)
-        else:
+        row = self.play_order.next(ended_naturally=True)
+        if row is None:
             self.show_status("Reached the end of the library")
+        else:
+            self.play_index(row)
 
     def on_state_changed(self, state: str) -> None:
         self.playback_state = state
@@ -482,13 +688,11 @@ class MusicHive:
 
         # The single transport button shows what clicking it will do.
         if state == "playing":
-            w.playButton.setText("Pause")
-            w.playButton.setIcon(QIcon.fromTheme("media-playback-pause"))
+            w.playButton.setIcon(self.icon_pause)
             w.playButton.setToolTip("Pause")
             self.show_status(f"Playing {w.currentTrackLabel.text()}")
         else:
-            w.playButton.setText("Play")
-            w.playButton.setIcon(QIcon.fromTheme("media-playback-start"))
+            w.playButton.setIcon(self.icon_play)
             w.playButton.setToolTip("Play")
             if state == "paused":
                 self.show_status("Paused")
