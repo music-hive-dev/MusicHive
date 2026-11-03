@@ -12,6 +12,7 @@ from PySide6.QtCore import (
     QStandardPaths,
     Qt,
     QThreadPool,
+    QTimer,
 )
 from PySide6.QtGui import QIcon, QImage
 from PySide6.QtUiTools import QUiLoader
@@ -20,6 +21,7 @@ from PySide6.QtWidgets import (
     QAbstractSlider,
     QApplication,
     QFileDialog,
+    QMenu,
     QMessageBox,
     QProxyStyle,
     QStyle,
@@ -27,11 +29,11 @@ from PySide6.QtWidgets import (
 
 from src import library_db
 from src.audio_player import AudioPlayer
+from src.cover_view import SquareCover
 from src.library_db import LibraryInfo, SavedSession
 from src.library_scanner import ScanSignals, ScanTask
 from src.play_order import PlayOrder
 from src.track_list import QueueModel, TrackDelegate, TrackListModel
-from src.cover_view import SquareCover
 from src.track_metadata import read_track_details
 
 UI_FILE = Path(__file__).parent / "player.ui"
@@ -46,6 +48,29 @@ REPEAT_STATUS = {
     "all": "Repeat all tracks",
     "one": "Repeat current track",
 }
+
+# Icon (a file name in assets/, without ".svg") for each context menu entry.
+MENU_ICONS = {
+    "play_now": "play",
+    "play_next": "list-start",
+    "add_to_queue": "list-plus",
+    "add_to_playlist": "list-music",
+    "edit": "pencil",
+    "delete_from_playlist": "x",
+    "delete_file": "trash",
+    "go_to": "library",
+    "remove_from_upcoming": "minus",
+    "end_after": "eject",
+}
+
+# "Go to" entries: (menu label, name of the TrackInfo field to match)
+GO_TO_FIELDS = (
+    ("Artist", "artist"),
+    ("Title", "title"),
+    ("Album", "album"),
+    ("Year", "year"),
+    ("Album artist", "album_artist"),
+)
 
 
 def load_ui(path: Path):
@@ -109,7 +134,6 @@ class MusicHive:
         self.player = AudioPlayer()
         self.settings = QSettings("MusicHive", "MusicHive")
 
-
         # Libraries
         self.libraries: list[LibraryInfo] = []
         self.current_library: LibraryInfo | None = None  # chosen in the drop-down
@@ -117,7 +141,7 @@ class MusicHive:
         self.tracks: list[Path] = []  # same order as the rows of the library list
         self.current_index = -1  # library row of the playing track, or -1 if none
 
-        # Which track plays next (normal order, shuffle, repeat)
+        # Which track plays next (play order, queue, shuffle, repeat)
         self.play_order = PlayOrder()
 
         # Playback
@@ -133,8 +157,7 @@ class MusicHive:
 
         w = self.window
 
-
-        # Icons that change while the app runs. (The rest are set in Designer.)
+        # Icons used from code. (The rest are set in Qt Designer.)
         self.icon_play = asset_icon("play")
         self.icon_pause = asset_icon("pause")
         self.repeat_icons = {
@@ -142,6 +165,7 @@ class MusicHive:
             "all": asset_icon("repeat"),
             "one": asset_icon("repeat-1"),
         }
+        self.menu_icons = {key: asset_icon(name) for key, name in MENU_ICONS.items()}
 
         # Left-click on a slider bar jumps to that position (instead of nudging).
         self._slider_style = JumpToClickStyle()
@@ -161,6 +185,23 @@ class MusicHive:
         w.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, w.upcomingDock)
         w.menuView.addAction(w.upcomingDock.toggleViewAction())
 
+        # Right-click menus on both lists
+        for view, in_upcoming in ((w.libraryList, False), (w.upcomingList, True)):
+            view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            view.customContextMenuRequested.connect(
+                lambda pos, v=view, up=in_upcoming: self.show_track_menu(v, pos, up)
+            )
+
+        # Track info panel (filled whenever a track starts playing)
+        self.cover_view = SquareCover(w.trackInfoCoverImg, asset_icon("eighth-notes"))
+        for label in (
+            w.trackInfoTitle,
+            w.trackInfoArtistAlbumArtist,
+            w.trackInfoAlbumYear,
+            w.trackInfoFile,
+        ):
+            label.setWordWrap(True)
+
         # Shuffle and repeat buttons (settings are remembered between sessions)
         w.shuffleButton.setCheckable(True)
         w.repeatButton.setCheckable(True)
@@ -173,16 +214,6 @@ class MusicHive:
         self.play_order.set_repeat(self.settings.value("repeat", "off", type=str))
         self.update_repeat_button()
         w.repeatButton.clicked.connect(self.cycle_repeat)
-
-        # Track info panel (filled whenever a track starts playing)
-        self.cover_view = SquareCover(w.trackInfoCoverImg, asset_icon("eighth-notes"))
-        for label in (
-            w.trackInfoTitle,
-            w.trackInfoArtistAlbumArtist,
-            w.trackInfoAlbumYear,
-            w.trackInfoFile,
-        ):
-            label.setWordWrap(True)
 
         # Library selector and buttons
         w.libraryCombo.setPlaceholderText("No library yet")
@@ -254,15 +285,58 @@ class MusicHive:
             "PySide6 and Qt Multimedia.",
         )
 
+    # ----- track info panel -----
+
+    def update_track_info(self, track: Path) -> None:
+        """Fill the track info panel from the file that just started playing."""
+        details = read_track_details(track)
+        w = self.window
+        w.trackInfoTitle.setText(details.title)
+        w.trackInfoArtistAlbumArtist.setText(details.artist_line)
+        w.trackInfoAlbumYear.setText(details.album_line)
+        w.trackInfoFile.setText(details.audio_format)
+        cover = QImage.fromData(details.cover) if details.cover else None
+        self.cover_view.set_image(cover)
+
+    def clear_track_info(self) -> None:
+        w = self.window
+        for label in (
+            w.trackInfoTitle,
+            w.trackInfoArtistAlbumArtist,
+            w.trackInfoAlbumYear,
+            w.trackInfoFile,
+        ):
+            label.clear()
+        self.cover_view.set_image(None)
+
+    def show_nothing_playing(self) -> None:
+        """Nothing is playing: reset the now-playing label and the info panel."""
+        self.window.currentTrackLabel.setText("Nothing playing")
+        self.clear_track_info()
+
     # ----- play order, shuffle and repeat -----
 
-    def refresh_upcoming(self) -> None:
-        """Show the playing track and the ones after it in the Upcoming list."""
-        self.queue_model.set_rows(self.play_order.upcoming_rows())
+    def refresh_upcoming(self, keep_scroll: bool = False) -> None:
+        """Show the playing track and the ones after it in the Upcoming list.
+
+        With `keep_scroll`, the list stays where it was scrolled to (used when
+        the user edits the queue); otherwise it goes back to the top.
+        """
+        view = self.window.upcomingList
+        scroll_bar = view.verticalScrollBar()
+        scroll = scroll_bar.value()
+
+        self.queue_model.set_rows(
+            self.play_order.upcoming_rows(), self.play_order.stop_after_offset()
+        )
         if self.queue_model.rowCount() > 0:
             # The playing track is always the first row of the Upcoming list.
-            self.window.upcomingList.setCurrentIndex(self.queue_model.index(0, 0))
-            self.window.upcomingList.scrollToTop()
+            view.setCurrentIndex(self.queue_model.index(0, 0))
+
+        if keep_scroll:
+            QTimer.singleShot(0, lambda: scroll_bar.setValue(scroll))
+        else:
+            view.scrollToTop()
 
     def reset_play_order(self) -> None:
         """Nothing is playing: start a fresh play order for the current tracks."""
@@ -293,6 +367,208 @@ class MusicHive:
         button.setIcon(self.repeat_icons[mode])
         button.setToolTip(REPEAT_STATUS[mode])
 
+    # ----- right-click menu -----
+
+    def show_track_menu(self, view, pos, in_upcoming: bool) -> None:
+        """Right-click menu for a song in the library list or the Upcoming list."""
+        index = view.indexAt(pos)
+        if not index.isValid():
+            return
+        if in_upcoming:
+            offset = index.row()  # places down the Upcoming list (0 = playing)
+            row = self.queue_model.library_row(index)
+        else:
+            offset = -1
+            row = index.row()
+        info = self.library_model.info(row)
+        if info is None or not 0 <= row < len(self.tracks):
+            return
+
+        scanning = self.scan_task is not None
+        menu = QMenu(view)
+        menu.setToolTipsVisible(True)
+
+        def add(target, label, icon_key, callback, enabled=True, tip=""):
+            action = target.addAction(self.menu_icons.get(icon_key, QIcon()), label)
+            action.setEnabled(enabled)
+            if tip:
+                action.setToolTip(tip)
+            action.triggered.connect(lambda _checked=False: callback())
+            return action
+
+        add(menu, "Play now", "play_now", lambda: self.play_now(row, offset))
+        add(menu, "Play next", "play_next", lambda: self.queue_track(row, play_next=True))
+        add(menu, "Add to queue", "add_to_queue", lambda: self.queue_track(row, play_next=False))
+        add(
+            menu, "Add to playlist…", "add_to_playlist", lambda: None,
+            enabled=False, tip="Playlists are not available yet",
+        )
+        menu.addSeparator()
+        add(menu, "Edit…", "edit", lambda: None, enabled=False, tip="Not available yet")
+        add(
+            menu, "Delete from playlist", "delete_from_playlist", lambda: None,
+            enabled=False, tip="Playlists are not available yet",
+        )
+        add(
+            menu, "Delete file", "delete_file", lambda: self.delete_file(row),
+            enabled=not scanning,
+            tip="Wait for the scan to finish" if scanning else "",
+        )
+        menu.addSeparator()
+
+        go_menu = menu.addMenu(self.menu_icons["go_to"], "Go to")
+        go_menu.setToolTipsVisible(True)
+        for label, field in GO_TO_FIELDS:
+            has_value = field == "title" or bool(getattr(info, field))
+            add(
+                go_menu, label, None, lambda f=field: self.go_to(row, f),
+                enabled=has_value,
+                tip="" if has_value else "This track has no such tag (rescan to read new ones)",
+            )
+        add(go_menu, "Genre", None, lambda: None, enabled=False, tip="Genre is not stored yet")
+
+        if in_upcoming:
+            menu.addSeparator()
+            add(
+                menu, "Remove from upcoming", "remove_from_upcoming",
+                lambda: self.remove_from_upcoming(offset),
+                enabled=offset > 0,
+                tip="" if offset > 0 else "The playing track cannot be removed",
+            )
+            marked = self.play_order.stop_after_offset() == offset
+            add(
+                menu,
+                "Don't end playback after track" if marked else "End playback after track",
+                "end_after",
+                lambda: self.toggle_stop_after(offset),
+            )
+
+        menu.exec(view.viewport().mapToGlobal(pos))
+
+        if in_upcoming and self.queue_model.rowCount() > 0:
+            # The highlight in the Upcoming list marks the playing track.
+            view.setCurrentIndex(self.queue_model.index(0, 0))
+
+    def play_now(self, row: int, upcoming_offset: int = -1) -> None:
+        """Play a song. From the Upcoming list (offset >= 0) the order is kept;
+        from the library list (offset -1) a fresh order starts at `row`."""
+        if upcoming_offset >= 0:
+            row = self.play_order.jump_to_upcoming(upcoming_offset)
+            if row < 0:
+                return
+        else:
+            self.play_order.start_at(row)
+        self.play_index(row)
+
+    def queue_track(self, row: int, play_next: bool) -> None:
+        """Play next / Add to queue."""
+        title = self.library_model.info(row).title
+        if self.current_index < 0:
+            # Nothing is playing, so there is nothing to queue behind.
+            self.play_order.start_at(row)
+            self.play_index(row)
+            return
+        if play_next:
+            self.play_order.play_next(row)
+            self.show_status(f"Playing next: {title}")
+        else:
+            self.play_order.add_to_queue(row)
+            self.show_status(f"Added to queue: {title}")
+        self.refresh_upcoming(keep_scroll=True)
+
+    def remove_from_upcoming(self, offset: int) -> None:
+        if self.play_order.remove_upcoming(offset):
+            self.refresh_upcoming(keep_scroll=True)
+
+    def toggle_stop_after(self, offset: int) -> None:
+        enabled = self.play_order.toggle_stop_after(offset)
+        self.refresh_upcoming(keep_scroll=True)
+        if enabled:
+            self.show_status("Playback will end after that track")
+        else:
+            self.show_status("Playback will no longer end after that track")
+
+    def go_to(self, row: int, field: str) -> None:
+        """Select, in the library list, the first track sharing `field` with `row`."""
+        library = self.library_model
+        if field == "title":
+            target = row
+        else:
+            value = getattr(library.info(row), field)
+            target = next(
+                (
+                    candidate
+                    for candidate in range(library.rowCount())
+                    if getattr(library.info(candidate), field) == value
+                ),
+                -1,
+            )
+        if target < 0:
+            return
+        model_index = library.index(target)
+        view = self.window.libraryList
+        view.setCurrentIndex(model_index)
+        view.scrollTo(model_index, QAbstractItemView.ScrollHint.PositionAtTop)
+        view.setFocus()
+        self.show_status(f"Went to '{library.info(target).title}'")
+
+    def delete_file(self, row: int) -> None:
+        """Move a track's file to the Trash (after asking) and drop it from the library."""
+        library = self.loaded_library
+        if library is None or not 0 <= row < len(self.tracks):
+            return
+        path = self.tracks[row]
+        title = self.library_model.info(row).title
+
+        answer = QMessageBox.question(
+            self.window,
+            "Delete file",
+            f"Move this file to the Trash?\n\n{path}",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+
+        if path.exists():
+            result = QFile.moveToTrash(str(path))
+            trashed = result[0] if isinstance(result, tuple) else bool(result)
+            if not trashed:
+                answer = QMessageBox.question(
+                    self.window,
+                    "Trash not available",
+                    f"'{path.name}' could not be moved to the Trash.\n\n"
+                    "Delete it permanently instead? This cannot be undone.",
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No,
+                )
+                if answer != QMessageBox.StandardButton.Yes:
+                    return
+                try:
+                    path.unlink()
+                except OSError as error:
+                    QMessageBox.warning(self.window, "Cannot delete file", str(error))
+                    return
+
+        try:
+            library_db.remove_track(library.db_path, self.relative_path(path))
+        except sqlite3.Error:
+            pass  # the next rescan will bring the library data up to date
+
+        was_playing = row == self.current_index
+        del self.tracks[row]
+        self.library_model.remove_row(row)
+        if was_playing:
+            self.player.unload()
+            self.show_nothing_playing()
+            self.reset_play_order()
+        else:
+            self.play_order.library_row_removed(row)
+            if self.current_index > row:
+                self.current_index -= 1
+            self.refresh_upcoming(keep_scroll=True)
+        self.show_status(f"Deleted '{title}'")
+
     # ----- saving and restoring the session -----
 
     def relative_path(self, path: Path) -> str:
@@ -300,20 +576,22 @@ class MusicHive:
         return path.relative_to(self.loaded_library.root).as_posix()
 
     def save_session(self) -> None:
-        """Remember the playing track, its position and the play order."""
+        """Remember the playing track, its position, the play order and the queue."""
         library = self.loaded_library
         if library is None:
             return
         try:
             if 0 <= self.current_index < len(self.tracks):
-                order, order_position = self.play_order.snapshot()
+                rows, queued, order_position, stop_index = self.play_order.snapshot()
                 library_db.save_session(
                     library.db_path,
                     SavedSession(
                         rel_path=self.relative_path(self.tracks[self.current_index]),
                         position_ms=self.position_ms,
-                        order=order,
+                        order=rows,
                         order_position=order_position,
+                        queued=queued,
+                        stop_after_index=stop_index,
                     ),
                 )
             else:
@@ -333,9 +611,15 @@ class MusicHive:
         if session is None or not self.tracks:
             return False
 
-        # Normal case: the saved order still fits this library exactly.
+        queued = session.queued
+        if len(queued) != len(session.order):
+            queued = [False] * len(session.order)
+
+        # Normal case: the saved order still fits this library.
         row = -1
-        if self.play_order.restore(session.order, session.order_position):
+        if self.play_order.restore(
+            session.order, queued, session.order_position, session.stop_after_index
+        ):
             row = self.play_order.current_row
             if self.relative_path(self.tracks[row]) != session.rel_path:
                 row = -1
@@ -356,49 +640,22 @@ class MusicHive:
                 return False
             self.play_order.start_at(row)
 
+        return self.load_track_paused(row, session.position_ms)
+
+    def load_track_paused(self, row: int, position_ms: int = 0) -> bool:
+        """Make `row` the current track, loaded but paused at `position_ms`."""
         self.current_index = row
-        self.position_ms = session.position_ms
+        self.position_ms = position_ms
         model_index = self.library_model.index(row)
         self.window.libraryList.setCurrentIndex(model_index)
         self.window.libraryList.scrollTo(model_index)
         self.refresh_upcoming()
-
-        if not self.player.load_file(self.tracks[row], session.position_ms):
+        if not self.player.load_file(self.tracks[row], position_ms):
             self.reset_play_order()  # the song file is gone
             return False
         return True
 
     # ----- libraries -----
-
-    # ----- track info panel -----
-
-    def update_track_info(self, track: Path) -> None:
-        """Fill the track info panel from the file that just started playing."""
-        details = read_track_details(track)
-        w = self.window
-        w.trackInfoTitle.setText(details.title)
-        w.trackInfoArtistAlbumArtist.setText(details.artist_line)
-        w.trackInfoAlbumYear.setText(details.album_line)
-        w.trackInfoFile.setText(details.audio_format)
-        cover = QImage.fromData(details.cover) if details.cover else None
-        self.cover_view.set_image(cover)
-
-    def clear_track_info(self) -> None:
-        w = self.window
-        for label in (
-            w.trackInfoTitle,
-            w.trackInfoArtistAlbumArtist,
-            w.trackInfoAlbumYear,
-            w.trackInfoFile,
-        ):
-            label.clear()
-        self.cover_view.set_image(None)
-
-    def show_nothing_playing(self) -> None:
-        """Nothing is playing: reset the now-playing label and the info panel."""
-        self.window.currentTrackLabel.setText("Nothing playing")
-        self.clear_track_info()
-
 
     def restore_libraries(self) -> None:
         """At startup: fill the drop-down and reopen the last used library."""
@@ -640,15 +897,11 @@ class MusicHive:
 
     def play_item(self, model_index: QModelIndex) -> None:
         """Called when the user double-clicks a song in the library list."""
-        row = model_index.row()
-        self.play_order.start_at(row)  # a fresh order, reshuffled if shuffle is on
-        self.play_index(row)
+        self.play_now(model_index.row())
 
     def play_upcoming_item(self, model_index: QModelIndex) -> None:
         """Called when the user double-clicks a song in the Upcoming list."""
-        row = self.play_order.jump_to_upcoming(model_index.row())
-        if row >= 0:
-            self.play_index(row)
+        self.play_now(-1, upcoming_offset=model_index.row())
 
     def on_play_pause(self) -> None:
         """One button for both: pause while playing, resume while paused,
@@ -721,9 +974,13 @@ class MusicHive:
         self.update_track_info(track)
 
     def on_track_finished(self) -> None:
+        stop_here = self.play_order.take_stop_after()
         row = self.play_order.next(ended_naturally=True)
         if row is None:
             self.show_status("Reached the end of the library")
+        elif stop_here:
+            # "End playback after track": the next track waits, paused.
+            self.load_track_paused(row)
         else:
             self.play_index(row)
 

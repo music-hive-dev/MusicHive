@@ -1,4 +1,5 @@
-"""The library list: a model for the current library and a row painter."""
+"""The track lists: a model for the library, one for the Upcoming list, and a
+row painter shared by both."""
 
 from pathlib import Path
 
@@ -13,6 +14,10 @@ from PySide6.QtWidgets import (
 
 from src.track_metadata import TrackInfo
 
+ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
+PLACEHOLDER_ICON = ASSETS_DIR / "eighth-notes.svg"  # shown when a track has no cover
+STOP_AFTER_ICON = ASSETS_DIR / "eject.svg"  # marks the track playback will end after
+
 
 class TrackListModel(QAbstractListModel):
     """Holds the tracks of the current library, as loaded from its database."""
@@ -20,6 +25,7 @@ class TrackListModel(QAbstractListModel):
     TitleRole = Qt.ItemDataRole.UserRole + 1
     SubtitleRole = Qt.ItemDataRole.UserRole + 2
     CoverRole = Qt.ItemDataRole.UserRole + 3
+    StopAfterRole = Qt.ItemDataRole.UserRole + 4  # only the Upcoming list uses it
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -46,6 +52,19 @@ class TrackListModel(QAbstractListModel):
 
     def clear(self) -> None:
         self.set_library([], [], {})
+
+    def info(self, row: int) -> TrackInfo | None:
+        """The tags of the track in `row`, or None if there is no such row."""
+        return self._infos[row] if 0 <= row < len(self._infos) else None
+
+    def remove_row(self, row: int) -> None:
+        """Remove one track from the list (its file was deleted)."""
+        if not 0 <= row < len(self._paths):
+            return
+        self.beginRemoveRows(QModelIndex(), row, row)
+        del self._paths[row]
+        del self._infos[row]
+        self.endRemoveRows()
 
     # ----- QAbstractListModel -----
 
@@ -83,6 +102,7 @@ class TrackListModel(QAbstractListModel):
             self._cover_images[key] = image
         return image
 
+
 class QueueModel(QAbstractListModel):
     """The tracks in the order they will play, starting with the playing one.
 
@@ -94,21 +114,31 @@ class QueueModel(QAbstractListModel):
         super().__init__(parent)
         self._library = library_model
         self._rows: list[int] = []
+        self._stop_after = -1  # row of this list playback ends after, or -1
         library_model.modelReset.connect(self._on_library_reset)
 
-    def set_rows(self, rows: list[int]) -> None:
+    def set_rows(self, rows: list[int], stop_after: int = -1) -> None:
         """Show these library rows, in this order."""
         self.beginResetModel()
         self._rows = list(rows)
+        self._stop_after = stop_after
         self.endResetModel()
+
+    def library_row(self, index: QModelIndex) -> int:
+        """The library row shown at `index`, or -1."""
+        if not index.isValid() or not 0 <= index.row() < len(self._rows):
+            return -1
+        return self._rows[index.row()]
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._rows)
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
-        if not index.isValid() or not 0 <= index.row() < len(self._rows):
+        library_row = self.library_row(index)
+        if library_row < 0:
             return None
-        library_row = self._rows[index.row()]
+        if role == TrackListModel.StopAfterRole:
+            return index.row() == self._stop_after
         return self._library.data(self._library.index(library_row), role)
 
     def _on_library_reset(self) -> None:
@@ -122,6 +152,12 @@ class TrackDelegate(QStyledItemDelegate):
     COVER_SIZE = 48
     PADDING = 6
     TEXT_GAP = 10
+    MARKER_SIZE = 16
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._placeholder = QIcon(str(PLACEHOLDER_ICON))
+        self._stop_icon = QIcon(str(STOP_AFTER_ICON))
 
     def sizeHint(self, option, index) -> QSize:
         return QSize(200, self.COVER_SIZE + 2 * self.PADDING)
@@ -137,10 +173,11 @@ class TrackDelegate(QStyledItemDelegate):
         style.drawControl(QStyle.ControlElement.CE_ItemViewItem, opt, painter, widget)
 
         selected = bool(opt.state & QStyle.StateFlag.State_Selected)
+        stop_after = bool(index.data(TrackListModel.StopAfterRole))
         rect = option.rect
         pad = self.PADDING
 
-        # Cover, or a generic music icon when there is none
+        # Cover, or a placeholder when there is none
         cover_rect = QRect(rect.left() + pad, rect.top() + pad, self.COVER_SIZE, self.COVER_SIZE)
         cover = index.data(TrackListModel.CoverRole)
 
@@ -148,16 +185,26 @@ class TrackDelegate(QStyledItemDelegate):
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if isinstance(cover, QImage):
             painter.drawImage(cover_rect, cover)
+        elif not self._placeholder.isNull():
+            self._placeholder.paint(painter, cover_rect)
         else:
-            icon = QIcon.fromTheme("audio-x-generic")
-            if icon.isNull():
-                painter.fillRect(cover_rect, option.palette.mid())
-            else:
-                icon.paint(painter, cover_rect)
+            painter.fillRect(cover_rect, option.palette.mid())
+
+        # "Playback ends after this track" marker, at the right edge
+        right_pad = pad
+        if stop_after:
+            marker_rect = QRect(
+                rect.right() - pad - self.MARKER_SIZE + 1,
+                rect.center().y() - self.MARKER_SIZE // 2,
+                self.MARKER_SIZE,
+                self.MARKER_SIZE,
+            )
+            self._stop_icon.paint(painter, marker_rect)
+            right_pad = pad + self.MARKER_SIZE + self.TEXT_GAP
 
         # Text to the right of the cover
         text_left = cover_rect.right() + 1 + self.TEXT_GAP
-        text_width = max(0, rect.right() - pad - text_left + 1)
+        text_width = max(0, rect.right() - right_pad - text_left + 1)
         half = self.COVER_SIZE // 2
 
         color_role = option.palette.ColorRole.HighlightedText if selected else option.palette.ColorRole.Text

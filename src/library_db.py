@@ -11,13 +11,13 @@ import os
 import shutil
 import sqlite3
 from contextlib import contextmanager
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from src.track_metadata import TrackInfo
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 DB_NAME = "musichive.db"
 DATA_DIR_NAME = ".musichive"
 
@@ -35,6 +35,7 @@ CREATE TABLE tracks (
     rel_path     TEXT NOT NULL UNIQUE,
     title        TEXT NOT NULL,
     artist       TEXT NOT NULL,
+    album_artist TEXT NOT NULL DEFAULT '',
     album        TEXT NOT NULL,
     year         TEXT NOT NULL,
     track_number INTEGER,
@@ -76,8 +77,10 @@ class LoadedLibrary:
 class SavedSession:
     rel_path: str  # the playing track, relative to the library root
     position_ms: int  # how far into the track
-    order: list[int]  # the whole play order, as library rows
+    order: list[int]  # library rows in play order (a row can appear more than once)
     order_position: int  # where the playing track is within `order`
+    queued: list[bool] = field(default_factory=list)  # which entries the user queued
+    stop_after_index: int = -1  # entry playback ends after, or -1
 
 
 # ----- where things live -----
@@ -135,9 +138,24 @@ def connect(db_path: Path):
     """Open a short-lived connection. Each thread opens its own."""
     conn = sqlite3.connect(db_path, timeout=10)
     try:
+        _upgrade_schema(conn)
         yield conn
     finally:
         conn.close()
+
+
+def _upgrade_schema(conn: sqlite3.Connection) -> None:
+    """Bring a database made by an older version up to the current schema."""
+    version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if version == 1:
+        try:
+            with conn:
+                conn.execute(
+                    "ALTER TABLE tracks ADD COLUMN album_artist TEXT NOT NULL DEFAULT ''"
+                )
+                conn.execute("PRAGMA user_version = 2")
+        except sqlite3.OperationalError:
+            pass  # another connection upgraded it at the same moment
 
 
 # ----- libraries -----
@@ -275,15 +293,28 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
     infos: list[TrackInfo] = []
     with connect(info.db_path) as conn:
         rows = conn.execute(
-            "SELECT rel_path, title, artist, album, year, track_number, "
-            "disc_number, duration_ms, cover_key FROM tracks ORDER BY position"
+            "SELECT rel_path, title, artist, album_artist, album, year, "
+            "track_number, disc_number, duration_ms, cover_key "
+            "FROM tracks ORDER BY position"
         )
-        for rel_path, title, artist, album, year, track, disc, duration, cover_key in rows:
+        for (
+            rel_path,
+            title,
+            artist,
+            album_artist,
+            album,
+            year,
+            track,
+            disc,
+            duration,
+            cover_key,
+        ) in rows:
             paths.append(info.root / rel_path)
             infos.append(
                 TrackInfo(
                     title=title,
                     artist=artist,
+                    album_artist=album_artist,
                     album=album,
                     year=year,
                     track_number=track,
@@ -312,6 +343,7 @@ def save_scan(
             track.rel_path,
             track.info.title,
             track.info.artist,
+            track.info.album_artist,
             track.info.album,
             track.info.year,
             track.info.track_number,
@@ -332,14 +364,26 @@ def save_scan(
                 covers.items(),
             )
             conn.executemany(
-                "INSERT INTO tracks (position, rel_path, title, artist, album, "
-                "year, track_number, disc_number, duration_ms, file_size, "
-                "modified, cover_key) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "INSERT INTO tracks (position, rel_path, title, artist, "
+                "album_artist, album, year, track_number, disc_number, "
+                "duration_ms, file_size, modified, cover_key) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows,
             )
             conn.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES ('scanned_at', ?)",
                 (datetime.now().isoformat(timespec="seconds"),),
+            )
+
+
+def remove_track(db_path: Path, rel_path: str) -> None:
+    """Drop one track from a library (after its file was deleted)."""
+    with connect(db_path) as conn:
+        with conn:
+            conn.execute("DELETE FROM tracks WHERE rel_path = ?", (rel_path,))
+            conn.execute(
+                "DELETE FROM covers WHERE cover_key NOT IN "
+                "(SELECT cover_key FROM tracks WHERE cover_key IS NOT NULL)"
             )
 
 
@@ -353,6 +397,11 @@ def save_session(db_path: Path, session: SavedSession) -> None:
         ("session_position_ms", str(session.position_ms)),
         ("session_order", json.dumps(session.order, separators=(",", ":"))),
         ("session_order_position", str(session.order_position)),
+        (
+            "session_queued",
+            json.dumps([1 if flag else 0 for flag in session.queued], separators=(",", ":")),
+        ),
+        ("session_stop_after", str(session.stop_after_index)),
     ]
     with connect(db_path) as conn:
         with conn:
@@ -366,11 +415,20 @@ def load_session(db_path: Path) -> SavedSession | None:
     with connect(db_path) as conn:
         meta = dict(conn.execute("SELECT key, value FROM meta"))
     try:
+        order = [int(row) for row in json.loads(meta["session_order"])]
+        queued_text = meta.get("session_queued")
+        queued = (
+            [bool(int(flag)) for flag in json.loads(queued_text)]
+            if queued_text
+            else [False] * len(order)
+        )
         return SavedSession(
             rel_path=meta["session_track"],
             position_ms=max(0, int(meta["session_position_ms"])),
-            order=[int(row) for row in json.loads(meta["session_order"])],
+            order=order,
             order_position=int(meta["session_order_position"]),
+            queued=queued,
+            stop_after_index=int(meta.get("session_stop_after", -1)),
         )
     except (KeyError, ValueError, TypeError):
         return None
@@ -381,7 +439,8 @@ def clear_session(db_path: Path) -> None:
         with conn:
             conn.execute(
                 "DELETE FROM meta WHERE key IN ('session_track', "
-                "'session_position_ms', 'session_order', 'session_order_position')"
+                "'session_position_ms', 'session_order', 'session_order_position', "
+                "'session_queued', 'session_stop_after')"
             )
 
 

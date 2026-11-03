@@ -22,6 +22,7 @@ COVER_FILE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
 class TrackInfo:
     title: str
     artist: str = ""
+    album_artist: str = ""
     album: str = ""
     year: str = ""
     track_number: int | None = None
@@ -53,6 +54,7 @@ def read_track_info(path: Path) -> tuple[TrackInfo, bytes | None]:
         tags = audio.tags
         info.title = _tag_text(tags, "TIT2", "title") or path.stem
         info.artist = _tag_text(tags, "TPE1", "artist")
+        info.album_artist = _tag_text(tags, "TPE2", "albumartist", "album artist")
         info.album = _tag_text(tags, "TALB", "album")
         year = _tag_text(tags, "TDRC", "TYER", "date", "year")
         info.year = year[:4] if year[:4].isdigit() else ""
