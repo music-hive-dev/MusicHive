@@ -928,6 +928,17 @@ QScrollBar::sub-page:vertical {
        </property>
        <item>
         <widget class="QLabel" name="trackInfoLabel">
+         <property name="styleSheet">
+          <string notr="true">/* Global */
+QWidget {
+    background-color: transparent;
+    color: #ffffff;
+    font-family: &quot;Inter&quot;, sans-serif;
+	font-weight: bold;
+    font-size: 9pt;
+    border: none;
+}</string>
+         </property>
          <property name="text">
           <string>Track Information</string>
          </property>
@@ -963,6 +974,22 @@ QScrollBar::sub-page:vertical {
        </item>
        <item>
         <widget class="QLabel" name="trackInfoFile">
+         <property name="font">
+          <font>
+           <family>Inter</family>
+           <pointsize>8</pointsize>
+          </font>
+         </property>
+         <property name="styleSheet">
+          <string notr="true">/* Global */
+QWidget {
+    background-color: transparent;
+    color: #ffffff;
+    font-family: &quot;Inter&quot;, sans-serif;
+    font-size: 8pt;
+    border: none;
+}</string>
+         </property>
          <property name="text">
           <string>File Info</string>
          </property>
