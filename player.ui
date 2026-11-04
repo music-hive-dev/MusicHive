@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>1538</width>
-    <height>960</height>
+    <width>1316</width>
+    <height>808</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -533,6 +533,27 @@ QMainWindow {
     background-color: #17191D;
 }
 
+/* Docks */
+QDockWidget {
+    background-color: #22252B;
+    border: 1px solid #454B55;
+    border-radius: 10px;
+}
+
+/* Content area */
+QDockWidget &gt; QWidget {
+    background-color: #22252B;
+    border: none;
+}
+
+/* Title bar */
+QDockWidget::title {
+    background-color: #282C33;
+    color: #E0E2E6;
+    padding: 0px;
+    border: none;
+}
+
 /* Labels */
 QLabel {
     background: transparent;
@@ -609,6 +630,13 @@ QComboBox {
 QComboBox:hover {
     background-color: #30343C;
 }
+
+QComboBox::drop-down {
+    border: none;
+    background: transparent;
+    width: 20px;
+}
+
 
 QComboBox QAbstractItemView {
     background-color: #24272D;
@@ -782,6 +810,86 @@ QScrollBar::sub-page:vertical {
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
+     <layout class="QHBoxLayout" name="navigationLayout">
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QPushButton" name="musicNavButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Music</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>assets/eighth-notes.svg</normaloff>assets/eighth-notes.svg</iconset>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="playlistsNavButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Playlists</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>assets/list-music.svg</normaloff>assets/list-music.svg</iconset>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QPushButton" name="nowPlayingNavButton">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
+        <property name="text">
+         <string>Now Playing</string>
+        </property>
+        <property name="icon">
+         <iconset>
+          <normaloff>assets/audio-lines.svg</normaloff>assets/audio-lines.svg</iconset>
+        </property>
+        <property name="checkable">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_4">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+     </layout>
+    </item>
+    <item>
      <layout class="QHBoxLayout" name="horizontalLayout_2">
       <property name="leftMargin">
        <number>0</number>
@@ -802,21 +910,82 @@ QScrollBar::sub-page:vertical {
       <item>
        <layout class="QVBoxLayout" name="mainLayout">
         <item>
-         <widget class="QLabel" name="tracksLabel">
-          <property name="text">
-           <string>Tracks</string>
+         <layout class="QHBoxLayout" name="horizontalLayout_6">
+          <property name="topMargin">
+           <number>0</number>
           </property>
-         </widget>
+          <item>
+           <widget class="QLabel" name="tracksLabel">
+            <property name="styleSheet">
+             <string notr="true">/* Global */
+QWidget {
+    background-color: transparent;
+    color: #ffffff;
+    font-family: &quot;Inter&quot;, sans-serif;
+	font-weight: bold;
+    font-size: 9pt;
+    border: none;
+}</string>
+            </property>
+            <property name="text">
+             <string>Tracks</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_3">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>40</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="lineEdit">
+            <property name="maximumSize">
+             <size>
+              <width>256</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Search for song tags.</string>
+            </property>
+            <property name="styleSheet">
+             <string notr="true">/* Global */
+QWidget {
+    color: #ffffff;
+    font-family: &quot;Inter&quot;, sans-serif;
+    font-size: 9pt;
+    border: none;
+}</string>
+            </property>
+            <property name="placeholderText">
+             <string>Search...</string>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="pushButton">
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normalon>assets/search.svg</normalon>
+             </iconset>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </item>
         <item>
-         <widget class="Line" name="line_6">
-          <property name="orientation">
-           <enum>Qt::Orientation::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item>
-         <widget class="QListView" name="libraryList">
+         <widget class="QTableView" name="libraryList">
           <property name="alternatingRowColors">
            <bool>true</bool>
           </property>
@@ -848,7 +1017,7 @@ QScrollBar::sub-page:vertical {
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>1538</width>
+     <width>1316</width>
      <height>21</height>
     </rect>
    </property>
@@ -904,6 +1073,14 @@ QScrollBar::sub-page:vertical {
      <height>524287</height>
     </size>
    </property>
+   <property name="styleSheet">
+    <string notr="true">/* Global */
+QDockWidget::title {
+    font-family: &quot;Inter&quot;, sans-serif;
+	font-weight: bold;
+    font-size: 9pt;
+}</string>
+   </property>
    <property name="features">
     <set>QDockWidget::DockWidgetFeature::DockWidgetClosable</set>
    </property>
@@ -924,30 +1101,12 @@ QScrollBar::sub-page:vertical {
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_2">
        <property name="topMargin">
-        <number>20</number>
+        <number>0</number>
        </property>
        <item>
         <widget class="QLabel" name="trackInfoLabel">
-         <property name="styleSheet">
-          <string notr="true">/* Global */
-QWidget {
-    background-color: transparent;
-    color: #ffffff;
-    font-family: &quot;Inter&quot;, sans-serif;
-	font-weight: bold;
-    font-size: 9pt;
-    border: none;
-}</string>
-         </property>
          <property name="text">
           <string>Track Information</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="Line" name="line_4">
-         <property name="orientation">
-          <enum>Qt::Orientation::Horizontal</enum>
          </property>
         </widget>
        </item>
@@ -978,6 +1137,7 @@ QWidget {
           <font>
            <family>Inter</family>
            <pointsize>8</pointsize>
+           <bold>true</bold>
           </font>
          </property>
          <property name="styleSheet">
@@ -1049,15 +1209,26 @@ QWidget {
   <widget class="QDockWidget" name="libraryDock">
    <property name="maximumSize">
     <size>
-     <width>512</width>
+     <width>196</width>
      <height>524285</height>
     </size>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">/* Global */
+QDockWidget::title {
+    font-family: &quot;Inter&quot;, sans-serif;
+	font-weight: bold;
+    font-size: 9pt;
+}</string>
    </property>
    <property name="features">
     <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
    </property>
    <property name="allowedAreas">
     <set>Qt::DockWidgetArea::LeftDockWidgetArea</set>
+   </property>
+   <property name="windowTitle">
+    <string>Library</string>
    </property>
    <attribute name="dockWidgetArea">
     <number>1</number>
@@ -1069,16 +1240,6 @@ QWidget {
        <property name="leftMargin">
         <number>0</number>
        </property>
-       <item>
-        <widget class="QLabel" name="label">
-         <property name="styleSheet">
-          <string notr="true"/>
-         </property>
-         <property name="text">
-          <string>Library</string>
-         </property>
-        </widget>
-       </item>
        <item>
         <widget class="QComboBox" name="libraryCombo">
          <property name="sizePolicy">
@@ -1093,8 +1254,20 @@ QWidget {
            <height>16777215</height>
           </size>
          </property>
+         <property name="focusPolicy">
+          <enum>Qt::FocusPolicy::WheelFocus</enum>
+         </property>
+         <property name="toolTip">
+          <string>Select a library.</string>
+         </property>
          <property name="styleSheet">
           <string notr="true"/>
+         </property>
+         <property name="insertPolicy">
+          <enum>QComboBox::InsertPolicy::InsertAlphabetically</enum>
+         </property>
+         <property name="frame">
+          <bool>true</bool>
          </property>
         </widget>
        </item>
@@ -1142,20 +1315,6 @@ QWidget {
         </widget>
        </item>
        <item>
-        <widget class="QPushButton" name="pushButton">
-         <property name="text">
-          <string>Music</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QPushButton" name="pushButton_2">
-         <property name="text">
-          <string>Podcasts</string>
-         </property>
-        </widget>
-       </item>
-       <item>
         <spacer name="verticalSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>
@@ -1176,6 +1335,25 @@ QWidget {
   <widget class="QDockWidget" name="controlsWidget">
    <property name="enabled">
     <bool>true</bool>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>850</width>
+     <height>100</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>524287</width>
+     <height>100</height>
+    </size>
+   </property>
+   <property name="font">
+    <font>
+     <family>Inter</family>
+     <pointsize>10</pointsize>
+     <kerning>true</kerning>
+    </font>
    </property>
    <property name="features">
     <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
@@ -1326,7 +1504,7 @@ QWidget {
             <widget class="QLabel" name="currentTimeLabel">
              <property name="font">
               <font>
-               <family>JetBrains Mono</family>
+               <family>monospace</family>
                <pointsize>9</pointsize>
               </font>
              </property>
@@ -1338,7 +1516,7 @@ QWidget {
 QWidget {
     background-color: transparent;
     color: #ffffff;
-    font-family: &quot;JetBrains Mono&quot;, sans-serif;
+    font-family: monospace;
     font-size: 9pt;
     border: none;
 }</string>
@@ -1359,7 +1537,7 @@ QWidget {
             <widget class="QLabel" name="durationLabel">
              <property name="font">
               <font>
-               <family>JetBrains Mono</family>
+               <family>monospace</family>
                <pointsize>9</pointsize>
               </font>
              </property>
@@ -1374,7 +1552,7 @@ QWidget {
 QWidget {
     background-color: transparent;
     color: #ffffff;
-    font-family: &quot;JetBrains Mono&quot;, sans-serif;
+    font-family: monospace;
     font-size: 9pt;
     border: none;
 }</string>
@@ -1416,7 +1594,7 @@ QWidget {
           <number>0</number>
          </property>
          <item>
-          <widget class="QPushButton" name="volumeButton">
+          <widget class="QPushButton" name="muteButton">
            <property name="sizePolicy">
             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
              <horstretch>0</horstretch>
@@ -1683,6 +1861,7 @@ QWidget {
     <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
+  <zorder>upcomingDock</zorder>
  </widget>
  <resources/>
  <connections/>

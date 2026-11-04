@@ -14,7 +14,7 @@ from PySide6.QtCore import (
     QThreadPool,
     QTimer,
 )
-from PySide6.QtGui import QIcon, QImage
+from PySide6.QtGui import QCursor, QIcon, QImage
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -22,16 +22,18 @@ from PySide6.QtWidgets import (
     QApplication,
     QFileDialog,
     QHeaderView,
+    QLabel,
     QMenu,
     QMessageBox,
     QProxyStyle,
     QStyle,
+    QToolTip,
 )
 
 from src import library_db
 from src.audio_player import AudioPlayer
 from src.cover_view import SquareCover
-from src.formatting import format_time
+from src.formatting import format_long_duration, format_size, format_time
 from src.library_db import LibraryInfo, SavedSession
 from src.library_scanner import ScanSignals, ScanTask
 from src.play_order import PlayOrder
@@ -193,6 +195,13 @@ class MusicHive:
         }
         self.menu_icons = {key: asset_icon(name) for key, name in MENU_ICONS.items()}
 
+        self.volume_icons = {
+            "muted": asset_icon("volume-off"),
+            "silent": asset_icon("volume"),
+            "low": asset_icon("volume-1"),
+            "high": asset_icon("volume-2"),
+        }
+
         # Left-click on a slider bar jumps to that position (instead of nudging).
         self._slider_style = JumpToClickStyle()
         w.progressSlider.setStyle(self._slider_style)
@@ -271,9 +280,14 @@ class MusicHive:
         w.progressSlider.sliderReleased.connect(self.on_slider_released)
         w.progressSlider.actionTriggered.connect(self.on_slider_action)
 
-        # Volume slider
-        w.volumeSlider.valueChanged.connect(self.player.set_volume)
+        # Volume slider and mute button (the volume is remembered between sessions)
+        w.muteButton.setCheckable(True)
+        saved_volume = self.settings.value("volume", w.volumeSlider.value(), type=int)
+        w.volumeSlider.setValue(saved_volume)
         self.player.set_volume(w.volumeSlider.value())
+        self.update_volume_ui()
+        w.volumeSlider.valueChanged.connect(self.on_volume_changed)
+        w.muteButton.toggled.connect(self.on_mute_toggled)
 
         # Player -> UI
         self.player.track_started.connect(self.on_track_started)
@@ -288,6 +302,11 @@ class MusicHive:
         self.scan_signals.finished.connect(self.on_scan_finished)
         self.scan_signals.failed.connect(self.on_scan_failed)
         self.scan_signals.cancelled.connect(self.on_scan_cancelled)
+
+        # Library totals, at the right end of the status bar
+        self.stats_label = QLabel()
+        self.stats_label.setContentsMargins(0, 0, 8, 0)
+        w.statusBar().addPermanentWidget(self.stats_label)
 
         self.on_state_changed("stopped")
         self.clear_track_info()
@@ -316,6 +335,45 @@ class MusicHive:
             "<b>MusicHive</b><br>A simple local music player built with "
             "PySide6 and Qt Multimedia.",
         )
+
+    # ----- volume and window title -----
+
+    def on_volume_changed(self, value: int) -> None:
+        """The volume slider moved (dragged, clicked, scrolled or by keyboard)."""
+        w = self.window
+        self.player.set_volume(value)
+        self.settings.setValue("volume", value)
+        if w.muteButton.isChecked():
+            w.muteButton.setChecked(False)  # changing the volume unmutes
+        self.update_volume_ui()
+        if w.volumeSlider.isSliderDown():
+            # Show the value next to the cursor while dragging.
+            QToolTip.showText(QCursor.pos(), f"{value}%", w.volumeSlider)
+
+    def on_mute_toggled(self, muted: bool) -> None:
+        self.player.set_muted(muted)
+        self.update_volume_ui()
+
+    def update_volume_ui(self) -> None:
+        """Match the mute button's icon and both tooltips to the volume."""
+        w = self.window
+        volume = w.volumeSlider.value()
+        muted = w.muteButton.isChecked()
+
+        w.volumeSlider.setToolTip(f"Volume: {volume}%")
+        if muted:
+            key = "muted"
+            w.muteButton.setToolTip(f"Muted ({volume}%) – click to unmute")
+        else:
+            key = "silent" if volume == 0 else "low" if volume <= 50 else "high"
+            w.muteButton.setToolTip(f"Volume: {volume}% – click to mute")
+        w.muteButton.setIcon(self.volume_icons[key])
+
+    def update_window_title(self, title: str = "", artist: str = "") -> None:
+        """The window title: "MusicHive", or "MusicHive – Title – Artist" while
+        a track is loaded."""
+        parts = ["MusicHive"] + [part for part in (title, artist) if part]
+        self.window.setWindowTitle(" – ".join(parts))
 
     # ----- the library table -----
 
@@ -361,6 +419,7 @@ class MusicHive:
         w.trackInfoArtistAlbumArtist.setText(details.artist_line)
         w.trackInfoAlbumYear.setText(details.album_line)
         w.trackInfoFile.setText(details.audio_format)
+        self.update_window_title(details.title, details.artist)
         cover = QImage.fromData(details.cover) if details.cover else None
         self.cover_view.set_image(cover)
 
@@ -374,6 +433,7 @@ class MusicHive:
         ):
             label.clear()
         self.cover_view.set_image(None)
+        self.update_window_title()
 
     def show_nothing_playing(self) -> None:
         """Nothing is playing: reset the now-playing label and the info panel."""
@@ -618,6 +678,7 @@ class MusicHive:
             library_db.remove_track(library.db_path, self.relative_path(path))
         except sqlite3.Error:
             pass  # the next rescan will bring the library data up to date
+        self.update_library_stats()
 
         was_playing = row == self.current_index
         table_bar = self.window.libraryList.verticalScrollBar()
@@ -781,6 +842,7 @@ class MusicHive:
             self.library_model.clear()
             self.reset_play_order()
             self.update_controls()
+            self.update_library_stats()
             self.show_status(f"Cannot read library '{info.name}': {error}")
             return
 
@@ -790,6 +852,7 @@ class MusicHive:
         self.reset_play_order()
         self.settings.setValue("lastLibrary", info.id)
         self.update_controls()
+        self.update_library_stats()
 
         if info.scanned_at is None:
             self.start_scan(info)
@@ -827,6 +890,7 @@ class MusicHive:
         else:
             self.current_index = -1
         self.refresh_upcoming()
+        self.update_library_stats()
 
     def add_library(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.MusicLocation)
@@ -882,6 +946,32 @@ class MusicHive:
         self.settings.remove("lastLibrary")
         self.refresh_libraries(select_id=None)
         self.show_status(f"Removed library '{info.name}'")
+
+    def update_library_stats(self) -> None:
+        """Show the library's file count, size and length at the right of the status bar."""
+        label = self.stats_label
+        library = self.loaded_library
+        if library is None or library.scanned_at is None:
+            label.clear()
+            label.setToolTip("")
+            return
+        try:
+            stats = library_db.library_stats(library.db_path)
+        except sqlite3.Error:
+            label.clear()
+            label.setToolTip("")
+            return
+
+        noun = "file" if stats.file_count == 1 else "files"
+        label.setText(
+            f"{stats.file_count} {noun}, {format_size(stats.total_bytes)}, "
+            f"{format_long_duration(stats.total_ms)}"
+        )
+        label.setToolTip(
+            f"{stats.file_count:,} {noun}\n"
+            f"{stats.total_bytes:,} bytes\n"
+            f"{format_long_duration(stats.total_ms, seconds=True)}"
+        )
 
     def describe(self, info: LibraryInfo, track_count: int) -> str:
         scanned = info.scanned_at.replace("T", " ") if info.scanned_at else "never"

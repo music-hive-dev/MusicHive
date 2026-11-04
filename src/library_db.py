@@ -74,6 +74,13 @@ class LoadedLibrary:
     covers: dict[str, bytes]  # cover_key -> JPEG thumbnail bytes
 
 
+@dataclass(frozen=True)
+class LibraryStats:
+    file_count: int
+    total_bytes: int
+    total_ms: int
+
+
 @dataclass
 class SavedSession:
     rel_path: str  # the playing track, relative to the library root
@@ -335,6 +342,16 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
             for key, blob in conn.execute("SELECT cover_key, thumbnail FROM covers")
         }
     return LoadedLibrary(paths, infos, covers)
+
+
+def library_stats(db_path: Path) -> LibraryStats:
+    """The number of tracks in a library, their total size and total length."""
+    with connect(db_path) as conn:
+        count, size, duration = conn.execute(
+            "SELECT COUNT(*), COALESCE(SUM(file_size), 0), "
+            "COALESCE(SUM(duration_ms), 0) FROM tracks"
+        ).fetchone()
+    return LibraryStats(count, size, duration)
 
 
 def save_scan(
