@@ -1,9 +1,21 @@
-"""The track lists: a model for the library, one for the Upcoming list, and a
-row painter shared by both."""
+"""The track lists: a table model for the library (with a sorting layer on top),
+a model for the Upcoming list, and the row painter the Upcoming list uses."""
 
+import unicodedata
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QAbstractListModel, QModelIndex, QObject, QRect, QSize, Qt
+from PySide6.QtCore import (
+    QAbstractListModel,
+    QAbstractProxyModel,
+    QAbstractTableModel,
+    QModelIndex,
+    QObject,
+    QRect,
+    QSize,
+    Qt,
+)
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QImage, QPainter
 from PySide6.QtWidgets import (
     QApplication,
@@ -12,15 +24,101 @@ from PySide6.QtWidgets import (
     QStyleOptionViewItem,
 )
 
+from src.formatting import format_time
 from src.track_metadata import TrackInfo
 
 ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 PLACEHOLDER_ICON = ASSETS_DIR / "eighth-notes.svg"  # shown when a track has no cover
 STOP_AFTER_ICON = ASSETS_DIR / "eject.svg"  # marks the track playback will end after
 
+_RIGHT_ALIGNED = (Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter).value
+_LEFT_ALIGNED = (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter).value
 
-class TrackListModel(QAbstractListModel):
-    """Holds the tracks of the current library, as loaded from its database."""
+
+# ----- the library table's columns -----
+
+
+@dataclass(frozen=True)
+class Column:
+    """One column of the library table. Adding a column means adding one of these."""
+
+    title: str
+    text: Callable[[TrackInfo], str]  # what a cell shows
+    sort_key: Callable[[TrackInfo], object]  # what the column sorts by
+    width: int = 120  # starting width, in pixels
+    align_right: bool = False
+    stretch: bool = False  # takes up the space that is left over
+
+
+def _text_key(text: str) -> str:
+    """Sort key for text: ignores case and accents (so "Ärzte" sorts under A)."""
+    decomposed = unicodedata.normalize("NFKD", text.casefold())
+    return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def _year_key(info: TrackInfo) -> int:
+    return int(info.year) if info.year.isdigit() else 0
+
+
+COLUMNS = (
+    Column(
+        "#",
+        text=lambda info: str(info.track_number) if info.track_number else "",
+        sort_key=lambda info: info.track_number or 0,
+        width=44,
+        align_right=True,
+    ),
+    Column(
+        "Title",
+        text=lambda info: info.title,
+        sort_key=lambda info: _text_key(info.title),
+        width=260,
+        stretch=True,
+    ),
+    Column(
+        "Artist",
+        text=lambda info: info.artist,
+        sort_key=lambda info: _text_key(info.artist),
+        width=170,
+    ),
+    Column(
+        "Album",
+        text=lambda info: info.album,
+        sort_key=lambda info: _text_key(info.album),
+        width=200,
+    ),
+    Column(
+        "Year",
+        text=lambda info: info.year,
+        sort_key=_year_key,
+        width=60,
+        align_right=True,
+    ),
+    Column(
+        "Time",
+        text=lambda info: format_time(info.duration_ms) if info.duration_ms else "",
+        sort_key=lambda info: info.duration_ms or 0,
+        width=64,
+        align_right=True,
+    ),
+    Column(
+        "Genre",
+        text=lambda info: info.genre,
+        sort_key=lambda info: _text_key(info.genre),
+        width=130,
+    ),
+)
+
+
+# ----- models -----
+
+
+class TrackListModel(QAbstractTableModel):
+    """The tracks of the current library, as loaded from its database.
+
+    Row n is always library row n, whatever the table is sorted by: sorting
+    happens in SortedTrackModel, so the play order can keep using these rows.
+    """
 
     TitleRole = Qt.ItemDataRole.UserRole + 1
     SubtitleRole = Qt.ItemDataRole.UserRole + 2
@@ -57,26 +155,54 @@ class TrackListModel(QAbstractListModel):
         """The tags of the track in `row`, or None if there is no such row."""
         return self._infos[row] if 0 <= row < len(self._infos) else None
 
+    def sort_key(self, row: int, column: int):
+        """What `row` sorts by in `column`."""
+        return COLUMNS[column].sort_key(self._infos[row])
+
     def remove_row(self, row: int) -> None:
         """Remove one track from the list (its file was deleted)."""
         if not 0 <= row < len(self._paths):
             return
-        self.beginRemoveRows(QModelIndex(), row, row)
+        self.beginResetModel()
         del self._paths[row]
         del self._infos[row]
-        self.endRemoveRows()
+        self.endResetModel()
 
-    # ----- QAbstractListModel -----
+    # ----- QAbstractTableModel -----
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._paths)
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(COLUMNS)
+
+    def headerData(
+        self,
+        section: int,
+        orientation: Qt.Orientation,
+        role: int = Qt.ItemDataRole.DisplayRole,
+    ):
+        if orientation != Qt.Orientation.Horizontal or not 0 <= section < len(COLUMNS):
+            return None
+        if role == Qt.ItemDataRole.DisplayRole:
+            return COLUMNS[section].title
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            return _RIGHT_ALIGNED if COLUMNS[section].align_right else _LEFT_ALIGNED
+        return None
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
         if not index.isValid() or not 0 <= index.row() < len(self._paths):
             return None
         info = self._infos[index.row()]
+        has_column = 0 <= index.column() < len(COLUMNS)
 
-        if role in (Qt.ItemDataRole.DisplayRole, self.TitleRole):
+        if role == Qt.ItemDataRole.DisplayRole:
+            return COLUMNS[index.column()].text(info) if has_column else None
+        if role == Qt.ItemDataRole.TextAlignmentRole:
+            if has_column and COLUMNS[index.column()].align_right:
+                return _RIGHT_ALIGNED
+            return None
+        if role == self.TitleRole:
             return info.title
         if role == self.SubtitleRole:
             return info.subtitle
@@ -101,6 +227,107 @@ class TrackListModel(QAbstractListModel):
                 return None
             self._cover_images[key] = image
         return image
+
+
+class SortedTrackModel(QAbstractProxyModel):
+    """Shows the library model's rows in sorted order.
+
+    Sorting is done here, in Python, with precomputed keys. That is much
+    faster than Qt's built-in sorting for a large library, which would call
+    back into Python twice for every comparison.
+    """
+
+    def __init__(self, parent: QObject | None = None) -> None:
+        super().__init__(parent)
+        self._order: list[int] = []  # shown row -> library row
+        self._inverse: list[int] = []  # library row -> shown row
+        self._sort_column = -1  # -1 means library order
+        self._sort_order = Qt.SortOrder.AscendingOrder
+
+    def setSourceModel(self, source_model) -> None:
+        self.beginResetModel()
+        super().setSourceModel(source_model)
+        source_model.modelAboutToBeReset.connect(self.beginResetModel)
+        source_model.modelReset.connect(self._on_source_reset)
+        self._apply_sort()
+        self.endResetModel()
+
+    def source_rows(self) -> list[int]:
+        """Library rows in the order they are shown."""
+        return list(self._order)
+
+    # ----- QAbstractProxyModel -----
+
+    def index(self, row: int, column: int, parent: QModelIndex = QModelIndex()) -> QModelIndex:
+        if parent.isValid() or not 0 <= row < len(self._order):
+            return QModelIndex()
+        if not 0 <= column < self.columnCount():
+            return QModelIndex()
+        return self.createIndex(row, column)
+
+    def parent(self, index: QModelIndex = QModelIndex()) -> QModelIndex:
+        return QModelIndex()
+
+    def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(self._order)
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        source = self.sourceModel()
+        return 0 if parent.isValid() or source is None else source.columnCount()
+
+    def mapToSource(self, proxy_index: QModelIndex) -> QModelIndex:
+        source = self.sourceModel()
+        if source is None or not proxy_index.isValid():
+            return QModelIndex()
+        if not 0 <= proxy_index.row() < len(self._order):
+            return QModelIndex()
+        return source.index(self._order[proxy_index.row()], proxy_index.column())
+
+    def mapFromSource(self, source_index: QModelIndex) -> QModelIndex:
+        if not source_index.isValid() or not 0 <= source_index.row() < len(self._inverse):
+            return QModelIndex()
+        return self.index(self._inverse[source_index.row()], source_index.column())
+
+    def sort(self, column: int, order: Qt.SortOrder = Qt.SortOrder.AscendingOrder) -> None:
+        """Called by the table when a column title is clicked."""
+        self._sort_column = column
+        self._sort_order = order
+
+        self.layoutAboutToBeChanged.emit()
+        old_order = self._order
+        old_indexes = self.persistentIndexList()
+        self._apply_sort()
+        # Keep the selection on the same tracks after they move.
+        new_indexes = [
+            self.index(self._inverse[old_order[i.row()]], i.column())
+            if 0 <= i.row() < len(old_order)
+            else QModelIndex()
+            for i in old_indexes
+        ]
+        self.changePersistentIndexList(old_indexes, new_indexes)
+        self.layoutChanged.emit()
+
+    # ----- internal -----
+
+    def _on_source_reset(self) -> None:
+        self._apply_sort()
+        self.endResetModel()
+
+    def _apply_sort(self) -> None:
+        source = self.sourceModel()
+        count = source.rowCount() if source is not None else 0
+        rows = list(range(count))
+        column = self._sort_column
+        if source is not None and 0 <= column < source.columnCount():
+            keys = [source.sort_key(row, column) for row in rows]
+            descending = self._sort_order == Qt.SortOrder.DescendingOrder
+            # The sort is stable, so equal values keep their library order.
+            rows.sort(key=keys.__getitem__, reverse=descending)
+        self._order = rows
+        inverse = [0] * count
+        for position, row in enumerate(rows):
+            inverse[row] = position
+        self._inverse = inverse
 
 
 class QueueModel(QAbstractListModel):
@@ -139,7 +366,9 @@ class QueueModel(QAbstractListModel):
             return None
         if role == TrackListModel.StopAfterRole:
             return index.row() == self._stop_after
-        return self._library.data(self._library.index(library_row), role)
+        if role == Qt.ItemDataRole.DisplayRole:
+            role = TrackListModel.TitleRole
+        return self._library.data(self._library.index(library_row, 0), role)
 
     def _on_library_reset(self) -> None:
         # The library's rows were renumbered, so the old row numbers are stale.

@@ -17,7 +17,7 @@ from pathlib import Path
 
 from src.track_metadata import TrackInfo
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 DB_NAME = "musichive.db"
 DATA_DIR_NAME = ".musichive"
 
@@ -38,6 +38,7 @@ CREATE TABLE tracks (
     album_artist TEXT NOT NULL DEFAULT '',
     album        TEXT NOT NULL,
     year         TEXT NOT NULL,
+    genre        TEXT NOT NULL DEFAULT '',
     track_number INTEGER,
     disc_number  INTEGER,
     duration_ms  INTEGER,
@@ -147,15 +148,19 @@ def connect(db_path: Path):
 def _upgrade_schema(conn: sqlite3.Connection) -> None:
     """Bring a database made by an older version up to the current schema."""
     version = conn.execute("PRAGMA user_version").fetchone()[0]
-    if version == 1:
-        try:
-            with conn:
+    if version in (0, SCHEMA_VERSION):
+        return  # a brand-new database, or one that is already current
+    try:
+        columns = {row[1] for row in conn.execute("PRAGMA table_info(tracks)")}
+        for name in ("album_artist", "genre"):
+            if name not in columns:
                 conn.execute(
-                    "ALTER TABLE tracks ADD COLUMN album_artist TEXT NOT NULL DEFAULT ''"
+                    f"ALTER TABLE tracks ADD COLUMN {name} TEXT NOT NULL DEFAULT ''"
                 )
-                conn.execute("PRAGMA user_version = 2")
-        except sqlite3.OperationalError:
-            pass  # another connection upgraded it at the same moment
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+        conn.commit()
+    except sqlite3.OperationalError:
+        pass  # another connection upgraded it at the same moment
 
 
 # ----- libraries -----
@@ -293,7 +298,7 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
     infos: list[TrackInfo] = []
     with connect(info.db_path) as conn:
         rows = conn.execute(
-            "SELECT rel_path, title, artist, album_artist, album, year, "
+            "SELECT rel_path, title, artist, album_artist, album, year, genre, "
             "track_number, disc_number, duration_ms, cover_key "
             "FROM tracks ORDER BY position"
         )
@@ -304,6 +309,7 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
             album_artist,
             album,
             year,
+            genre,
             track,
             disc,
             duration,
@@ -317,6 +323,7 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
                     album_artist=album_artist,
                     album=album,
                     year=year,
+                    genre=genre,
                     track_number=track,
                     disc_number=disc,
                     duration_ms=duration,
@@ -346,6 +353,7 @@ def save_scan(
             track.info.album_artist,
             track.info.album,
             track.info.year,
+            track.info.genre,
             track.info.track_number,
             track.info.disc_number,
             track.info.duration_ms,
@@ -365,9 +373,9 @@ def save_scan(
             )
             conn.executemany(
                 "INSERT INTO tracks (position, rel_path, title, artist, "
-                "album_artist, album, year, track_number, disc_number, "
+                "album_artist, album, year, genre, track_number, disc_number, "
                 "duration_ms, file_size, modified, cover_key) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows,
             )
             conn.execute(

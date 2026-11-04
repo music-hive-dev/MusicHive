@@ -25,6 +25,7 @@ class TrackInfo:
     album_artist: str = ""
     album: str = ""
     year: str = ""
+    genre: str = ""
     track_number: int | None = None
     disc_number: int | None = None
     duration_ms: int | None = None
@@ -58,6 +59,7 @@ def read_track_info(path: Path) -> tuple[TrackInfo, bytes | None]:
         info.album = _tag_text(tags, "TALB", "album")
         year = _tag_text(tags, "TDRC", "TYER", "date", "year")
         info.year = year[:4] if year[:4].isdigit() else ""
+        info.genre = _genre_text(tags)
         info.track_number = _leading_number(_tag_text(tags, "TRCK", "tracknumber"))
         info.disc_number = _leading_number(_tag_text(tags, "TPOS", "discnumber"))
 
@@ -104,6 +106,35 @@ def _tag_text(tags, *keys: str) -> str:
         text = str(value).strip()
         if text:
             return text
+    return ""
+
+
+def _genre_text(tags) -> str:
+    """The genre(s) as text.
+
+    ID3 files store them as "TCON" (which can hold numeric codes that mutagen
+    translates); Vorbis-comment files (FLAC, Ogg) use "genre".
+    """
+    if tags is None:
+        return ""
+    try:
+        frame = tags.get("TCON")
+        if frame is not None and hasattr(frame, "genres"):
+            names = [str(genre).strip() for genre in frame.genres]
+            names = [name for name in names if name]
+            if names:
+                return ", ".join(names)
+    except Exception:
+        pass
+    try:
+        values = tags.get("genre")
+    except Exception:
+        values = None
+    if values:
+        if not isinstance(values, (list, tuple)):
+            values = [values]
+        names = [str(value).strip() for value in values if str(value).strip()]
+        return ", ".join(names)
     return ""
 
 

@@ -30,6 +30,7 @@ class PlayOrder:
         self._entries: list[Entry] = []
         self._position = -1
         self._count = 0  # number of tracks in the library
+        self._context: list[int] = []  # library rows in the order the table showed them
         self._next_uid = 0
         self._stop_after: int | None = None  # uid of the entry playback ends after
 
@@ -62,7 +63,8 @@ class PlayOrder:
     def reset(self, track_count: int) -> None:
         """Start over for a library of `track_count` tracks; nothing playing."""
         self._count = track_count
-        self._entries = [self._new_entry(row) for row in range(track_count)]
+        self._context = list(range(track_count))
+        self._entries = [self._new_entry(row) for row in self._context]
         self._position = -1
         self._stop_after = None
 
@@ -71,7 +73,7 @@ class PlayOrder:
         self.shuffle = enabled
         current = self.current_row
         if current >= 0:
-            self._rebuild(first=current)
+            self._rebuild(first=current, context=self._context)
 
     def set_repeat(self, mode: str) -> None:
         if mode in self.REPEAT_MODES:
@@ -92,19 +94,28 @@ class PlayOrder:
                 entry.row -= 1
             entries.append(entry)
         self._entries = entries
+        self._context = [r - 1 if r > row else r for r in self._context if r != row]
         self._count = max(0, self._count - 1)
         self._position = position
 
     # ----- choosing a track -----
 
-    def start_at(self, row: int) -> None:
+    def start_at(self, row: int, context: list[int] | None = None) -> None:
         """The user picked `row` from the library: play it, then what follows.
 
-        With shuffle on, the other tracks get a fresh random order. Tracks
-        the user queued after the playing one are kept.
+        `context` is the library rows in the order the table shows them; the
+        tracks after `row` in that order come next. Without it, the order of
+        the last start is used. With shuffle on, the other tracks get a fresh
+        random order. Tracks the user queued after the playing one are kept.
         """
         if 0 <= row < self._count:
-            self._rebuild(first=row)
+            self._rebuild(
+                first=row, context=self._context if context is None else context
+            )
+
+    def set_context(self, rows: list[int]) -> None:
+        """Set the order used when the play order is rebuilt or starts over."""
+        self._context = list(rows)
 
     def jump_to_upcoming(self, offset: int) -> int:
         """The user picked the item `offset` places down the Upcoming list.
@@ -240,40 +251,45 @@ class PlayOrder:
         self._next_uid += 1
         return entry
 
-    def _rebuild(self, first: int) -> None:
+    def _rebuild(self, first: int, context: list[int]) -> None:
         """Make `first` the playing track and order the library around it.
 
+        `context` is the library rows in the order the table shows them.
         Tracks the user queued after the playing one are kept, right after it.
         """
         queued: list[Entry] = []
         if self._position >= 0:
             queued = [e for e in self._entries[self._position + 1 :] if e.queued]
 
+        context = list(context)
+        if first not in context:
+            context.insert(0, first)
+        self._context = context
+
         if self.shuffle:
-            rest = [row for row in range(self._count) if row != first]
+            rest = [row for row in context if row != first]
             random.shuffle(rest)
-            context = [first] + rest
+            rows = [first] + rest
             position = 0
         else:
-            context = list(range(self._count))
-            position = first
+            rows = context
+            position = context.index(first)
 
-        entries = [self._new_entry(row) for row in context]
+        entries = [self._new_entry(row) for row in rows]
         entries[position + 1 : position + 1] = queued
         self._entries = entries
         self._position = position
 
     def _wrap_around(self) -> None:
         """Start again after the last track (repeat all)."""
-        count = self._count
-        if count == 0:
+        rows = list(self._context) or list(range(self._count))
+        if not rows:
             return
         last = self._entries[-1].row
-        rows = list(range(count))
-        if self.shuffle and count > 1:
+        if self.shuffle and len(rows) > 1:
             random.shuffle(rows)
             if rows[0] == last:  # don't play the same track twice in a row
-                swap = random.randrange(1, count)
+                swap = random.randrange(1, len(rows))
                 rows[0], rows[swap] = rows[swap], rows[0]
         self._entries = [self._new_entry(row) for row in rows]
         self._position = 0
