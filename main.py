@@ -37,6 +37,7 @@ from src.formatting import format_long_duration, format_size, format_time
 from src.library_db import LibraryInfo, SavedSession
 from src.library_scanner import ScanSignals, ScanTask
 from src.play_order import PlayOrder
+from src.discord_rpc import DiscordPresence, make_activity
 from src.track_list import (
     COLUMNS,
     QueueModel,
@@ -48,6 +49,9 @@ from src.track_metadata import read_track_details
 
 UI_FILE = Path(__file__).parent / "player.ui"
 ASSETS_DIR = Path(__file__).parent / "assets"
+# The Application ID of your Discord application (public, not a secret).
+# Leave it empty to disable the Discord menu item.
+DISCORD_CLIENT_ID = "1568612126409498656"
 
 # If the track is further in than this, Previous restarts it instead of
 # going back to the previous track.
@@ -176,6 +180,10 @@ class MusicHive:
         self.playback_state = "stopped"  # "playing", "paused" or "stopped"
         self.position_ms = 0  # last reported playback position
 
+        #Discord
+        self.duration_ms = 0  # length of the loaded track, as the player reports it
+        self.discord_active = False  # True once playback has started this session
+
         # Background scanning (one scan at a time)
         self.scan_pool = QThreadPool(self.window)
         self.scan_pool.setMaxThreadCount(1)
@@ -184,6 +192,20 @@ class MusicHive:
         self.scan_library: LibraryInfo | None = None
 
         w = self.window
+
+        # Discord Rich Presence (off until the user turns it on in the menu)
+        self.discord = DiscordPresence(DISCORD_CLIENT_ID, self.build_discord_activity, w)
+        self.discord.status_message.connect(self.show_status)
+        discord_on = bool(DISCORD_CLIENT_ID) and self.settings.value(
+            "discordPresence", False, type=bool
+        )
+        w.actionDiscordPresence.setCheckable(True)
+        w.actionDiscordPresence.setChecked(discord_on)
+        if not DISCORD_CLIENT_ID:
+            w.actionDiscordPresence.setEnabled(False)
+            w.actionDiscordPresence.setToolTip("Set DISCORD_CLIENT_ID in main.py first")
+        self.discord.set_enabled(discord_on)
+        w.actionDiscordPresence.toggled.connect(self.on_discord_toggled)
 
         # Icons used from code. (The rest are set in Qt Designer.)
         self.icon_play = asset_icon("play")
@@ -323,6 +345,7 @@ class MusicHive:
         header = self.window.libraryList.horizontalHeader()
         self.settings.setValue("libraryHeaderState", header.saveState())
         self.save_session()
+        self.discord.shutdown()
         self.player.shutdown()
 
     def show_status(self, text: str) -> None:
@@ -409,6 +432,31 @@ class MusicHive:
         )
         view.scrollTo(index, hint)
 
+
+    # ----- Discord -----
+
+    def build_discord_activity(self) -> dict | None:
+        """What Discord should show right now, or None to show nothing."""
+        if not self.discord_active or self.current_index < 0:
+            return None
+        info = self.library_model.info(self.current_index)
+        if info is None:
+            return None
+        return make_activity(
+            title=info.title,
+            artist=info.artist,
+            album=info.album,
+            position_ms=self.position_ms,
+            duration_ms=self.duration_ms or info.duration_ms or 0,
+            paused=self.playback_state == "paused",
+        )
+
+    def on_discord_toggled(self, enabled: bool) -> None:
+        self.settings.setValue("discordPresence", enabled)
+        self.discord.set_enabled(enabled)
+        self.show_status("Discord Rich Presence on" if enabled else "Discord Rich Presence off")
+
+
     # ----- track info panel -----
 
     def update_track_info(self, track: Path) -> None:
@@ -436,9 +484,11 @@ class MusicHive:
         self.update_window_title()
 
     def show_nothing_playing(self) -> None:
-        """Nothing is playing: reset the now-playing label and the info panel."""
+        """Nothing is playing: reset the now-playing label, the info panel and Discord."""
         self.window.currentTrackLabel.setText("Nothing playing")
         self.clear_track_info()
+        self.discord_active = False
+        self.discord.request_update()
 
     # ----- play order, shuffle and repeat -----
 
@@ -1098,10 +1148,12 @@ class MusicHive:
             return
         if self.position_ms > PREVIOUS_RESTART_THRESHOLD_MS:
             self.player.seek(0)  # keeps the current play/pause state
+            self.discord.request_update()
             return
         row = self.play_order.previous()
         if row is None:  # already at the start of the play order
             self.player.seek(0)
+            self.discord.request_update()
         else:
             self.play_index(row)
 
@@ -1113,6 +1165,7 @@ class MusicHive:
 
     def on_slider_released(self) -> None:
         self.player.seek(self.window.progressSlider.value())
+        self.discord.request_update()
 
     def on_slider_action(self, action: int) -> None:
         """Handle keyboard and wheel changes (arrows, PageUp/Down, Home/End).
@@ -1125,12 +1178,15 @@ class MusicHive:
         slider = self.window.progressSlider
         if not slider.isSliderDown():
             self.player.seek(slider.sliderPosition())
+            self.discord.request_update()
 
     # ----- player -> UI -----
 
     def on_track_started(self, track: Path) -> None:
         self.window.currentTrackLabel.setText(track.stem)
         self.update_track_info(track)
+        self.duration_ms = 0  # the real length arrives from the player in a moment
+        self.discord.request_update()
 
     def on_track_finished(self) -> None:
         stop_here = self.play_order.take_stop_after()
@@ -1162,6 +1218,13 @@ class MusicHive:
                 w.progressSlider.setValue(0)
                 w.currentTimeLabel.setText(format_time(0))
 
+        # Discord only shows a track once playback has really started.
+        if state == "playing":
+            self.discord_active = True
+        elif state == "stopped":
+            self.discord_active = False
+        self.discord.request_update()
+
     def on_position_changed(self, position_ms: int) -> None:
         self.position_ms = position_ms
         slider = self.window.progressSlider
@@ -1171,8 +1234,10 @@ class MusicHive:
         self.window.currentTimeLabel.setText(format_time(position_ms))
 
     def on_duration_changed(self, duration_ms: int) -> None:
+        self.duration_ms = duration_ms
         self.window.progressSlider.setRange(0, duration_ms)
         self.window.durationLabel.setText(format_time(duration_ms))
+        self.discord.request_update()
 
     def on_player_error(self, message: str) -> None:
         self.show_nothing_playing()

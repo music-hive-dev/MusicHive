@@ -8,6 +8,7 @@
    version="1.1"
    id="svg1"
    sodipodi:docname="musichive_colour.svg"
+   inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
    xmlns="http://www.w3.org/2000/svg"
@@ -20,7 +21,17 @@
      inkscape:showpageshadow="2"
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
-     inkscape:deskcolor="#d1d1d1">
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="true"
+     inkscape:zoom="36.28125"
+     inkscape:cx="15.118002"
+     inkscape:cy="17.35056"
+     inkscape:window-width="2560"
+     inkscape:window-height="1370"
+     inkscape:window-x="0"
+     inkscape:window-y="0"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="layer1">
     <inkscape:page
        x="0"
        y="0"
@@ -29,6 +40,20 @@
        id="page2"
        margin="0"
        bleed="0" />
+    <inkscape:grid
+       id="grid1"
+       units="px"
+       originx="0"
+       originy="0"
+       spacingx="0.5"
+       spacingy="0.5"
+       empcolor="#0099e5"
+       empopacity="0.30196078"
+       color="#0099e5"
+       opacity="0.14901961"
+       empspacing="4"
+       enabled="true"
+       visible="true" />
   </sodipodi:namedview>
   <defs
      id="defs1" />
@@ -40,23 +65,62 @@
        style="fill:#8b5134;fill-opacity:1;stroke:#ffb41d;stroke-width:2;stroke-linejoin:round;stroke-opacity:1" />
     <path
        style="fill:#8b5134;fill-opacity:1;stroke:#ffb41d;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
-       d="M 16,8 V 24"
-       id="path2" />
+       d="M 14.5,7 V 25"
+       id="path2"
+       sodipodi:nodetypes="cc" />
     <path
        style="fill:#8b5134;fill-opacity:1;stroke:#ffb41d;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
-       d="M 12,10 V 22"
-       id="path2-9" />
+       d="m 11.5,10.5 v 11"
+       id="path2-9"
+       sodipodi:nodetypes="cc" />
     <path
        style="fill:#8b5134;fill-opacity:1;stroke:#ffb41d;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
-       d="m 8,12 v 8"
-       id="path2-5" />
+       d="m 8.5,14.5 v 3"
+       id="path2-5"
+       sodipodi:nodetypes="cc" />
     <path
        style="fill:#8b5134;fill-opacity:1;stroke:#ffb41d;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
-       d="M 20,10 V 22"
-       id="path2-2" />
+       d="m 23.5,14.5 v 3"
+       id="path2-5-1"
+       sodipodi:nodetypes="cc" />
     <path
        style="fill:#8b5134;fill-opacity:1;stroke:#ffb41d;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
-       d="m 24,12 v 8"
-       id="path2-21" />
+       d="m 17.5,12.5 v 7"
+       id="path2-2"
+       sodipodi:nodetypes="cc" />
+    <path
+       style="fill:#8b5134;fill-opacity:1;stroke:#ffb41d;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
+       d="m 20.5,9.5 v 13"
+       id="path2-21"
+       sodipodi:nodetypes="cc" />
+  </g>
+  <g
+     id="g1"
+     transform="translate(0,-0.5)"
+     style="display:none">
+    <path
+       d="m 8,14.5 v 3"
+       id="path1-5"
+       style="stroke:#000000;stroke-linecap:round;stroke-opacity:1" />
+    <path
+       d="m 12,10.5 v 11"
+       id="path2-3"
+       style="stroke:#000000;stroke-linecap:round;stroke-opacity:1" />
+    <path
+       d="m 16,7.5 v 18"
+       id="path3"
+       style="stroke:#000000;stroke-linecap:round;stroke-opacity:1" />
+    <path
+       d="m 20,12.5 v 7"
+       id="path4"
+       style="stroke:#000000;stroke-linecap:round;stroke-opacity:1" />
+    <path
+       d="m 24,9.5 v 13"
+       id="path5"
+       style="stroke:#000000;stroke-linecap:round;stroke-opacity:1" />
+    <path
+       d="m 28,14.5 v 3"
+       id="path6"
+       style="stroke:#000000;stroke-linecap:round;stroke-opacity:1" />
   </g>
 </svg>

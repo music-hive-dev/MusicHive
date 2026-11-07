@@ -112,6 +112,10 @@ class AudioPlayer(QObject):
         """Set the volume from 0 to 100."""
         self._audio_output.setVolume(max(0, min(100, percent)) / 100)
 
+    def set_muted(self, muted: bool) -> None:
+        """Silence or restore the sound without changing the volume."""
+        self._audio_output.setMuted(muted)
+
     def unload(self) -> None:
         """Stop playback and forget the current track."""
         self._player.stop()

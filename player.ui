@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1316</width>
-    <height>808</height>
+    <height>780</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -31,9 +31,9 @@
      <colorrole role="Button">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
@@ -103,18 +103,18 @@
      <colorrole role="Base">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
@@ -186,9 +186,9 @@
      <colorrole role="Button">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
@@ -258,18 +258,18 @@
      <colorrole role="Base">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
@@ -341,9 +341,9 @@
      <colorrole role="Button">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
@@ -413,18 +413,18 @@
      <colorrole role="Base">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
      <colorrole role="Window">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>23</red>
-        <green>25</green>
-        <blue>29</blue>
+        <red>21</red>
+        <green>20</green>
+        <blue>22</blue>
        </color>
       </brush>
      </colorrole>
@@ -513,402 +513,168 @@
    <double>1.000000000000000</double>
   </property>
   <property name="styleSheet">
-   <string notr="true">
-/* =================================
-   Minimal Dark Qt Stylesheet
-   Flat colours / No borders
-   ================================= */
-
-/* Global */
+   <string notr="true">/* ----- Global ----- */
 QWidget {
-    background-color: #17191D;
-    color: #E0E2E6;
-    font-family: &quot;Inter&quot;, &quot;Segoe UI&quot;, sans-serif;
-    font-size: 10pt;
-    border: none;
+	font-family: &quot;Inter&quot;, &quot;Segoe UI&quot;, sans-serif;
+	font-size: 10;
 }
 
-/* Main window */
 QMainWindow {
-    background-color: #17191D;
+	background-color: #151416;
 }
 
-/* Docks */
-QDockWidget {
-    background-color: #22252B;
-    border: 1px solid #454B55;
-    border-radius: 10px;
-}
-
-/* Content area */
-QDockWidget &gt; QWidget {
-    background-color: #22252B;
-    border: none;
-}
-
-/* Title bar */
-QDockWidget::title {
-    background-color: #282C33;
-    color: #E0E2E6;
-    padding: 0px;
-    border: none;
-}
-
-/* Labels */
-QLabel {
-    background: transparent;
-    color: #E0E2E6;
-}
-
-/* Buttons */
+/* ----- Buttons ----- */
 QPushButton {
-    background-color: #30343C;
-    color: #E0E2E6;
-    border: none;
-    border-radius: 9px;
-    padding: 9px 16px;
+	background-color: #312d34;
+	color: #ffffff;
+	border-radius: 17px;
+	border: 0px solid #ffffff;
+	padding: 9px 7px;
 }
 
 QPushButton:hover {
-    background-color: #3A3F49;
+    background-color: #433d47;
+    color: #ffffff;
 }
 
 QPushButton:pressed {
-    background-color: #454B57;
+    background-color: #6c53a6;
+    color: #ffffff;
+}
+
+QPushButton:checked {
+    background-color: #6c53a6;
+    color: #ffffff;
+}
+
+QPushButton:checked:hover {
+    background-color: #6c53a6;
+    color: #ffffff;
 }
 
 QPushButton:disabled {
-    background-color: #24272D;
-    color: #666C76;
+    background-color: #222023;
+    color: #433d47;
 }
 
-/* Primary button */
-QPushButton#primaryButton {
-    background-color: #668DB8;
-    color: #FFFFFF;
-}
-
-QPushButton#primaryButton:hover {
-    background-color: #779BC3;
-}
-
-QPushButton#primaryButton:pressed {
-    background-color: #527BA6;
-}
-
-/* Input fields */
-QLineEdit,
-QTextEdit,
-QPlainTextEdit,
-QSpinBox,
-QDoubleSpinBox {
-    background-color: #24272D;
-    color: #E0E2E6;
+/* ----- Horizontal Sliders ----- */
+QSlider::groove {
+    background-color: #312d34;
+    height: 6px;
     border: none;
-    border-radius: 9px;
-    padding: 9px;
-    selection-background-color: #668DB8;
-    selection-color: #FFFFFF;
+    border-radius: 3px;
 }
 
-QLineEdit:focus,
-QTextEdit:focus,
-QPlainTextEdit:focus,
-QSpinBox:focus {
-    background-color: #2C3038;
-}
-
-/* Combo boxes */
-QComboBox {
-    background-color: #24272D;
-    color: #E0E2E6;
+QSlider::handle {
+    background-color: #6c53a6;
     border: none;
-    border-radius: 9px;
-    padding: 9px 12px;
-}
-
-QComboBox:hover {
-    background-color: #30343C;
-}
-
-QComboBox::drop-down {
-    border: none;
-    background: transparent;
-    width: 20px;
-}
-
-
-QComboBox QAbstractItemView {
-    background-color: #24272D;
-    color: #E0E2E6;
-    border: none;
-    selection-background-color: #363D48;
-    selection-color: #FFFFFF;
-    outline: none;
-}
-
-/* Checkboxes */
-QCheckBox {
-    spacing: 9px;
-    background: transparent;
-}
-
-QCheckBox::indicator {
-    width: 17px;
-    height: 17px;
-    border-radius: 5px;
-    border: none;
-    background-color: #363A43;
-}
-
-QCheckBox::indicator:checked {
-    background-color: #668DB8;
-}
-
-/* Radio buttons */
-QRadioButton {
-    spacing: 8px;
-    background: transparent;
-}
-
-QRadioButton::indicator {
-    width: 16px;
-    height: 16px;
-    border-radius: 8px;
-    background-color: #363A43;
-}
-
-QRadioButton::indicator:checked {
-    background-color: #668DB8;
-}
-
-/* Group boxes */
-QGroupBox {
-    background-color: #22252B;
-    border: none;
-    border-radius: 12px;
-    margin-top: 16px;
-    padding: 14px;
-    font-weight: bold;
-}
-
-QGroupBox::title {
-    subcontrol-origin: margin;
-    left: 12px;
-    padding: 0 5px;
-    color: #AEB4BE;
-}
-
-/* Tabs */
-QTabWidget::pane {
-    background-color: #22252B;
-    border: none;
-    border-radius: 10px;
-}
-
-QTabBar::tab {
-    background-color: transparent;
-    color: #9299A4;
-    padding: 10px 16px;
-    margin-right: 4px;
-    border: none;
-    border-radius: 8px;
-}
-
-QTabBar::tab:selected {
-    background-color: #30343C;
-    color: #FFFFFF;
-}
-
-QTabBar::tab:hover {
-    background-color: #282C33;
-}
-
-/* Tables */
-QTableWidget,
-QTableView {
-    background-color: #22252B;
-    alternate-background-color: #272A31;
-    border: none;
-    border-radius: 10px;
-    gridline-color: transparent;
-    selection-background-color: #363D48;
-    selection-color: #FFFFFF;
-}
-
-QHeaderView::section {
-    background-color: #282C33;
-    color: #AEB4BE;
-    border: none;
-    padding: 10px;
-    font-weight: bold;
-}
-
-/* Sliders */
-QSlider::groove:horizontal {
-    background-color: #363A43;
-    height: 5px;
-    border: none;
-    border-radius: 2px;
-}
-
-QSlider::handle:horizontal {
-    background-color: #668DB8;
-    width: 15px;
-    height: 15px;
-    margin: -5px 0;
-    border: none;
+    width: 14px;
+    height: 14px;
+    margin: -4px 0;
     border-radius: 7px;
 }
 
-/* Progress bars */
-QProgressBar {
-    background-color: #30343C;
+QSlider::sub-page {
+    background-color: #433d47;
     border: none;
-    border-radius: 5px;
-    text-align: center;
-    height: 10px;
-    color: #FFFFFF;
+    border-radius: 3px;
 }
 
-QProgressBar::chunk {
-    background-color: #668DB8;
-    border: none;
-    border-radius: 5px;
+/* ----- Docks -----*/
+QDockWidget {
+	background-color: #222023;
+    titlebar-close-icon: url(assets/x.svg);
 }
 
-/* Scrollbars */
-QScrollBar:vertical {
-    background-color: transparent;
-    width: 9px;
-    margin: 2px;
+QDockWidget QWidget {
+    background-color: #222023;
+    color: #ffffff;
 }
 
-QScrollBar::handle:vertical {
-    background-color: #454B55;
+QDockWidget::title {
+    background-color: #312d34;
+    color: #ffffff;
+
+    text-align: left;
+	font-style: bold;
+}
+
+QDockWidget::close-button {
+    background-color: 312d34;
     border: none;
     border-radius: 4px;
-    min-height: 30px;
+
+    width: 16px;
+    height: 16px;
 }
 
-QScrollBar::handle:vertical:hover {
-    background-color: #59616E;
+QDockWidget::close-button:hover {
+    background-color: #433d47;
 }
 
-QScrollBar::add-line:vertical,
-QScrollBar::sub-line:vertical {
-    height: 0px;
+QDockWidget::close-button:pressed {
+    background-color: #6c53a6;
+}
+
+/* ----- Menu bar and status bar ----- */
+QMenuBar {
+    background-color: #151416;
+    color: #433d47;
+
     border: none;
-}
 
-QScrollBar::add-page:vertical,
-QScrollBar::sub-page:vertical {
-    background: transparent;
-}
-</string>
+    padding: 4px 6px;
+
+    font-family: &quot;Inter&quot;;
+    font-size: 13px;
+    font-weight: 500;
+}</string>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QVBoxLayout" name="verticalLayout">
     <item>
-     <layout class="QHBoxLayout" name="navigationLayout">
-      <property name="topMargin">
-       <number>0</number>
+     <widget class="QTabWidget" name="tabWidget">
+      <property name="enabled">
+       <bool>true</bool>
       </property>
-      <item>
-       <widget class="QPushButton" name="musicNavButton">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Music</string>
-        </property>
-        <property name="icon">
-         <iconset>
-          <normaloff>assets/eighth-notes.svg</normaloff>assets/eighth-notes.svg</iconset>
-        </property>
-        <property name="checkable">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="playlistsNavButton">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Playlists</string>
-        </property>
-        <property name="icon">
-         <iconset>
-          <normaloff>assets/list-music.svg</normaloff>assets/list-music.svg</iconset>
-        </property>
-        <property name="checkable">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <widget class="QPushButton" name="nowPlayingNavButton">
-        <property name="sizePolicy">
-         <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-          <horstretch>0</horstretch>
-          <verstretch>0</verstretch>
-         </sizepolicy>
-        </property>
-        <property name="text">
-         <string>Now Playing</string>
-        </property>
-        <property name="icon">
-         <iconset>
-          <normaloff>assets/audio-lines.svg</normaloff>assets/audio-lines.svg</iconset>
-        </property>
-        <property name="checkable">
-         <bool>true</bool>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <spacer name="horizontalSpacer_4">
-        <property name="orientation">
-         <enum>Qt::Orientation::Horizontal</enum>
-        </property>
-        <property name="sizeHint" stdset="0">
-         <size>
-          <width>40</width>
-          <height>20</height>
-         </size>
-        </property>
-       </spacer>
-      </item>
-     </layout>
-    </item>
-    <item>
-     <layout class="QHBoxLayout" name="horizontalLayout_2">
-      <property name="leftMargin">
-       <number>0</number>
+      <property name="tabPosition">
+       <enum>QTabWidget::TabPosition::North</enum>
       </property>
-      <property name="topMargin">
-       <number>10</number>
+      <property name="tabShape">
+       <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
-      <property name="bottomMargin">
-       <number>10</number>
+      <property name="currentIndex">
+       <number>1</number>
       </property>
-      <item>
-       <widget class="Line" name="line_2">
-        <property name="orientation">
-         <enum>Qt::Orientation::Vertical</enum>
-        </property>
-       </widget>
-      </item>
-      <item>
-       <layout class="QVBoxLayout" name="mainLayout">
+      <property name="elideMode">
+       <enum>Qt::TextElideMode::ElideNone</enum>
+      </property>
+      <property name="tabBarAutoHide">
+       <bool>false</bool>
+      </property>
+      <widget class="QWidget" name="nowPlayingTab">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <attribute name="icon">
+        <iconset>
+         <normalon>assets/audio-lines.svg</normalon>
+        </iconset>
+       </attribute>
+       <attribute name="title">
+        <string>Now Playing</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="songsTab">
+       <attribute name="icon">
+        <iconset>
+         <normalon>assets/eighth-notes.svg</normalon>
+        </iconset>
+       </attribute>
+       <attribute name="title">
+        <string>Songs</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_6">
         <item>
          <layout class="QHBoxLayout" name="horizontalLayout_6">
           <property name="topMargin">
@@ -986,21 +752,66 @@ QWidget {
         </item>
         <item>
          <widget class="QTableView" name="libraryList">
+          <property name="dragEnabled">
+           <bool>false</bool>
+          </property>
           <property name="alternatingRowColors">
            <bool>true</bool>
           </property>
+          <property name="gridStyle">
+           <enum>Qt::PenStyle::NoPen</enum>
+          </property>
+          <attribute name="horizontalHeaderCascadingSectionResizes">
+           <bool>false</bool>
+          </attribute>
          </widget>
         </item>
        </layout>
-      </item>
-      <item>
-       <widget class="Line" name="line">
-        <property name="orientation">
-         <enum>Qt::Orientation::Vertical</enum>
-        </property>
-       </widget>
-      </item>
-     </layout>
+      </widget>
+      <widget class="QWidget" name="playlistsTab">
+       <attribute name="icon">
+        <iconset>
+         <normalon>assets/list-music.svg</normalon>
+        </iconset>
+       </attribute>
+       <attribute name="title">
+        <string>Playlists</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="artistsTab">
+       <attribute name="icon">
+        <iconset>
+         <normalon>assets/user.svg</normalon>
+        </iconset>
+       </attribute>
+       <attribute name="title">
+        <string>Artists</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="albumsTab">
+       <attribute name="icon">
+        <iconset>
+         <normalon>assets/disc.svg</normalon>
+        </iconset>
+       </attribute>
+       <attribute name="title">
+        <string>Albums</string>
+       </attribute>
+      </widget>
+      <widget class="QWidget" name="settingsTab">
+       <property name="enabled">
+        <bool>true</bool>
+       </property>
+       <attribute name="icon">
+        <iconset>
+         <normalon>assets/settings.svg</normalon>
+        </iconset>
+       </attribute>
+       <attribute name="title">
+        <string>Settings</string>
+       </attribute>
+      </widget>
+     </widget>
     </item>
    </layout>
   </widget>
@@ -1018,7 +829,7 @@ QWidget {
      <x>0</x>
      <y>0</y>
      <width>1316</width>
-     <height>21</height>
+     <height>29</height>
     </rect>
    </property>
    <widget class="QMenu" name="menuFile">
@@ -1028,6 +839,7 @@ QWidget {
     <addaction name="actionAddLibrary"/>
     <addaction name="actionRescanLibrary"/>
     <addaction name="actionRemoveLibrary"/>
+    <addaction name="separator"/>
     <addaction name="actionQuit"/>
    </widget>
    <widget class="QMenu" name="menuPlayback">
@@ -1053,6 +865,7 @@ QWidget {
     <property name="title">
      <string>&amp;Tools</string>
     </property>
+    <addaction name="actionDiscordPresence"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -1338,14 +1151,14 @@ QDockWidget::title {
    </property>
    <property name="minimumSize">
     <size>
-     <width>850</width>
-     <height>100</height>
+     <width>1211</width>
+     <height>90</height>
     </size>
    </property>
    <property name="maximumSize">
     <size>
      <width>524287</width>
-     <height>100</height>
+     <height>90</height>
     </size>
    </property>
    <property name="font">
@@ -1354,6 +1167,19 @@ QDockWidget::title {
      <pointsize>10</pointsize>
      <kerning>true</kerning>
     </font>
+   </property>
+   <property name="styleSheet">
+    <string notr="true">QDockWidget::title {
+    height: 0px;
+    padding: 0px;
+    border: none;
+}
+
+QDockWidget::close-button,
+QDockWidget::float-button {
+    width: 0px;
+    height: 0px;
+}</string>
    </property>
    <property name="features">
     <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
@@ -1482,13 +1308,24 @@ QDockWidget::title {
            <property name="font">
             <font>
              <family>Inter</family>
-             <pointsize>10</pointsize>
+             <pointsize>12</pointsize>
              <italic>false</italic>
              <bold>true</bold>
              <underline>false</underline>
              <strikeout>false</strikeout>
              <kerning>true</kerning>
             </font>
+           </property>
+           <property name="styleSheet">
+            <string notr="true">/* Global */
+QWidget {
+    background-color: transparent;
+    color: #ffffff;
+    font-family: &quot;Inter&quot;, sans-serif;
+	font-weight: bold;
+    font-size: 12pt;
+    border: none;
+}</string>
            </property>
            <property name="text">
             <string>Nothing playing</string>
@@ -1856,6 +1693,17 @@ QWidget {
    </property>
    <property name="shortcut">
     <string>F1</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionDiscordPresence">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Discord Rich Presence</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
