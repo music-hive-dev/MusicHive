@@ -420,9 +420,11 @@ class TrackDelegate(QStyledItemDelegate):
     TEXT_GAP = 10
     MARKER_SIZE = 16
 
-    def __init__(self, parent: QObject | None = None) -> None:
+    def __init__(
+        self, parent: QObject | None = None, placeholder: Path = PLACEHOLDER_ICON
+    ) -> None:
         super().__init__(parent)
-        self._placeholder = QIcon(str(PLACEHOLDER_ICON))
+        self._placeholder = QIcon(str(placeholder))
         self._stop_icon = QIcon(str(STOP_AFTER_ICON))
 
     def sizeHint(self, option, index) -> QSize:

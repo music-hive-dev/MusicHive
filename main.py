@@ -3,6 +3,8 @@
 import sqlite3
 import sys
 from pathlib import Path
+import random
+
 
 from PySide6.QtCore import (
     QFile,
@@ -14,7 +16,7 @@ from PySide6.QtCore import (
     QThreadPool,
     QTimer,
 )
-from PySide6.QtGui import QCursor, QIcon, QImage
+from PySide6.QtGui import QCursor, QIcon, QImage, QPixmap
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
     QAbstractItemView,
@@ -28,6 +30,9 @@ from PySide6.QtWidgets import (
     QProxyStyle,
     QStyle,
     QToolTip,
+    QInputDialog,
+    QStackedWidget,
+    QTabWidget,
 )
 
 from src import library_db
@@ -49,6 +54,15 @@ from src.track_list import (
     TrackListModel,
 )
 from src.track_metadata import read_track_details
+from src.playlist_models import (
+    ClickFilter,
+    PlaylistEntry,
+    PlaylistListModel,
+    PlaylistTrackModel,
+    make_square_icon,
+)
+from src.playlists import Playlist, PlaylistStore
+
 
 UI_FILE = Path(__file__).parent / "player.ui"
 ASSETS_DIR = Path(__file__).parent / "assets"
@@ -85,6 +99,12 @@ MENU_ICONS = {
     "go_to": "library",
     "remove_from_upcoming": "minus",
     "end_after": "eject",
+    "new_playlist": "plus",
+    "play_playlist": "play",
+    "rename_playlist": "pencil",
+    "playlist_icon": "library",
+    "remove_playlist_icon": "x",
+    "delete_playlist": "trash",
 }
 
 # "Go to" entries: (menu label, name of the TrackInfo field to match)
@@ -96,6 +116,8 @@ GO_TO_FIELDS = (
     ("Album artist", "album_artist"),
     ("Genre", "genre"),
 )
+
+NO_PLAYLIST_TEXT = "No playlist selected"
 
 
 def load_ui(path: Path):
@@ -122,10 +144,13 @@ def asset_icon(name: str) -> QIcon:
     return icon
 
 
-def setup_track_view(view, model) -> None:
-    """Give the Upcoming list a model and the cover-and-two-lines row painter."""
+def setup_track_view(view, model, placeholder: Path | None = None) -> None:
+    """Give a list view a model and the cover-and-two-lines row painter."""
     view.setModel(model)
-    view.setItemDelegate(TrackDelegate(view))
+    if placeholder is None:
+        view.setItemDelegate(TrackDelegate(view))
+    else:
+        view.setItemDelegate(TrackDelegate(view, placeholder))
     view.setUniformItemSizes(True)
     view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
     view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
@@ -280,12 +305,34 @@ class MusicHive:
         w.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, w.upcomingDock)
         w.menuView.addAction(w.upcomingDock.toggleViewAction())
 
-        # Right-click menus on both lists
-        for view, in_upcoming in ((w.libraryList, False), (w.upcomingList, True)):
+        # Right-click menus on the song lists
+        for view, source in (
+            (w.libraryList, "library"),
+            (w.upcomingList, "upcoming"),
+            (w.playlistSongList, "playlist"),
+        ):
             view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             view.customContextMenuRequested.connect(
-                lambda pos, v=view, up=in_upcoming: self.show_track_menu(v, pos, up)
+                lambda pos, v=view, s=source: self.show_track_menu(v, pos, s)
             )
+
+        # Playlists: saved in the library's data folder, one file per playlist
+        self.playlist_store: PlaylistStore | None = None
+        self.current_playlist: str | None = None
+        self.playlist_placeholder = asset_icon("list-music")  # for playlists without an icon
+
+        self.playlist_list_model = PlaylistListModel(w)
+        setup_track_view(w.playlistsList, self.playlist_list_model, ASSETS_DIR / "list-music.svg")
+        w.playlistsList.selectionModel().currentChanged.connect(self.on_playlist_selected)
+        w.playlistsList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        w.playlistsList.customContextMenuRequested.connect(self.show_playlist_menu)
+
+        self.playlist_tracks = PlaylistTrackModel(self.library_model, w)
+        self.playlist_proxy = SortedTrackModel(w)
+        self.playlist_proxy.setSourceModel(self.playlist_tracks)
+        setup_library_table(w.playlistSongList, self.playlist_proxy)
+        self.restore_table_layout(w.playlistSongList, "playlistHeaderState")
+        w.playlistSongList.doubleClicked.connect(self.play_playlist_item)
 
         # Track info panel (filled whenever a track starts playing)
         self.cover_view = SquareCover(w.trackInfoCoverImg, asset_icon("eighth-notes"))
@@ -379,6 +426,8 @@ class MusicHive:
         self.scan_pool.waitForDone()  # a scan must be finished before we save
         header = self.window.libraryList.horizontalHeader()
         self.settings.setValue("libraryHeaderState", header.saveState())
+        playlist_header = self.window.playlistSongList.horizontalHeader()
+        self.settings.setValue("playlistHeaderState", playlist_header.saveState())
         self.save_session()
         self.discord.shutdown()
         self.lastfm.shutdown()
@@ -436,10 +485,12 @@ class MusicHive:
 
     # ----- the library table -----
 
-    def restore_table_layout(self) -> None:
-        """Bring back the column widths and sort order from the last session."""
-        header = self.window.libraryList.horizontalHeader()
-        state = self.settings.value("libraryHeaderState")
+    def restore_table_layout(self, view=None, key: str = "libraryHeaderState") -> None:
+        """Bring back a table's column widths and sort order from the last session."""
+        if view is None:
+            view = self.window.libraryList
+        header = view.horizontalHeader()
+        state = self.settings.value(key)
         if state:
             header.restoreState(state)
         for index, column in enumerate(COLUMNS):
@@ -679,14 +730,20 @@ class MusicHive:
 
     # ----- right-click menu -----
 
-    def show_track_menu(self, view, pos, in_upcoming: bool) -> None:
-        """Right-click menu for a song in the library table or the Upcoming list."""
+    def show_track_menu(self, view, pos, source: str) -> None:
+        """Right-click menu for a song. `source` is "library", "upcoming" or "playlist"."""
         index = view.indexAt(pos)
         if not index.isValid():
             return
-        if in_upcoming:
+        context = None  # the songs that follow when this one is played from here
+        if source == "upcoming":
             offset = index.row()  # places down the Upcoming list (0 = playing)
             row = self.queue_model.library_row(index)
+        elif source == "playlist":
+            offset = -1
+            playlist_row = self.playlist_proxy.mapToSource(index).row()
+            row = self.playlist_tracks.library_row(playlist_row)
+            context = self.playlist_display_rows()
         else:
             offset = -1
             row = self.library_proxy.mapToSource(index).row()
@@ -695,6 +752,7 @@ class MusicHive:
             return
 
         scanning = self.scan_task is not None
+        playlist_names = self.playlist_store.names() if self.playlist_store else []
         menu = QMenu(view)
         menu.setToolTipsVisible(True)
 
@@ -706,18 +764,32 @@ class MusicHive:
             action.triggered.connect(lambda _checked=False: callback())
             return action
 
-        add(menu, "Play now", "play_now", lambda: self.play_now(row, offset))
+        add(menu, "Play now", "play_now", lambda: self.play_now(row, offset, context))
         add(menu, "Play next", "play_next", lambda: self.queue_track(row, play_next=True))
         add(menu, "Add to queue", "add_to_queue", lambda: self.queue_track(row, play_next=False))
+
+        playlist_menu = menu.addMenu(self.menu_icons["add_to_playlist"], "Add to playlist")
+        for name in playlist_names:
+            add(
+                playlist_menu, name.replace("&", "&&"), None,
+                lambda n=name: self.add_to_playlist(n, row),
+            )
+        if playlist_names:
+            playlist_menu.addSeparator()
         add(
-            menu, "Add to playlist…", "add_to_playlist", lambda: None,
-            enabled=False, tip="Playlists are not available yet",
+            playlist_menu, "New playlist…", None,
+            lambda: self.new_playlist(add_row=row),
+            enabled=self.playlist_store is not None,
         )
         menu.addSeparator()
+
         add(menu, "Edit…", "edit", lambda: None, enabled=False, tip="Not available yet")
+        in_playlist = source == "playlist"
         add(
-            menu, "Delete from playlist", "delete_from_playlist", lambda: None,
-            enabled=False, tip="Playlists are not available yet",
+            menu, "Delete from playlist", "delete_from_playlist",
+            lambda: self.remove_from_playlist(row),
+            enabled=in_playlist,
+            tip="" if in_playlist else "Only available inside a playlist",
         )
         add(
             menu, "Delete file", "delete_file", lambda: self.delete_file(row),
@@ -736,7 +808,7 @@ class MusicHive:
                 tip="" if has_value else "This track has no such tag (rescan to read new ones)",
             )
 
-        if in_upcoming:
+        if source == "upcoming":
             menu.addSeparator()
             add(
                 menu, "Remove from upcoming", "remove_from_upcoming",
@@ -754,20 +826,24 @@ class MusicHive:
 
         menu.exec(view.viewport().mapToGlobal(pos))
 
-        if in_upcoming and self.queue_model.rowCount() > 0:
+        if source == "upcoming" and self.queue_model.rowCount() > 0:
             # The highlight in the Upcoming list marks the playing track.
             view.setCurrentIndex(self.queue_model.index(0, 0))
 
-    def play_now(self, row: int, upcoming_offset: int = -1) -> None:
-        """Play a song. From the Upcoming list (offset >= 0) the order is kept;
-        from the library table (offset -1) a fresh order starts at `row`,
-        following the table's current sort order."""
+    def play_now(
+        self, row: int, upcoming_offset: int = -1, context: list[int] | None = None
+    ) -> None:
+        """Play a song. From the Upcoming list (offset >= 0) the order is kept.
+        Otherwise a fresh order starts at `row`, following `context` (the rows of
+        a playlist) or, by default, the library table's current sort order."""
         if upcoming_offset >= 0:
             row = self.play_order.jump_to_upcoming(upcoming_offset)
             if row < 0:
                 return
         else:
-            self.play_order.start_at(row, self.display_rows())
+            self.play_order.start_at(
+                row, context if context is not None else self.display_rows()
+            )
         self.play_index(row)
 
     def queue_track(self, row: int, play_next: bool) -> None:
@@ -816,6 +892,7 @@ class MusicHive:
             )
         if target < 0:
             return
+        self.show_tab_of(self.window.libraryList)
         self.select_in_table(target, at_top=True)
         self.window.libraryList.setFocus()
         self.show_status(f"Went to '{library.info(target).title}'")
@@ -864,12 +941,19 @@ class MusicHive:
             pass  # the next rescan will bring the library data up to date
         self.update_library_stats()
 
+        if self.playlist_store is not None:
+            try:
+                self.playlist_store.remove_track_everywhere(self.relative_path(path))
+            except OSError:
+                pass
+
         was_playing = row == self.current_index
         table_bar = self.window.libraryList.verticalScrollBar()
         table_scroll = table_bar.value()
 
         del self.tracks[row]
         self.library_model.remove_row(row)  # resets the table
+        self.refresh_playlist_list(select=self.current_playlist)
         if was_playing:
             self.player.unload()
             self.show_nothing_playing()
@@ -969,6 +1053,323 @@ class MusicHive:
             return False
         return True
 
+
+    # ----- playlists -----
+
+    def load_playlists(self) -> None:
+        """Open the playlists of the loaded library (none if no library is loaded)."""
+        library = self.loaded_library
+        self.playlist_store = (
+            PlaylistStore(library.db_path.parent / "playlists") if library else None
+        )
+        self.current_playlist = None
+        self.refresh_playlist_list()
+
+    def rows_by_relative_path(self) -> dict[str, int]:
+        if self.loaded_library is None:
+            return {}
+        return {self.relative_path(path): row for row, path in enumerate(self.tracks)}
+
+    def refresh_playlist_list(self, select: str | None = None) -> None:
+        """Re-read the playlists (names, icons, song counts) and show one of them."""
+        store = self.playlist_store
+        names = store.names() if store is not None else []
+        rows_by_rel = self.rows_by_relative_path()
+
+        entries = []
+        for name in names:
+            count = sum(1 for rel in store.load(name).tracks if rel in rows_by_rel)
+            icon = None
+            if store.icon_file(name).exists():
+                loaded = QImage(str(store.icon_file(name)))
+                icon = loaded if not loaded.isNull() else None
+            entries.append(PlaylistEntry(name, count, icon))
+        self.playlist_list_model.set_entries(entries)
+
+        target = select if select in names else (names[0] if names else None)
+        if target is None:
+            self.show_playlist(None)
+        else:
+            self.select_playlist(target)
+
+    def on_playlist_selected(self, current: QModelIndex, previous: QModelIndex) -> None:
+        name = self.playlist_list_model.name_at(current.row()) if current.isValid() else None
+        self.show_playlist(name)
+
+    def select_playlist(self, name: str) -> None:
+        row = self.playlist_list_model.row_of(name)
+        if row < 0:
+            return
+        self.window.playlistsList.setCurrentIndex(self.playlist_list_model.index(row))
+        if self.current_playlist != name:  # the selection did not change on its own
+            self.show_playlist(name)
+
+    def show_playlist(self, name: str | None) -> None:
+        """Show a playlist's name, icon, stats and songs (None shows an empty tab)."""
+        self.current_playlist = name
+        w = self.window
+        store = self.playlist_store
+        if not name or store is None:
+            self.playlist_tracks.set_rows([])
+            w.playlistsTabPlaylistName.setText(NO_PLAYLIST_TEXT)
+            w.playlistsTabStats.setText("")
+            self.show_playlist_icon(None)
+            return
+
+        rows_by_rel = self.rows_by_relative_path()
+        rows = [rows_by_rel[rel] for rel in store.load(name).tracks if rel in rows_by_rel]
+        self.playlist_tracks.set_rows(rows)
+        w.playlistsTabPlaylistName.setText(name)
+        w.playlistsTabStats.setText(self.describe_playlist(rows))
+        self.show_playlist_icon(name)
+
+    def describe_playlist(self, rows: list[int]) -> str:
+        total_ms = sum(self.library_model.info(row).duration_ms or 0 for row in rows)
+        noun = "Song" if len(rows) == 1 else "Songs"
+        return f"{len(rows)} {noun}, {format_long_duration(total_ms)}"
+
+    def playlist_pixmap(self, name: str | None, side: int) -> QPixmap:
+        """The playlist's icon at `side` pixels, or the placeholder if it has none."""
+        store = self.playlist_store
+        if name and store is not None and store.icon_file(name).exists():
+            image = QImage(str(store.icon_file(name)))
+            if not image.isNull():
+                scaled = image.scaled(
+                    side,
+                    side,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation,
+                )
+                return QPixmap.fromImage(scaled)
+        return self.playlist_placeholder.pixmap(side, side)
+
+    def show_playlist_icon(self, name: str | None) -> None:
+        """Show the playlist's icon in the widget at the top of the tab."""
+        widget = self.window.playlistsTabIcon
+        is_label = hasattr(widget, "setPixmap")
+        side = min(widget.width(), widget.height()) - (0 if is_label else 8)
+        if side < 32:  # the tab has not been laid out yet
+            side = 96
+        pixmap = self.playlist_pixmap(name, side)
+        if is_label:
+            widget.setPixmap(pixmap)
+        else:
+            widget.setIcon(QIcon(pixmap))
+            widget.setIconSize(pixmap.size())
+
+    def choose_playlist_icon(self) -> None:
+        store = self.playlist_store
+        name = self.current_playlist
+        if store is None or name is None:
+            self.show_status("Select or create a playlist first")
+            return
+        start_dir = QStandardPaths.writableLocation(QStandardPaths.PicturesLocation)
+        path, _ = QFileDialog.getOpenFileName(
+            self.window,
+            "Choose an icon for the playlist",
+            start_dir,
+            "Images (*.png *.jpg *.jpeg *.webp *.bmp *.gif)",
+        )
+        if not path:
+            return
+        image = QImage(path)
+        if image.isNull():
+            QMessageBox.warning(self.window, "Playlist icon", "That image could not be read.")
+            return
+        try:
+            store.folder.mkdir(parents=True, exist_ok=True)
+            saved = make_square_icon(image).save(str(store.icon_file(name)), "PNG")
+        except OSError:
+            saved = False
+        if not saved:
+            QMessageBox.warning(self.window, "Playlist icon", "The icon could not be saved.")
+            return
+        self.refresh_playlist_list(select=name)
+
+    def remove_playlist_icon(self, name: str) -> None:
+        if self.playlist_store is not None:
+            self.playlist_store.icon_file(name).unlink(missing_ok=True)
+            self.refresh_playlist_list(select=name)
+
+    def ask_playlist_name(
+        self, title: str, label: str, initial: str = "", ignore: str | None = None
+    ) -> str | None:
+        """Ask for a playlist name until it is valid. None if the user cancels."""
+        text = initial
+        while True:
+            text, accepted = QInputDialog.getText(self.window, title, label, text=text)
+            if not accepted:
+                return None
+            problem = self.playlist_store.check_name(text, ignore)
+            if problem is None:
+                return text.strip()
+            QMessageBox.warning(self.window, "Playlist name", problem)
+
+    def new_playlist(self, add_row: int | None = None) -> None:
+        """Create a playlist, and add a song to it if `add_row` is given."""
+        store = self.playlist_store
+        if store is None:
+            return
+        name = self.ask_playlist_name("New playlist", "Name of the new playlist:")
+        if name is None:
+            return
+        try:
+            store.save(Playlist(name))
+            if add_row is not None:
+                store.add_track(name, self.relative_path(self.tracks[add_row]))
+        except OSError as error:
+            QMessageBox.warning(self.window, "Cannot create playlist", str(error))
+            return
+        self.refresh_playlist_list(select=name)
+        if add_row is not None:
+            title = self.library_model.info(add_row).title
+            self.show_status(f"Added '{title}' to {name}")
+
+    def rename_playlist(self, name: str) -> None:
+        store = self.playlist_store
+        if store is None:
+            return
+        new = self.ask_playlist_name("Rename playlist", "New name:", initial=name, ignore=name)
+        if new is None or new == name:
+            return
+        try:
+            store.rename(name, new)
+        except OSError as error:
+            QMessageBox.warning(self.window, "Cannot rename playlist", str(error))
+            return
+        self.refresh_playlist_list(select=new)
+
+    def delete_playlist(self, name: str) -> None:
+        store = self.playlist_store
+        if store is None:
+            return
+        answer = QMessageBox.question(
+            self.window,
+            "Delete playlist",
+            f"Delete the playlist '{name}'?\n\nThe songs themselves are not deleted.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return
+        try:
+            store.delete(name)
+        except OSError as error:
+            QMessageBox.warning(self.window, "Cannot delete playlist", str(error))
+            return
+        self.refresh_playlist_list()
+
+    def add_to_playlist(self, name: str, row: int) -> None:
+        store = self.playlist_store
+        if store is None:
+            return
+        title = self.library_model.info(row).title
+        try:
+            added = store.add_track(name, self.relative_path(self.tracks[row]))
+        except OSError as error:
+            QMessageBox.warning(self.window, "Cannot add to playlist", str(error))
+            return
+        self.show_status(
+            f"Added '{title}' to {name}" if added else f"'{title}' is already in {name}"
+        )
+        self.refresh_playlist_list(select=self.current_playlist)
+
+    def remove_from_playlist(self, row: int) -> None:
+        """Remove a song from the playlist on screen (its file is not touched)."""
+        store = self.playlist_store
+        name = self.current_playlist
+        if store is None or name is None:
+            return
+        bar = self.window.playlistSongList.verticalScrollBar()
+        scroll = bar.value()
+        try:
+            store.remove_track(name, self.relative_path(self.tracks[row]))
+        except OSError as error:
+            QMessageBox.warning(self.window, "Cannot update playlist", str(error))
+            return
+        self.refresh_playlist_list(select=name)
+        QTimer.singleShot(0, lambda: bar.setValue(scroll))
+
+    def playlist_display_rows(self) -> list[int]:
+        """Library rows of the playlist on screen, in the order its table shows them."""
+        return [
+            self.playlist_tracks.library_row(row)
+            for row in self.playlist_proxy.source_rows()
+        ]
+
+    def play_playlist_item(self, model_index: QModelIndex) -> None:
+        """The user double-clicked a song in the playlist table."""
+        playlist_row = self.playlist_proxy.mapToSource(model_index).row()
+        row = self.playlist_tracks.library_row(playlist_row)
+        if row >= 0:
+            self.play_now(row, context=self.playlist_display_rows())
+
+    def play_playlist(self, name: str) -> None:
+        """Play a playlist from its first song (a random one if shuffle is on)."""
+        if name != self.current_playlist:
+            self.select_playlist(name)
+        rows = self.playlist_display_rows()
+        if not rows:
+            self.show_status(f"'{name}' has no songs yet")
+            return
+        first = random.choice(rows) if self.play_order.shuffle else rows[0]
+        self.play_now(first, context=rows)
+
+    def select_in_playlist(self, row: int) -> None:
+        """Highlight a library row in the playlist table, if it is in that playlist."""
+        playlist_row = self.playlist_tracks.playlist_row_of(row)
+        if playlist_row < 0:
+            return
+        index = self.playlist_proxy.mapFromSource(self.playlist_tracks.index(playlist_row, 0))
+        if index.isValid():
+            view = self.window.playlistSongList
+            view.setCurrentIndex(index)
+            view.scrollTo(index, QAbstractItemView.ScrollHint.EnsureVisible)
+
+    def show_playlist_menu(self, pos) -> None:
+        """Right-click menu of the playlist side list."""
+        store = self.playlist_store
+        if store is None:
+            return
+        view = self.window.playlistsList
+        index = view.indexAt(pos)
+        name = self.playlist_list_model.name_at(index.row()) if index.isValid() else None
+        if name is not None and name != self.current_playlist:
+            self.select_playlist(name)
+
+        menu = QMenu(view)
+
+        def add(label, icon_key, callback, enabled=True):
+            action = menu.addAction(self.menu_icons[icon_key], label)
+            action.setEnabled(enabled)
+            action.triggered.connect(lambda _checked=False: callback())
+
+        add("New playlist…", "new_playlist", lambda: self.new_playlist())
+        if name is not None:
+            menu.addSeparator()
+            add("Play", "play_playlist", lambda: self.play_playlist(name))
+            add("Rename…", "rename_playlist", lambda: self.rename_playlist(name))
+            add("Change icon…", "playlist_icon", self.choose_playlist_icon)
+            add(
+                "Remove icon", "remove_playlist_icon",
+                lambda: self.remove_playlist_icon(name),
+                enabled=store.icon_file(name).exists(),
+            )
+            menu.addSeparator()
+            add("Delete playlist…", "delete_playlist", lambda: self.delete_playlist(name))
+        menu.exec(view.viewport().mapToGlobal(pos))
+
+    def show_tab_of(self, widget) -> None:
+        """Switch to the tab that contains `widget`."""
+        page = widget
+        while page is not None:
+            parent = page.parentWidget()
+            if isinstance(parent, QStackedWidget) and isinstance(parent.parentWidget(), QTabWidget):
+                parent.parentWidget().setCurrentWidget(page)
+                return
+            page = parent
+
+
     # ----- libraries -----
 
     def restore_libraries(self) -> None:
@@ -1025,6 +1426,7 @@ class MusicHive:
             self.tracks = []
             self.library_model.clear()
             self.reset_play_order()
+            self.load_playlists()
             self.update_controls()
             self.update_library_stats()
             self.show_status(f"Cannot read library '{info.name}': {error}")
@@ -1034,6 +1436,7 @@ class MusicHive:
         self.tracks = loaded.paths
         self.library_model.set_library(loaded.paths, loaded.infos, loaded.covers)
         self.reset_play_order()
+        self.load_playlists()
         self.settings.setValue("lastLibrary", info.id)
         self.update_controls()
         self.update_library_stats()
@@ -1075,6 +1478,7 @@ class MusicHive:
             self.current_index = -1
         self.refresh_upcoming()
         self.update_library_stats()
+        self.refresh_playlist_list(select=self.current_playlist)
 
     def add_library(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.MusicLocation)
@@ -1127,6 +1531,7 @@ class MusicHive:
         self.tracks = []
         self.library_model.clear()
         self.reset_play_order()
+        self.load_playlists()
         self.settings.remove("lastLibrary")
         self.refresh_libraries(select_id=None)
         self.show_status(f"Removed library '{info.name}'")
@@ -1156,6 +1561,15 @@ class MusicHive:
             f"{stats.total_bytes:,} bytes\n"
             f"{format_long_duration(stats.total_ms, seconds=True)}"
         )
+        w = self.window
+        icon_widget = w.playlistsTabIcon
+        icon_widget.setToolTip("Click to choose an icon for this playlist")
+        if hasattr(icon_widget, "clicked"):  # a button
+            icon_widget.clicked.connect(self.choose_playlist_icon)
+        else:  # a label
+            self._icon_click = ClickFilter(icon_widget)
+            self._icon_click.clicked.connect(self.choose_playlist_icon)
+        self.show_playlist(None)
 
     def describe(self, info: LibraryInfo, track_count: int) -> str:
         scanned = info.scanned_at.replace("T", " ") if info.scanned_at else "never"
@@ -1231,6 +1645,7 @@ class MusicHive:
         self.current_index = row
         self.position_ms = 0
         self.select_in_table(row)
+        self.select_in_playlist(row)
         self.refresh_upcoming()
         self.player.play_file(self.tracks[row])
 
