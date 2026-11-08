@@ -631,7 +631,7 @@ QMenuBar {
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
+   <layout class="QHBoxLayout" name="horizontalLayout_8">
     <item>
      <widget class="QTabWidget" name="tabWidget">
       <property name="enabled">
@@ -680,24 +680,6 @@ QMenuBar {
           <property name="topMargin">
            <number>0</number>
           </property>
-          <item>
-           <widget class="QLabel" name="tracksLabel">
-            <property name="styleSheet">
-             <string notr="true">/* Global */
-QWidget {
-    background-color: transparent;
-    color: #ffffff;
-    font-family: &quot;Inter&quot;, sans-serif;
-	font-weight: bold;
-    font-size: 9pt;
-    border: none;
-}</string>
-            </property>
-            <property name="text">
-             <string>Tracks</string>
-            </property>
-           </widget>
-          </item>
           <item>
            <spacer name="horizontalSpacer_3">
             <property name="orientation">
@@ -777,6 +759,89 @@ QWidget {
        <attribute name="title">
         <string>Playlists</string>
        </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_12">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_9">
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="playlistsTabIcon">
+            <property name="minimumSize">
+             <size>
+              <width>128</width>
+              <height>128</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>128</width>
+              <height>128</height>
+             </size>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="pixmap">
+             <pixmap>assets/list-music.svg</pixmap>
+            </property>
+            <property name="scaledContents">
+             <bool>true</bool>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_6">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>6</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <layout class="QVBoxLayout" name="verticalLayout_11">
+            <item>
+             <widget class="QLabel" name="playlistsTabPlaylistName">
+              <property name="font">
+               <font>
+                <family>Inter</family>
+                <pointsize>13</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Album Title</string>
+              </property>
+              <property name="scaledContents">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="playlistsTabStats">
+              <property name="text">
+               <string>xx Songs, hh:mm</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QListView" name="albumSongList_3"/>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="artistsTab">
        <attribute name="icon">
@@ -787,6 +852,104 @@ QWidget {
        <attribute name="title">
         <string>Artists</string>
        </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_7">
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="artistsTabIcon">
+            <property name="minimumSize">
+             <size>
+              <width>128</width>
+              <height>128</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>128</width>
+              <height>128</height>
+             </size>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="pixmap">
+             <pixmap>assets/user.svg</pixmap>
+            </property>
+            <property name="scaledContents">
+             <bool>true</bool>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_5">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>6</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <layout class="QVBoxLayout" name="verticalLayout_10">
+            <item>
+             <widget class="QLabel" name="artistsTabArtistName">
+              <property name="font">
+               <font>
+                <family>Inter</family>
+                <pointsize>13</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Artist Name</string>
+              </property>
+              <property name="scaledContents">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="artistsTabDescription">
+              <property name="sizePolicy">
+               <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                <horstretch>0</horstretch>
+                <verstretch>0</verstretch>
+               </sizepolicy>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>16777215</width>
+                <height>96</height>
+               </size>
+              </property>
+              <property name="text">
+               <string>Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet. Lorem ipsum dolor sit amet, consetetur sadipscing elitr, sed diam nonumy eirmod tempor invidunt ut labore et dolore magna aliquyam erat, sed diam voluptua. At vero eos et accusam et justo duo dolores et ea rebum. Stet clita kasd gubergren, no sea takimata sanctus est Lorem ipsum dolor sit amet.</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QListView" name="albumSongList_2"/>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="albumsTab">
        <attribute name="icon">
@@ -797,6 +960,96 @@ QWidget {
        <attribute name="title">
         <string>Albums</string>
        </attribute>
+       <layout class="QVBoxLayout" name="verticalLayout_7">
+        <item>
+         <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <property name="topMargin">
+           <number>0</number>
+          </property>
+          <item>
+           <widget class="QLabel" name="albumsTabIcon">
+            <property name="minimumSize">
+             <size>
+              <width>128</width>
+              <height>128</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>128</width>
+              <height>128</height>
+             </size>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="pixmap">
+             <pixmap>assets/disc.svg</pixmap>
+            </property>
+            <property name="scaledContents">
+             <bool>true</bool>
+            </property>
+            <property name="alignment">
+             <set>Qt::AlignmentFlag::AlignCenter</set>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <spacer name="horizontalSpacer_4">
+            <property name="orientation">
+             <enum>Qt::Orientation::Horizontal</enum>
+            </property>
+            <property name="sizeType">
+             <enum>QSizePolicy::Policy::Fixed</enum>
+            </property>
+            <property name="sizeHint" stdset="0">
+             <size>
+              <width>6</width>
+              <height>20</height>
+             </size>
+            </property>
+           </spacer>
+          </item>
+          <item>
+           <layout class="QVBoxLayout" name="verticalLayout_8">
+            <item>
+             <widget class="QLabel" name="albumsTabAlbumName">
+              <property name="font">
+               <font>
+                <family>Inter</family>
+                <pointsize>13</pointsize>
+               </font>
+              </property>
+              <property name="text">
+               <string>Album Title</string>
+              </property>
+              <property name="scaledContents">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="albumsTabArtist">
+              <property name="text">
+               <string>Artist</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLabel" name="albumsTabYear">
+              <property name="text">
+               <string>Year</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <widget class="QListView" name="albumSongList"/>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="settingsTab">
        <property name="enabled">
@@ -866,6 +1119,7 @@ QWidget {
      <string>&amp;Tools</string>
     </property>
     <addaction name="actionDiscordPresence"/>
+    <addaction name="actionAudioScrobbleLastFm"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -909,7 +1163,17 @@ QDockWidget::title {
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QVBoxLayout" name="verticalLayout_4">
      <item>
-      <widget class="QListView" name="upcomingList"/>
+      <widget class="QListView" name="upcomingList">
+       <property name="sizePolicy">
+        <sizepolicy hsizetype="Maximum" vsizetype="Expanding">
+         <horstretch>0</horstretch>
+         <verstretch>0</verstretch>
+        </sizepolicy>
+       </property>
+       <property name="autoScroll">
+        <bool>true</bool>
+       </property>
+      </widget>
      </item>
      <item>
       <layout class="QVBoxLayout" name="verticalLayout_2">
@@ -976,7 +1240,7 @@ QWidget {
          <property name="sizePolicy">
           <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
            <horstretch>0</horstretch>
-           <verstretch>222</verstretch>
+           <verstretch>0</verstretch>
           </sizepolicy>
          </property>
          <property name="minimumSize">
@@ -1004,7 +1268,7 @@ QWidget {
           <string/>
          </property>
          <property name="pixmap">
-          <pixmap>musichive_colour.svg</pixmap>
+          <pixmap>assets/eighth-notes.svg</pixmap>
          </property>
          <property name="scaledContents">
           <bool>true</bool>
@@ -1704,6 +1968,18 @@ QWidget {
    </property>
    <property name="text">
     <string>Discord Rich Presence</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionAudioScrobbleLastFm">
+   <property name="icon">
+    <iconset>
+     <normaloff>assets/radio-tower.svg</normaloff>assets/radio-tower.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Last.fm Account</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

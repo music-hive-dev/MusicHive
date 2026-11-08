@@ -38,6 +38,9 @@ from src.library_db import LibraryInfo, SavedSession
 from src.library_scanner import ScanSignals, ScanTask
 from src.play_order import PlayOrder
 from src.discord_rpc import DiscordPresence, make_activity
+from src.lastfm import LastFmClient
+from src.lastfm_dialog import LastFmDialog
+from src.listening import ListenTracker
 from src.track_list import (
     COLUMNS,
     QueueModel,
@@ -52,6 +55,13 @@ ASSETS_DIR = Path(__file__).parent / "assets"
 # The Application ID of your Discord application (public, not a secret).
 # Leave it empty to disable the Discord menu item.
 DISCORD_CLIENT_ID = "1568612126409498656"
+# Your Last.fm API account (see the setup steps). The secret is not meant to be public.
+LASTFM_API_KEY = ""
+LASTFM_API_SECRET = ""
+LASTFM_UI_FILE = Path(__file__).parent / "lastfm.ui"
+
+# How long after a track starts before Last.fm is told what is playing.
+NOW_PLAYING_DELAY_MS = 3000
 
 # If the track is further in than this, Previous restarts it instead of
 # going back to the previous track.
@@ -165,6 +175,7 @@ class MusicHive:
         self.window = load_ui(UI_FILE)
         self.player = AudioPlayer()
         self.settings = QSettings("MusicHive", "MusicHive")
+        w = self.window
 
         # Libraries
         self.libraries: list[LibraryInfo] = []
@@ -184,6 +195,30 @@ class MusicHive:
         self.duration_ms = 0  # length of the loaded track, as the player reports it
         self.discord_active = False  # True once playback has started this session
 
+        #LastFm
+        self.listening = ListenTracker()  # measures how long the current track is heard
+        self.listen_entry: dict | None = None  # what the current play is, captured when it began
+
+        # Play counts and Last.fm scrobbling
+        self.lastfm = LastFmClient(
+            LASTFM_API_KEY,
+            LASTFM_API_SECRET,
+            self.settings,
+            library_db.data_dir() / "lastfm-queue.json",
+            w,
+        )
+        self.lastfm.status_message.connect(self.show_status)
+        self._lastfm_dialog: LastFmDialog | None = None
+        w.actionAudioScrobbleLastFm.triggered.connect(self.show_lastfm_dialog)
+
+        self.listen_timer = QTimer(w)  # checks once a second whether a play now counts
+        self.listen_timer.setInterval(1000)
+        self.listen_timer.timeout.connect(self.check_listening)
+        self.listen_timer.start()
+        self.now_playing_timer = QTimer(w)
+        self.now_playing_timer.setSingleShot(True)
+        self.now_playing_timer.timeout.connect(self.send_now_playing)
+
         # Background scanning (one scan at a time)
         self.scan_pool = QThreadPool(self.window)
         self.scan_pool.setMaxThreadCount(1)
@@ -191,7 +226,6 @@ class MusicHive:
         self.scan_task: ScanTask | None = None
         self.scan_library: LibraryInfo | None = None
 
-        w = self.window
 
         # Discord Rich Presence (off until the user turns it on in the menu)
         self.discord = DiscordPresence(DISCORD_CLIENT_ID, self.build_discord_activity, w)
@@ -339,6 +373,7 @@ class MusicHive:
 
     def shutdown(self) -> None:
         """Save the session, stop background work and playback. Called on quit."""
+        self.check_listening()  # a play that has just reached its threshold still counts
         if self.scan_task is not None:
             self.scan_task.cancel()
         self.scan_pool.waitForDone()  # a scan must be finished before we save
@@ -346,6 +381,7 @@ class MusicHive:
         self.settings.setValue("libraryHeaderState", header.saveState())
         self.save_session()
         self.discord.shutdown()
+        self.lastfm.shutdown()
         self.player.shutdown()
 
     def show_status(self, text: str) -> None:
@@ -431,6 +467,104 @@ class MusicHive:
             else QAbstractItemView.ScrollHint.EnsureVisible
         )
         view.scrollTo(index, hint)
+
+
+    # ----- play counts and Last.fm -----
+
+    def begin_listening(self) -> None:
+        """A track was loaded: start measuring how long it is listened to."""
+        self.check_listening()  # settle the previous play first
+        library = self.loaded_library
+        info = self.library_model.info(self.current_index)
+        if library is None or info is None or not 0 <= self.current_index < len(self.tracks):
+            self.listening.reset()
+            self.listen_entry = None
+            return
+        path = self.tracks[self.current_index]
+        self.listen_entry = {
+            "db_path": library.db_path,
+            "path": path,
+            "rel_path": self.relative_path(path),
+            "artist": info.artist,
+            "title": info.title,
+            "album": info.album,
+            "album_artist": info.album_artist,
+            "duration": (info.duration_ms or 0) // 1000,
+        }
+        self.listening.begin(info.duration_ms or 0, self.playback_state == "playing")
+
+    def check_listening(self) -> None:
+        """Count the current play if it has been listened to for long enough."""
+        if self.listening.check() and self.listen_entry is not None:
+            self.count_play(self.listen_entry, self.listening.started_at)
+
+    def count_play(self, entry: dict, started_at: int | None) -> None:
+        """A play counts: raise the play count and scrobble it to Last.fm."""
+        try:
+            count = library_db.increment_play_count(entry["db_path"], entry["rel_path"])
+        except sqlite3.Error:
+            count = None
+
+        library = self.loaded_library
+        if count is not None and library is not None and library.db_path == entry["db_path"]:
+            try:
+                row = self.tracks.index(entry["path"])
+            except ValueError:
+                row = -1
+            if row >= 0:
+                self.library_model.set_play_count(row, count)
+
+        if entry["artist"] and entry["title"]:  # Last.fm needs both
+            self.lastfm.enqueue_scrobble(
+                {
+                    "artist": entry["artist"],
+                    "title": entry["title"],
+                    "album": entry["album"],
+                    "album_artist": entry["album_artist"],
+                    "duration": entry["duration"],
+                    "timestamp": started_at or int(time.time()),
+                }
+            )
+
+    def send_now_playing(self) -> None:
+        if self.listen_entry is not None and self.playback_state == "playing":
+            if self.listen_entry["artist"] and self.listen_entry["title"]:
+                self.lastfm.now_playing(self.listen_entry)
+
+    def show_lastfm_dialog(self) -> None:
+        if self._lastfm_dialog is None:
+            self._lastfm_dialog = LastFmDialog(
+                LASTFM_UI_FILE, self.lastfm, self.window, self.apply_lastfm_counts
+            )
+        self._lastfm_dialog.open_dialog()
+
+    def apply_lastfm_counts(self, counts: dict) -> tuple[int, int]:
+        """Put Last.fm's play counts into every library. Returns (songs, libraries)."""
+        updated = 0
+        libraries = 0
+        for library in library_db.list_libraries():
+            try:
+                changed = library_db.apply_lastfm_counts(library.db_path, counts)
+            except sqlite3.Error:
+                continue
+            if changed:
+                updated += changed
+                libraries += 1
+        self.reload_play_counts()
+        return updated, libraries
+
+    def reload_play_counts(self) -> None:
+        """Refresh the Plays column from the database, without touching playback."""
+        library = self.loaded_library
+        if library is None:
+            return
+        try:
+            stored = library_db.load_play_counts(library.db_path)
+        except sqlite3.Error:
+            return
+        self.library_model.set_all_play_counts(
+            [stored.get(self.relative_path(path), 0) for path in self.tracks]
+        )
 
 
     # ----- Discord -----
@@ -1186,6 +1320,7 @@ class MusicHive:
         self.window.currentTrackLabel.setText(track.stem)
         self.update_track_info(track)
         self.duration_ms = 0  # the real length arrives from the player in a moment
+        self.begin_listening()
         self.discord.request_update()
 
     def on_track_finished(self) -> None:
@@ -1202,6 +1337,14 @@ class MusicHive:
     def on_state_changed(self, state: str) -> None:
         self.playback_state = state
         w = self.window
+
+        # Settle what was playing, then start or stop the listening clock.
+        self.check_listening()
+        self.listening.set_playing(state == "playing")
+        if state == "playing":
+            self.now_playing_timer.start(NOW_PLAYING_DELAY_MS)
+        else:
+            self.now_playing_timer.stop()
 
         # The single transport button shows what clicking it will do.
         if state == "playing":
@@ -1225,6 +1368,13 @@ class MusicHive:
             self.discord_active = False
         self.discord.request_update()
 
+        # Discord only shows a track once playback has really started.
+        if state == "playing":
+            self.discord_active = True
+        elif state == "stopped":
+            self.discord_active = False
+        self.discord.request_update()
+
     def on_position_changed(self, position_ms: int) -> None:
         self.position_ms = position_ms
         slider = self.window.progressSlider
@@ -1235,6 +1385,9 @@ class MusicHive:
 
     def on_duration_changed(self, duration_ms: int) -> None:
         self.duration_ms = duration_ms
+        self.listening.set_duration(duration_ms)
+        if self.listen_entry is not None:
+            self.listen_entry["duration"] = duration_ms // 1000
         self.window.progressSlider.setRange(0, duration_ms)
         self.window.durationLabel.setText(format_time(duration_ms))
         self.discord.request_update()

@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import sqlite3
+import unicodedata
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -17,7 +18,7 @@ from pathlib import Path
 
 from src.track_metadata import TrackInfo
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 DB_NAME = "musichive.db"
 DATA_DIR_NAME = ".musichive"
 
@@ -46,8 +47,12 @@ CREATE TABLE tracks (
     modified     REAL,
     cover_key    TEXT REFERENCES covers(cover_key)
 );
-"""
 
+CREATE TABLE plays (
+    rel_path TEXT PRIMARY KEY,
+    count    INTEGER NOT NULL
+);
+"""
 
 @dataclass(frozen=True)
 class LibraryInfo:
@@ -89,6 +94,21 @@ class SavedSession:
     order_position: int  # where the playing track is within `order`
     queued: list[bool] = field(default_factory=list)  # which entries the user queued
     stop_after_index: int = -1  # entry playback ends after, or -1
+
+
+def track_key(artist: str, title: str) -> str:
+    """A normalised "artist + title", for matching tracks with Last.fm's.
+
+    Ignores case, accents, extra spaces and typographic apostrophes.
+    """
+
+    def clean(text: str) -> str:
+        text = text.replace("\u2019", "'").replace("\u2018", "'")
+        decomposed = unicodedata.normalize("NFKD", text.casefold())
+        plain = "".join(char for char in decomposed if not unicodedata.combining(char))
+        return " ".join(plain.split())
+
+    return f"{clean(artist)}\x00{clean(title)}"
 
 
 # ----- where things live -----
@@ -164,6 +184,10 @@ def _upgrade_schema(conn: sqlite3.Connection) -> None:
                 conn.execute(
                     f"ALTER TABLE tracks ADD COLUMN {name} TEXT NOT NULL DEFAULT ''"
                 )
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS plays "
+            "(rel_path TEXT PRIMARY KEY, count INTEGER NOT NULL)"
+        )
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
     except sqlite3.OperationalError:
@@ -305,9 +329,11 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
     infos: list[TrackInfo] = []
     with connect(info.db_path) as conn:
         rows = conn.execute(
-            "SELECT rel_path, title, artist, album_artist, album, year, genre, "
-            "track_number, disc_number, duration_ms, cover_key "
-            "FROM tracks ORDER BY position"
+            "SELECT t.rel_path, t.title, t.artist, t.album_artist, t.album, "
+            "t.year, t.genre, t.track_number, t.disc_number, t.duration_ms, "
+            "t.cover_key, COALESCE(p.count, 0) "
+            "FROM tracks t LEFT JOIN plays p ON p.rel_path = t.rel_path "
+            "ORDER BY t.position"
         )
         for (
             rel_path,
@@ -321,6 +347,7 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
             disc,
             duration,
             cover_key,
+            plays,
         ) in rows:
             paths.append(info.root / rel_path)
             infos.append(
@@ -335,6 +362,7 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
                     disc_number=disc,
                     duration_ms=duration,
                     cover_key=cover_key,
+                    play_count=plays,
                 )
             )
         covers = {
@@ -353,6 +381,46 @@ def library_stats(db_path: Path) -> LibraryStats:
         ).fetchone()
     return LibraryStats(count, size, duration)
 
+def increment_play_count(db_path: Path, rel_path: str) -> int:
+    """Add one play to a track and return its new play count."""
+    with connect(db_path) as conn:
+        with conn:
+            conn.execute(
+                "INSERT INTO plays (rel_path, count) VALUES (?, 1) "
+                "ON CONFLICT(rel_path) DO UPDATE SET count = count + 1",
+                (rel_path,),
+            )
+            return conn.execute(
+                "SELECT count FROM plays WHERE rel_path = ?", (rel_path,)
+            ).fetchone()[0]
+
+
+def load_play_counts(db_path: Path) -> dict[str, int]:
+    """Every stored play count of a library, by relative path."""
+    with connect(db_path) as conn:
+        return dict(conn.execute("SELECT rel_path, count FROM plays"))
+
+
+def apply_lastfm_counts(db_path: Path, counts: dict[str, int]) -> int:
+    """Replace play counts with Last.fm's. Returns how many tracks changed.
+
+    `counts` maps track_key(artist, title) to Last.fm's play count. A track
+    that Last.fm has no plays for keeps its local count.
+    """
+    with connect(db_path) as conn:
+        rows = conn.execute("SELECT rel_path, artist, title FROM tracks").fetchall()
+        changes = []
+        for rel_path, artist, title in rows:
+            count = counts.get(track_key(artist, title), 0)
+            if count > 0:
+                changes.append((rel_path, count))
+        with conn:
+            conn.executemany(
+                "INSERT INTO plays (rel_path, count) VALUES (?, ?) "
+                "ON CONFLICT(rel_path) DO UPDATE SET count = excluded.count",
+                changes,
+            )
+    return len(changes)
 
 def save_scan(
     db_path: Path, tracks: list[ScannedTrack], covers: dict[str, bytes]
@@ -406,6 +474,7 @@ def remove_track(db_path: Path, rel_path: str) -> None:
     with connect(db_path) as conn:
         with conn:
             conn.execute("DELETE FROM tracks WHERE rel_path = ?", (rel_path,))
+            conn.execute("DELETE FROM plays WHERE rel_path = ?", (rel_path,))
             conn.execute(
                 "DELETE FROM covers WHERE cover_key NOT IN "
                 "(SELECT cover_key FROM tracks WHERE cover_key IS NOT NULL)"

@@ -1,0 +1,150 @@
+"""The Last.fm window (lastfm.ui): log in or out, and download play counts."""
+
+
+
+from collections.abc import Callable
+from pathlib import Path
+
+from PySide6.QtCore import QFile, QIODevice
+from PySide6.QtUiTools import QUiLoader
+from PySide6.QtWidgets import QMessageBox, QWidget
+
+from src.lastfm import LastFmClient
+
+
+def _load_dialog(path: Path, parent: QWidget):
+    ui_file = QFile(str(path))
+    if not ui_file.open(QIODevice.ReadOnly):
+        raise RuntimeError(f"Cannot open {path}: {ui_file.errorString()}")
+    try:
+        loader = QUiLoader()
+        dialog = loader.load(ui_file, parent)
+    finally:
+        ui_file.close()
+    if dialog is None:
+        raise RuntimeError(f"Failed to load {path}: {loader.errorString()}")
+    return dialog
+
+
+class LastFmDialog:
+    """Connects the widgets of lastfm.ui to the Last.fm client."""
+
+    def __init__(
+        self,
+        ui_path: Path,
+        client: LastFmClient,
+        parent: QWidget,
+        apply_counts: Callable[[dict], tuple[int, int]],
+    ) -> None:
+        self.client = client
+        self._apply_counts = apply_counts
+        self.dialog = _load_dialog(ui_path, parent)
+        d = self.dialog
+        self._login_text = d.lastFmLoginButton.text()
+
+        d.lastFmLoginButton.clicked.connect(self._on_login_clicked)
+        d.lastFmLogoutButton.clicked.connect(client.logout)
+        d.lastFmRememberCheckBox.toggled.connect(client.set_remember)
+        d.lastFmDownloadButton.clicked.connect(self._on_download_clicked)
+        d.lastFmButtonBox_2.rejected.connect(d.reject)
+
+        client.state_changed.connect(self.refresh)
+        client.counts_progress.connect(self._on_progress)
+        client.counts_ready.connect(self._on_counts_ready)
+        client.counts_failed.connect(self._on_counts_failed)
+        self.refresh()
+
+    def open_dialog(self) -> None:
+        self.refresh()
+        self.dialog.exec()
+
+    def refresh(self) -> None:
+        """Show the current login state."""
+        d = self.dialog
+        client = self.client
+        state = client.login_state
+
+        if not client.is_configured:
+            status = "Last.fm is not set up yet. Add your API key and secret in main.py."
+        elif state == "in":
+            status = f"Logged in as {client.username}."
+        elif state == "waiting":
+            status = "Waiting for you to allow MusicHive in your browser…"
+        else:
+            status = "Not logged in."
+        d.lastFmStatusLabel.setText(status)
+
+        d.lastFmRememberCheckBox.blockSignals(True)
+        d.lastFmRememberCheckBox.setChecked(client.remember)
+        d.lastFmRememberCheckBox.blockSignals(False)
+
+        d.lastFmLoginButton.setText("Cancel" if state == "waiting" else self._login_text)
+        d.lastFmLoginButton.setEnabled(client.is_configured and state != "in")
+        d.lastFmLogoutButton.setEnabled(state == "in")
+        d.lastFmDownloadButton.setEnabled(state == "in" and not client.is_downloading)
+
+    # ----- buttons -----
+
+    def _on_login_clicked(self) -> None:
+        if self.client.login_state == "waiting":
+            self.client.cancel_login()
+        else:
+            self.client.start_login()
+
+    def _on_download_clicked(self) -> None:
+        d = self.dialog
+        pending = self.client.pending_count
+        if pending:
+            self.client.flush()
+            QMessageBox.information(
+                d,
+                "Scrobbles still waiting",
+                f"{pending} scrobble(s) have not been sent to Last.fm yet. "
+                "Please try again in a moment, so that no recent plays are lost.",
+            )
+            return
+
+        box = QMessageBox(
+            QMessageBox.Icon.Warning,
+            "Replace play counts?",
+            "This replaces the play counts stored in MusicHive with the counts "
+            "from your Last.fm account, for every song Last.fm knows about. "
+            "This can lower a count if Last.fm's number is lower.\n\n"
+            "Songs with no plays on Last.fm keep their local play count.\n\n"
+            "This cannot be undone.",
+            parent=d,
+        )
+        download = box.addButton("Download and replace", QMessageBox.ButtonRole.AcceptRole)
+        cancel = box.addButton(QMessageBox.StandardButton.Cancel)
+        box.setDefaultButton(cancel)
+        box.exec()
+        if box.clickedButton() is not download:
+            return
+
+        d.lastFmSyncLabel.setText("Downloading play counts…")
+        self.client.download_play_counts()
+
+    # ----- play count download -----
+
+    def _on_progress(self, page: int, total_pages: int) -> None:
+        self.dialog.lastFmSyncLabel.setText(
+            f"Downloading play counts… page {page} of {total_pages}"
+        )
+
+    def _on_counts_ready(self, counts: dict) -> None:
+        label = self.dialog.lastFmSyncLabel
+        label.setText("Applying play counts…")
+        updated, libraries = self._apply_counts(counts)
+        if updated:
+            label.setText(
+                f"Done. Updated {updated} songs in {libraries} "
+                f"librar{'y' if libraries == 1 else 'ies'} "
+                f"({len(counts)} tracks on Last.fm)."
+            )
+        else:
+            label.setText(
+                f"Done, but no songs matched the {len(counts)} tracks on Last.fm."
+            )
+
+    def _on_counts_failed(self, message: str) -> None:
+        self.dialog.lastFmSyncLabel.setText(f"Download failed: {message}")

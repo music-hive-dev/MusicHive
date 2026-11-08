@@ -107,8 +107,16 @@ COLUMNS = (
         sort_key=lambda info: _text_key(info.genre),
         width=130,
     ),
+    Column(
+        "Plays",
+        text=lambda info: str(info.play_count) if info.play_count else "",
+        sort_key=lambda info: info.play_count,
+        width=56,
+        align_right=True,
+    ),
 )
 
+PLAYS_COLUMN = next(i for i, column in enumerate(COLUMNS) if column.title == "Plays")
 
 # ----- models -----
 
@@ -167,6 +175,24 @@ class TrackListModel(QAbstractTableModel):
         del self._paths[row]
         del self._infos[row]
         self.endResetModel()
+
+    def set_play_count(self, row: int, count: int) -> None:
+        """Update one track's play count and repaint its cell."""
+        if not 0 <= row < len(self._infos):
+            return
+        self._infos[row].play_count = count
+        cell = self.index(row, PLAYS_COLUMN)
+        self.dataChanged.emit(cell, cell)
+
+    def set_all_play_counts(self, counts: list[int]) -> None:
+        """Replace every track's play count (one number per row) and repaint."""
+        for info, count in zip(self._infos, counts):
+            info.play_count = count
+        if self._infos:
+            self.dataChanged.emit(
+                self.index(0, PLAYS_COLUMN),
+                self.index(len(self._infos) - 1, PLAYS_COLUMN),
+            )
 
     # ----- QAbstractTableModel -----
 
@@ -249,6 +275,7 @@ class SortedTrackModel(QAbstractProxyModel):
         super().setSourceModel(source_model)
         source_model.modelAboutToBeReset.connect(self.beginResetModel)
         source_model.modelReset.connect(self._on_source_reset)
+        source_model.dataChanged.connect(self._on_source_data_changed)
         self._apply_sort()
         self.endResetModel()
 
@@ -312,6 +339,16 @@ class SortedTrackModel(QAbstractProxyModel):
     def _on_source_reset(self) -> None:
         self._apply_sort()
         self.endResetModel()
+
+    def _on_source_data_changed(self, top_left, bottom_right, roles=None) -> None:
+        """A cell changed in the library: repaint it where it is shown."""
+        for source_row in range(top_left.row(), bottom_right.row() + 1):
+            if 0 <= source_row < len(self._inverse):
+                position = self._inverse[source_row]
+                self.dataChanged.emit(
+                    self.index(position, top_left.column()),
+                    self.index(position, bottom_right.column()),
+                )
 
     def _apply_sort(self) -> None:
         source = self.sourceModel()

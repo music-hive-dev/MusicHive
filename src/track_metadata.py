@@ -26,6 +26,7 @@ class TrackInfo:
     album: str = ""
     year: str = ""
     genre: str = ""
+    play_count: int = 0
     track_number: int | None = None
     disc_number: int | None = None
     duration_ms: int | None = None
