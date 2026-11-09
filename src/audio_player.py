@@ -31,6 +31,7 @@ from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat  # noqa: E402
 
 from src.equaliser import BAND_FREQUENCIES, BAND_OCTAVES, MAX_BANDS, EqSettings  # noqa: E402
 from src.sound_settings import SoundSettings  # noqa: E402
+from src.track_metadata import read_track_gain  # noqa: E402
 
 Gst.init(None)
 GLib.set_application_name("MusicHive")  # the name shown in the system's volume mixer
@@ -56,7 +57,8 @@ _FILTER_CHAIN = (
 # settings applied.
 _OUTPUT_CHAIN = (
     "tee name=split "
-    "split. ! queue max-size-time=100000000 ! volume name=fade ! volume name=master "
+    "split. ! queue max-size-time=100000000 ! volume name=trackgain "
+    "! volume name=fade ! volume name=master "
     "! audioconvert ! audioresample ! autoaudiosink "
     "split. ! queue leaky=downstream max-size-buffers=8 ! audioconvert ! audioresample "
     "! audio/x-raw,format=S16LE,rate=44100,channels=1 "
@@ -173,6 +175,7 @@ class _Deck:
         self._preamp = filters.get_by_name("preamp")
         self._equalizer = filters.get_by_name("equalizer")
         self._balance = filters.get_by_name("balance")
+        self._track_gain = output.get_by_name("trackgain")
         self._fader = output.get_by_name("fade")
         self._master = output.get_by_name("master")
         self.samples = output.get_by_name("samples")
@@ -251,6 +254,10 @@ class _Deck:
 
     def set_volume(self, volume: float) -> None:
         self._master.set_property("volume", volume)
+
+    def set_track_gain(self, gain_db: float) -> None:
+        """Level this song, from its own tag. The element goes up to 10 times (+20 dB)."""
+        self._track_gain.set_property("volume", min(10 ** (gain_db / 20), 10.0))
 
     def set_muted(self, muted: bool) -> None:
         self._master.set_property("mute", muted)
@@ -335,6 +342,7 @@ class AudioPlayer(QObject):
         self._active = _Deck()
         self._other = _Deck()  # idle, or fading out the previous track
         self._sound = SoundSettings()
+        self._level_offset_db = 0.0  # brings tagged songs to the library's own volume
 
         self._visual_format = QAudioFormat()
         self._visual_format.setSampleRate(44100)
@@ -501,6 +509,13 @@ class AudioPlayer(QObject):
         for deck in self._decks():
             deck.set_equalizer(settings)
 
+    def set_level_offset(self, offset_db: float) -> None:
+        """Set how far the current library's volume is above the tags' reference level."""
+        self._level_offset_db = offset_db
+        for deck in self._decks():
+            if deck.track is not None:
+                deck.set_track_gain(read_track_gain(deck.track, offset_db))
+
     def set_sound_settings(self, settings: SoundSettings) -> None:
         """Apply crossfade, fade and silence settings, also to the track playing now."""
         self._sound = settings
@@ -556,6 +571,7 @@ class AudioPlayer(QObject):
     def _open(self, track: Path, position_ms: int | None, state: str) -> None:
         deck = self._active
         deck.open(track, position_ms)
+        deck.set_track_gain(read_track_gain(track, self._level_offset_db))
         self._waiting_for_head = None
         self._timer.start()
         self.track_started.emit(track)  # first, so that the new state goes with the new track

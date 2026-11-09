@@ -5,6 +5,7 @@ falls back to the file name, so a broken file never breaks the library.
 """
 
 import base64
+import math
 import re
 from dataclasses import dataclass, field
 from functools import lru_cache
@@ -92,7 +93,11 @@ _TAG_ALIASES = {
 }
 _ID3_FRAME_IDS = {name: frame_id for frame_id, name in _ID3_TAG_NAMES.items()}
 # Vorbis comment names that are not simply the tag name in capitals.
-_VORBIS_NAMES = {"publisher": "ORGANIZATION"}
+_VORBIS_NAMES = {
+    "publisher": "ORGANIZATION",
+    "replaygaintrackgain": "REPLAYGAIN_TRACK_GAIN",
+    "replaygaintrackpeak": "REPLAYGAIN_TRACK_PEAK",
+}
 # Free text: a ";" in these does not separate values.
 _SINGLE_VALUE_TAGS = {"comment", "lyrics"}
 # Tags that are not edited as text: the star rating and what players keep up to date.
@@ -325,7 +330,9 @@ def _new_id3_frame(name: str, text: str):
         return USLT(encoding=3, lang="eng", desc="", text=text)
     frame_id = _ID3_FRAME_IDS.get(name)
     if frame_id is None:
-        return TXXX(encoding=3, desc=name.upper(), text=_tag_values(name, text))
+        return TXXX(
+            encoding=3, desc=_VORBIS_NAMES.get(name, name.upper()), text=_tag_values(name, text)
+        )
     if frame_id.startswith("W"):
         return Frames[frame_id](url=text)
     return Frames[frame_id](encoding=3, text=_tag_values(name, text))
@@ -645,6 +652,33 @@ class TrackDetails:
     def album_line(self) -> str:
         """Line three of the panel: album (year), or whichever exists."""
         return _with_year(self.album, self.year)
+
+
+_LEADING_NUMBER = re.compile(r"\s*([-+]?\d+(?:\.\d+)?)")
+
+
+def parse_gain_text(text: str) -> float | None:
+    """The number a gain or peak tag starts with, as in "-9.23 dB"; None if it has none."""
+    match = _LEADING_NUMBER.match(text)
+    return float(match[1]) if match else None
+
+
+def read_track_gain(path: Path, offset_db: float = 0.0) -> float:
+    """How many dB to adjust a song by: its ReplayGain track tag plus `offset_db`.
+
+    0 if it has no tag. The tagged peak holds back a boost that would make the song clip.
+    """
+    try:
+        audio = MutagenFile(str(path))
+        tags = read_all_tags(audio.tags) if audio is not None else {}
+    except Exception:
+        return 0.0
+    gain = parse_gain_text(tags.get("replaygaintrackgain", ""))
+    if gain is None:
+        return 0.0
+    level = gain + offset_db
+    peak = parse_gain_text(tags.get("replaygaintrackpeak", ""))
+    return min(level, -20 * math.log10(peak)) if peak else level
 
 
 def read_track_details(path: Path) -> TrackDetails:

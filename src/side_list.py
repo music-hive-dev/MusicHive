@@ -6,6 +6,8 @@
         Playlist
     Computer
         Pinned folder
+    Devices
+        Plugged-in device
 """
 
 from PySide6.QtCore import QModelIndex, QObject, QRect, QSize, Qt, Signal
@@ -14,8 +16,8 @@ from PySide6.QtWidgets import QStyledItemDelegate
 
 from src.track_list import TRACK_DRAG_MIME, read_track_drag
 
-SECTION, FOLDER, PLAYLIST, PIN = "section", "folder", "playlist", "pin"
-PLAYLISTS_SECTION, COMPUTER_SECTION = "playlists", "computer"
+SECTION, FOLDER, PLAYLIST, PIN, DEVICE = "section", "folder", "playlist", "pin", "device"
+PLAYLISTS_SECTION, COMPUTER_SECTION, DEVICES_SECTION = "playlists", "computer", "devices"
 
 _KIND_ROLE = Qt.ItemDataRole.UserRole + 1
 _VALUE_ROLE = Qt.ItemDataRole.UserRole + 2
@@ -64,6 +66,7 @@ class SideListModel(QStandardItemModel):
         playlist_icon: QIcon,
         auto_playlist_icon: QIcon,
         folder_icon: QIcon,
+        device_icon: QIcon,
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
@@ -74,6 +77,9 @@ class SideListModel(QStandardItemModel):
         self._playlist_icon = _joined_icon(None, playlist_icon)
         self._auto_playlist_icon = _joined_icon(None, auto_playlist_icon)
         self._pin_icon = _joined_icon(None, folder_icon)
+        self._device_icon = _joined_icon(None, device_icon)
+        self._devices: list[tuple[str, str]] = []
+        self._devices_section: QStandardItem | None = None
         self._playlists: dict[str, QStandardItem] = {}
         self._locked: set[str] = set()
 
@@ -109,6 +115,26 @@ class SideListModel(QStandardItemModel):
             item.setIcon(self._pin_icon)
             item.setToolTip(path)
             computer.appendRow(item)
+
+        self._devices_section = self._opening_item("Devices", SECTION, DEVICES_SECTION)
+        self.appendRow(self._devices_section)
+        self._show_devices()
+
+    def set_devices(self, devices: list[tuple[str, str]]) -> None:
+        """Show these plugged-in devices, given as (name, folder)."""
+        self._devices = devices
+        self._show_devices()
+
+    def _show_devices(self) -> None:
+        section = self._devices_section
+        if section is None:
+            return
+        section.removeRows(0, section.rowCount())
+        for name, path in self._devices:
+            item = self._item(name, DEVICE, path)
+            item.setIcon(self._device_icon)
+            item.setToolTip(path)
+            section.appendRow(item)
 
     def kind(self, index: QModelIndex) -> str | None:
         return index.data(_KIND_ROLE) if index.isValid() else None

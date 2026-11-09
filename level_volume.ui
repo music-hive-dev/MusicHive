@@ -1,0 +1,126 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>levelVolumeDialog</class>
+ <widget class="QDialog" name="levelVolumeDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>460</width>
+    <height>285</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Level Volume</string>
+  </property>
+  <layout class="QVBoxLayout" name="levelLayout">
+   <item>
+    <widget class="QLabel" name="levelIntro">
+     <property name="text">
+      <string>Measures how loud each song is, so that the whole library plays at one volume. Each song is only measured once, and it keeps working in the background if you close this window.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="levelSummary">
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QProgressBar" name="levelProgress">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="levelStatus">
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="levelSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>10</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="levelLibraryButtonRow">
+     <item>
+      <widget class="QPushButton" name="levelRescanButton">
+       <property name="text">
+        <string>Re-scan Entire Library</string>
+       </property>
+       <property name="toolTip">
+        <string>Measure every song again, even those already levelled</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="levelResetButton">
+       <property name="text">
+        <string>Reset Volume Levels</string>
+       </property>
+       <property name="toolTip">
+        <string>Remove the volume tags and go back to each song's original volume</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="levelButtonRow">
+     <item>
+      <widget class="QPushButton" name="levelStartButton">
+       <property name="text">
+        <string>Level New Songs</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="levelStopButton">
+       <property name="text">
+        <string>Stop</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDialogButtonBox" name="levelButtonBox">
+       <property name="standardButtons">
+        <set>QDialogButtonBox::StandardButton::Close</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

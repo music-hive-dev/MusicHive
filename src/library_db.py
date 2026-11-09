@@ -636,6 +636,37 @@ def move_tracks(db_path: Path, moves: dict[str, str]) -> None:
                 )
 
 
+def track_paths(db_path: Path) -> list[str]:
+    """The relative path of every track of a library."""
+    with connect(db_path) as conn:
+        return [row[0] for row in conn.execute("SELECT rel_path FROM tracks ORDER BY position")]
+
+
+def load_level_target(db_path: Path) -> float | None:
+    """The library's remembered volume (a track gain in dB), if it has been levelled."""
+    with connect(db_path) as conn:
+        row = conn.execute("SELECT value FROM meta WHERE key = 'level_target'").fetchone()
+    try:
+        return float(row[0]) if row else None
+    except ValueError:
+        return None
+
+
+def save_level_target(db_path: Path, target: float) -> None:
+    with connect(db_path) as conn:
+        with conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO meta (key, value) VALUES ('level_target', ?)",
+                (str(target),),
+            )
+
+
+def clear_level_target(db_path: Path) -> None:
+    with connect(db_path) as conn:
+        with conn:
+            conn.execute("DELETE FROM meta WHERE key = 'level_target'")
+
+
 def remove_track(db_path: Path, rel_path: str) -> None:
     """Drop one track from a library (after its file was deleted)."""
     with connect(db_path) as conn:

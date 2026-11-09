@@ -69,6 +69,8 @@ from src.filter_bar import FilterBar
 from src.library_groups import GROUPERS, TrackGroup, group_key
 from src.side_list import (
     COMPUTER_SECTION,
+    DEVICE,
+    DEVICES_SECTION,
     FOLDER,
     PIN,
     PLAYLIST,
@@ -103,7 +105,9 @@ from src.online_search import (
     OnlineSearch,
     ask_auto_tag_count,
 )
+from src.devices import DeviceEjector, connected_devices, open_in_dolphin
 from src.equaliser import EqualiserWindow, load_equaliser
+from src.level_volume import LevelVolumeTool
 from src.sound_settings import SoundSettingsTab, load_sound_settings
 from src.organise_files import FileMove, OrganiseDialog, OrganiseResult
 from src.tag_editor import TagEditorDialog
@@ -127,6 +131,7 @@ from src.playlists import Playlist, PlaylistStore
 
 
 UI_FILE = Path(__file__).parent / "player.ui"
+DEVICE_CHECK_MS = 3000  # how often to look for devices being plugged in or removed
 ASSETS_DIR = Path(__file__).parent / "assets"
 # The Application ID of your Discord application (public, not a secret).
 # Leave it empty to disable the Discord menu item.
@@ -153,6 +158,7 @@ SETTINGS_UI_FILE = Path(__file__).parent / "settings.ui"
 AUTO_TAG_UI_FILE = Path(__file__).parent / "auto_tag_genres.ui"
 ORGANISE_UI_FILE = Path(__file__).parent / "organise_files.ui"
 EQUALISER_UI_FILE = Path(__file__).parent / "equaliser.ui"
+LEVEL_VOLUME_UI_FILE = Path(__file__).parent / "level_volume.ui"
 COVER_WINDOW_UI_FILE = Path(__file__).parent / "cover_window.ui"
 
 # How long after a track starts before Last.fm is told what is playing.
@@ -225,6 +231,9 @@ MENU_ICONS = {
     "pin_folder": "pin",
     "open_folder": "door-open",
     "unpin_folder": "pin-off",
+    "sync_device": "refresh-cw",
+    "open_device": "folder-output",
+    "remove_device": "eject",
 }
 
 # "Go to" entries: (menu label, name of the TrackInfo field to match)
@@ -535,6 +544,7 @@ class MusicHive:
             asset_icon("list-music"),
             asset_icon("bot"),
             asset_icon("folder"),
+            asset_icon("external_device"),
             w,
         )
         w.sideList.setItemDelegate(SideListDelegate(w.sideList))
@@ -670,6 +680,8 @@ class MusicHive:
         w.actionAutoTagGenres.triggered.connect(lambda _checked=False: self.on_auto_tag_clicked())
         self.organise_error = ""  # why the library could not follow the moved files
         w.actionOrganiseFiles.triggered.connect(lambda _checked=False: self.on_organise_clicked())
+        self.level_tool: LevelVolumeTool | None = None  # made when first opened
+        w.actionLevelVolume.triggered.connect(lambda _checked=False: self.show_level_volume())
         self.tag_writer = TagWriter(w)
         self.tag_writer.rating_failed.connect(self.on_rating_write_failed)
         self.tag_writer.tags_saved.connect(self.on_tags_saved)
@@ -774,7 +786,16 @@ class MusicHive:
             self._icon_click.clicked.connect(self.choose_playlist_icon)
         self.refresh_playlist_list()
         self.refresh_filter_bars()
+        self.devices: list[tuple[str, str]] = []
+        self.device_ejector = DeviceEjector(w)
+        self.device_ejector.finished.connect(self.on_device_ejected)
+        self.refresh_devices()
+        self.device_timer = QTimer(w)
+        self.device_timer.setInterval(DEVICE_CHECK_MS)
+        self.device_timer.timeout.connect(self.refresh_devices)
+        self.device_timer.start()
 
+        self.setup_compact_tabs()
         self.on_state_changed("stopped")
         self.clear_track_info()
         self.restore_libraries()
@@ -844,6 +865,20 @@ class MusicHive:
         self.settings.setValue("minimizeToTray", enabled)
         self.tray.set_enabled(enabled)
 
+    def setup_compact_tabs(self) -> None:
+        """Tabs show only their icon, and their name (from player.ui) once selected."""
+        tabs = self.window.podcastsTab
+        self.tab_titles = [tabs.tabText(index) for index in range(tabs.count())]
+        for index, title in enumerate(self.tab_titles):
+            tabs.setTabToolTip(index, title)
+        tabs.currentChanged.connect(self.show_selected_tab_title)
+        self.show_selected_tab_title(tabs.currentIndex())
+
+    def show_selected_tab_title(self, selected: int) -> None:
+        tabs = self.window.podcastsTab
+        for index, title in enumerate(self.tab_titles):
+            tabs.setTabText(index, title if index == selected else "")
+
     def restore_open_tab(self) -> None:
         """Open the tab that was open when the app last closed."""
         tabs = self.window.podcastsTab
@@ -864,6 +899,8 @@ class MusicHive:
         self.save_session()
         self.artist_info.shutdown()
         self.online_search.shutdown()
+        if self.level_tool is not None:
+            self.level_tool.shutdown()
         self.tag_writer.shutdown()
         self.mpris.shutdown()
         self.discord.shutdown()
@@ -2004,6 +2041,9 @@ class MusicHive:
         if self.auto_tag_library is not None or self.tag_writer.is_busy():
             self.show_status("Wait for the tags to finish saving")
             return
+        if self.level_tool is not None and self.level_tool.is_running:
+            self.show_status("Wait for the volume levelling to finish")
+            return
         try:
             titled = set(library_db.load_tag_values(library.db_path, ["title"]))
         except sqlite3.Error as error:
@@ -2021,6 +2061,44 @@ class MusicHive:
             self.apply_file_moves,
         ).run()
         self.show_organise_result(result)
+
+    def show_level_volume(self) -> None:
+        library = self.loaded_library
+        if library is None:
+            self.show_status("Open a library first")
+            return
+        if self.level_tool is None:
+            self.level_tool = LevelVolumeTool(
+                LEVEL_VOLUME_UI_FILE,
+                self.window,
+                self.tag_writer,
+                self.level_volume_busy_reason,
+                self.on_level_volume_finished,
+                self.show_status,
+            )
+        self.level_tool.show(library)
+
+    def level_volume_busy_reason(self) -> str | None:
+        """Why levelling cannot start right now, or None if it can."""
+        if self.scan_task is not None:
+            return "Wait for the scan to finish."
+        if self.auto_tag_library is not None:
+            return "Wait for the auto-tagging to finish."
+        return None
+
+    def on_level_volume_finished(self, library: LibraryInfo, message: str) -> None:
+        self.show_status(message)
+        loaded = self.loaded_library
+        if loaded is not None and loaded.id == library.id:
+            self.apply_library_volume(library)
+
+    def apply_library_volume(self, library: LibraryInfo) -> None:
+        """Play this library at its own remembered volume, if it has one."""
+        try:
+            target = library_db.load_level_target(library.db_path)
+        except sqlite3.Error:
+            target = None
+        self.player.set_level_offset(-target if target is not None else 0.0)
 
     def apply_file_moves(self, moves: list[FileMove]) -> bool:
         """Some files moved: follow them. Returns False if they could not be saved."""
@@ -2082,6 +2160,8 @@ class MusicHive:
         library = self.loaded_library
         if library is not None and library.db_path == result.db_path:
             self.show_saved_tags(result)
+        if self.level_tool is not None and self.level_tool.owns(result):
+            return  # the levelling tool reports its own progress
         if result.failures:
             name, reason = result.failures[0]
             more = f" and {len(result.failures) - 1} more" if len(result.failures) > 1 else ""
@@ -2396,6 +2476,29 @@ class MusicHive:
             (self.side_expanded.add if is_open else self.side_expanded.discard)(entry)
             self.save_side_expanded()
 
+    def refresh_devices(self) -> None:
+        """Show the storage devices that are plugged in, if that has changed."""
+        devices = connected_devices()
+        if devices != self.devices:
+            self.devices = devices
+            self.side_model.set_devices(devices)
+            self.apply_side_expansion()
+
+    def device_name(self, folder: str) -> str:
+        return next((name for name, path in self.devices if path == folder), folder)
+
+    def open_device(self, folder: str) -> None:
+        if not open_in_dolphin(folder):
+            self.show_status("Could not start Dolphin")
+
+    def safely_remove_device(self, folder: str) -> None:
+        self.show_status(f"Safely removing {self.device_name(folder)}…")
+        self.device_ejector.eject(self.device_name(folder), folder)
+
+    def on_device_ejected(self, message: str) -> None:
+        self.show_status(message)
+        self.refresh_devices()
+
     def on_side_list_clicked(self, index: QModelIndex) -> None:
         model = self.side_model
         kind = model.kind(index)
@@ -2431,6 +2534,12 @@ class MusicHive:
                 menu.addSeparator()
                 add("Open", "open_folder", lambda: self.open_pinned_folder(value))
                 add("Unpin", "unpin_folder", lambda: self.unpin_folder(value))
+        elif kind == DEVICE:
+            add("Synchronise", "sync_device", lambda: None, enabled=False)  # coming soon
+            add("Open in Dolphin", "open_device", lambda: self.open_device(value))
+            add("Safely Remove", "remove_device", lambda: self.safely_remove_device(value))
+        elif kind == SECTION and value == DEVICES_SECTION:
+            pass  # nothing to offer yet
         elif self.playlist_store is not None:
             self.fill_playlist_menu(menu, add, kind, value)
         if not menu.isEmpty():
@@ -3411,6 +3520,7 @@ class MusicHive:
         With `restore`, also put back the session saved when the app last quit.
         """
         self.player.unload()
+        self.apply_library_volume(info)
         self.show_nothing_playing()
         self.current_library = info
         self.loaded_library = None

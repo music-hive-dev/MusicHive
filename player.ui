@@ -1857,6 +1857,7 @@ QWidget {
     <addaction name="actionAudioScrobbleLastFm"/>
     <addaction name="actionAutoTagGenres"/>
     <addaction name="actionOrganiseFiles"/>
+    <addaction name="actionLevelVolume"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -2837,6 +2838,17 @@ QWidget {
    </property>
    <property name="toolTip">
     <string>Move and rename the library's files according to a naming template</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionLevelVolume">
+   <property name="text">
+    <string>Level Volume…</string>
+   </property>
+   <property name="toolTip">
+    <string>Measure the songs of this library so that they all play at the same volume</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
