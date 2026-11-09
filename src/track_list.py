@@ -1,6 +1,7 @@
 """The track lists: a table model for the library (with a sorting layer on top),
 a model for the Upcoming list, and the row painter the Upcoming list uses."""
 
+import json
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -10,14 +11,17 @@ from PySide6.QtCore import (
     QAbstractListModel,
     QAbstractProxyModel,
     QAbstractTableModel,
+    QMimeData,
     QModelIndex,
     QObject,
     QRect,
     QSize,
     Qt,
+    Signal,
 )
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QImage, QPainter
 from PySide6.QtWidgets import (
+    QAbstractItemView,
     QApplication,
     QStyle,
     QStyledItemDelegate,
@@ -31,8 +35,23 @@ ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
 PLACEHOLDER_ICON = ASSETS_DIR / "eighth-notes.svg"  # shown when a track has no cover
 STOP_AFTER_ICON = ASSETS_DIR / "eject.svg"  # marks the track playback will end after
 
-_RIGHT_ALIGNED = (Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter).value
 _LEFT_ALIGNED = (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter).value
+
+TRACK_DRAG_MIME = "application/x-musichive-tracks"
+
+
+def make_track_drag(rows: list[int], playlist: str | None = None) -> QMimeData:
+    """What a drag carries: library rows, and the playlist they were dragged from."""
+    data = QMimeData()
+    payload = json.dumps({"rows": rows, "playlist": playlist})
+    data.setData(TRACK_DRAG_MIME, payload.encode("utf-8"))
+    return data
+
+
+def read_track_drag(data: QMimeData) -> tuple[list[int], str | None]:
+    """The library rows and source playlist of a drag made by make_track_drag."""
+    payload = json.loads(bytes(data.data(TRACK_DRAG_MIME)).decode("utf-8"))
+    return payload["rows"], payload["playlist"]
 
 
 # ----- the library table's columns -----
@@ -40,14 +59,18 @@ _LEFT_ALIGNED = (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter).val
 
 @dataclass(frozen=True)
 class Column:
-    """One column of the library table. Adding a column means adding one of these."""
+    """One column of the song tables."""
 
     title: str
     text: Callable[[TrackInfo], str]  # what a cell shows
     sort_key: Callable[[TrackInfo], object]  # what the column sorts by
     width: int = 120  # starting width, in pixels
-    align_right: bool = False
-    stretch: bool = False  # takes up the space that is left over
+    tag: str = ""  # the file tag it shows; "" for the built-in columns
+
+    @property
+    def key(self) -> str:
+        """Identifies the column in saved layouts."""
+        return f"{TAG_KEY_PREFIX}{self.tag}" if self.tag else self.title
 
 
 def _text_key(text: str) -> str:
@@ -66,14 +89,12 @@ COLUMNS = (
         text=lambda info: str(info.track_number) if info.track_number else "",
         sort_key=lambda info: info.track_number or 0,
         width=44,
-        align_right=True,
     ),
     Column(
         "Title",
         text=lambda info: info.title,
         sort_key=lambda info: _text_key(info.title),
         width=260,
-        stretch=True,
     ),
     Column(
         "Artist",
@@ -92,14 +113,12 @@ COLUMNS = (
         text=lambda info: info.year,
         sort_key=_year_key,
         width=60,
-        align_right=True,
     ),
     Column(
         "Time",
         text=lambda info: format_time(info.duration_ms) if info.duration_ms else "",
         sort_key=lambda info: info.duration_ms or 0,
         width=64,
-        align_right=True,
     ),
     Column(
         "Genre",
@@ -112,11 +131,67 @@ COLUMNS = (
         text=lambda info: str(info.play_count) if info.play_count else "",
         sort_key=lambda info: info.play_count,
         width=56,
-        align_right=True,
     ),
 )
 
-PLAYS_COLUMN = next(i for i, column in enumerate(COLUMNS) if column.title == "Plays")
+POSITION_COLUMN_KEY = "#"  # in a playlist, this column shows the position
+TAG_KEY_PREFIX = "tag:"
+
+# These tags already have a built-in column, which handles them better.
+_TAGS_WITH_A_COLUMN = {"album", "artist", "genre", "title", "tracknumber"}
+
+# Tag names are stored in lower case without spaces; these need more than a capital.
+_TAG_TITLES = {
+    "albumartist": "Album Artist",
+    "albumartistsort": "Album Artist Sort",
+    "albumsort": "Album Sort",
+    "artistsort": "Artist Sort",
+    "bpm": "BPM",
+    "composersort": "Composer Sort",
+    "discnumber": "Disc Number",
+    "discsubtitle": "Disc Subtitle",
+    "encodedby": "Encoded By",
+    "initialkey": "Initial Key",
+    "isrc": "ISRC",
+    "originalalbum": "Original Album",
+    "originalartist": "Original Artist",
+    "originaldate": "Original Date",
+    "playcount": "Play Count",
+    "releasedate": "Release Date",
+    "titlesort": "Title Sort",
+}
+
+
+def _tag_sort_key(text: str) -> tuple:
+    """Numbers in number order (for BPM and the like), and before any text."""
+    return (0, int(text), "") if text.isdecimal() else (1, 0, _text_key(text))
+
+
+def tag_column(name: str) -> Column:
+    return Column(
+        _TAG_TITLES.get(name, name.capitalize()),
+        text=lambda info: info.tags.get(name, ""),
+        sort_key=lambda info: _tag_sort_key(info.tags.get(name, "")),
+        tag=name,
+    )
+
+
+def columns_from_keys(keys: list[str]) -> list[Column]:
+    """The columns of a saved layout. An empty layout gives the default columns."""
+    built_in = {column.key: column for column in COLUMNS}
+    columns = []
+    for key in dict.fromkeys(keys):
+        if key in built_in:
+            columns.append(built_in[key])
+        elif key.startswith(TAG_KEY_PREFIX):
+            columns.append(tag_column(key[len(TAG_KEY_PREFIX):]))
+    return columns or list(COLUMNS)
+
+
+def all_columns(tag_names: list[str]) -> list[Column]:
+    """Every column on offer: the built-in ones, then the tags by name."""
+    tags = [tag_column(name) for name in tag_names if name not in _TAGS_WITH_A_COLUMN]
+    return [*COLUMNS, *sorted(tags, key=lambda column: column.title.casefold())]
 
 # ----- models -----
 
@@ -133,14 +208,22 @@ class TrackListModel(QAbstractTableModel):
     CoverRole = Qt.ItemDataRole.UserRole + 3
     StopAfterRole = Qt.ItemDataRole.UserRole + 4  # only the Upcoming list uses it
 
+    columns_changed = Signal()
+
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
+        self.columns: list[Column] = list(COLUMNS)
         self._paths: list[Path] = []
         self._infos: list[TrackInfo] = []
         self._cover_data: dict[str, bytes] = {}  # cover_key -> JPEG bytes
         self._cover_images: dict[str, QImage] = {}  # decoded on first use
 
     # ----- public API -----
+
+    def set_columns(self, columns: list[Column]) -> None:
+        """Choose the columns. The rows stay, so nothing that uses row numbers is disturbed."""
+        self.columns = columns
+        self.columns_changed.emit()
 
     def set_library(
         self,
@@ -165,7 +248,10 @@ class TrackListModel(QAbstractTableModel):
 
     def sort_key(self, row: int, column: int):
         """What `row` sorts by in `column`."""
-        return COLUMNS[column].sort_key(self._infos[row])
+        return self.columns[column].sort_key(self._infos[row])
+
+    def drag_data(self, rows: list[int]) -> QMimeData:
+        return make_track_drag(rows)
 
     def remove_row(self, row: int) -> None:
         """Remove one track from the list (its file was deleted)."""
@@ -181,18 +267,25 @@ class TrackListModel(QAbstractTableModel):
         if not 0 <= row < len(self._infos):
             return
         self._infos[row].play_count = count
-        cell = self.index(row, PLAYS_COLUMN)
-        self.dataChanged.emit(cell, cell)
+        column = self._plays_column()
+        if column >= 0:
+            cell = self.index(row, column)
+            self.dataChanged.emit(cell, cell)
 
     def set_all_play_counts(self, counts: list[int]) -> None:
         """Replace every track's play count (one number per row) and repaint."""
         for info, count in zip(self._infos, counts):
             info.play_count = count
-        if self._infos:
+        column = self._plays_column()
+        if self._infos and column >= 0:
             self.dataChanged.emit(
-                self.index(0, PLAYS_COLUMN),
-                self.index(len(self._infos) - 1, PLAYS_COLUMN),
+                self.index(0, column),
+                self.index(len(self._infos) - 1, column),
             )
+
+    def _plays_column(self) -> int:
+        """Where the Plays column is, or -1 if it is not shown."""
+        return next((i for i, column in enumerate(self.columns) if column.key == "Plays"), -1)
 
     # ----- QAbstractTableModel -----
 
@@ -200,7 +293,7 @@ class TrackListModel(QAbstractTableModel):
         return 0 if parent.isValid() else len(self._paths)
 
     def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
-        return 0 if parent.isValid() else len(COLUMNS)
+        return 0 if parent.isValid() else len(self.columns)
 
     def headerData(
         self,
@@ -208,26 +301,22 @@ class TrackListModel(QAbstractTableModel):
         orientation: Qt.Orientation,
         role: int = Qt.ItemDataRole.DisplayRole,
     ):
-        if orientation != Qt.Orientation.Horizontal or not 0 <= section < len(COLUMNS):
+        if orientation != Qt.Orientation.Horizontal or not 0 <= section < len(self.columns):
             return None
         if role == Qt.ItemDataRole.DisplayRole:
-            return COLUMNS[section].title
+            return self.columns[section].title
         if role == Qt.ItemDataRole.TextAlignmentRole:
-            return _RIGHT_ALIGNED if COLUMNS[section].align_right else _LEFT_ALIGNED
+            return _LEFT_ALIGNED
         return None
 
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
         if not index.isValid() or not 0 <= index.row() < len(self._paths):
             return None
         info = self._infos[index.row()]
-        has_column = 0 <= index.column() < len(COLUMNS)
+        has_column = 0 <= index.column() < len(self.columns)
 
         if role == Qt.ItemDataRole.DisplayRole:
-            return COLUMNS[index.column()].text(info) if has_column else None
-        if role == Qt.ItemDataRole.TextAlignmentRole:
-            if has_column and COLUMNS[index.column()].align_right:
-                return _RIGHT_ALIGNED
-            return None
+            return self.columns[index.column()].text(info) if has_column else None
         if role == self.TitleRole:
             return info.title
         if role == self.SubtitleRole:
@@ -269,6 +358,16 @@ class SortedTrackModel(QAbstractProxyModel):
         self._inverse: list[int] = []  # library row -> shown row
         self._sort_column = -1  # -1 means library order
         self._sort_order = Qt.SortOrder.AscendingOrder
+        self._shown: set[int] | None = None  # library rows let through (None = all)
+
+    def set_shown_rows(self, rows: list[int] | None) -> None:
+        """Show only these library rows (None shows them all)."""
+        shown = None if rows is None else set(rows)
+        if shown != self._shown:
+            self.beginResetModel()
+            self._shown = shown
+            self._apply_sort()
+            self.endResetModel()
 
     def setSourceModel(self, source_model) -> None:
         self.beginResetModel()
@@ -276,12 +375,36 @@ class SortedTrackModel(QAbstractProxyModel):
         source_model.modelAboutToBeReset.connect(self.beginResetModel)
         source_model.modelReset.connect(self._on_source_reset)
         source_model.dataChanged.connect(self._on_source_data_changed)
+        source_model.columns_changed.connect(self._on_source_columns_changed)
         self._apply_sort()
         self.endResetModel()
+
+    @property
+    def columns(self) -> list[Column]:
+        return self.sourceModel().columns
 
     def source_rows(self) -> list[int]:
         """Library rows in the order they are shown."""
         return list(self._order)
+
+    # ----- drag and drop -----
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlag:
+        if not index.isValid():
+            return Qt.ItemFlag.ItemIsDropEnabled
+        return (
+            Qt.ItemFlag.ItemIsEnabled
+            | Qt.ItemFlag.ItemIsSelectable
+            | Qt.ItemFlag.ItemIsDragEnabled
+        )
+
+    def mimeTypes(self) -> list[str]:
+        return [TRACK_DRAG_MIME]
+
+    def mimeData(self, indexes) -> QMimeData:
+        """The dragged songs, in the order the table shows them."""
+        shown = sorted({index.row() for index in indexes})
+        return self.sourceModel().drag_data([self._order[row] for row in shown])
 
     # ----- QAbstractProxyModel -----
 
@@ -337,14 +460,20 @@ class SortedTrackModel(QAbstractProxyModel):
     # ----- internal -----
 
     def _on_source_reset(self) -> None:
+        self._shown = None  # those row numbers no longer mean anything
+        self._apply_sort()
+        self.endResetModel()
+
+    def _on_source_columns_changed(self) -> None:
+        self.beginResetModel()
         self._apply_sort()
         self.endResetModel()
 
     def _on_source_data_changed(self, top_left, bottom_right, roles=None) -> None:
         """A cell changed in the library: repaint it where it is shown."""
         for source_row in range(top_left.row(), bottom_right.row() + 1):
-            if 0 <= source_row < len(self._inverse):
-                position = self._inverse[source_row]
+            position = self._inverse[source_row] if 0 <= source_row < len(self._inverse) else -1
+            if position >= 0:
                 self.dataChanged.emit(
                     self.index(position, top_left.column()),
                     self.index(position, bottom_right.column()),
@@ -353,18 +482,30 @@ class SortedTrackModel(QAbstractProxyModel):
     def _apply_sort(self) -> None:
         source = self.sourceModel()
         count = source.rowCount() if source is not None else 0
-        rows = list(range(count))
+        rows = [row for row in range(count) if self._shown is None or row in self._shown]
         column = self._sort_column
         if source is not None and 0 <= column < source.columnCount():
-            keys = [source.sort_key(row, column) for row in rows]
+            keys = {row: source.sort_key(row, column) for row in rows}
             descending = self._sort_order == Qt.SortOrder.DescendingOrder
             # The sort is stable, so equal values keep their library order.
             rows.sort(key=keys.__getitem__, reverse=descending)
         self._order = rows
-        inverse = [0] * count
+        inverse = [-1] * count  # -1 means the row is not shown
         for position, row in enumerate(rows):
             inverse[row] = position
         self._inverse = inverse
+
+
+def setup_track_view(view, model, placeholder: Path | None = None) -> None:
+    """Give a list view a model and the cover-and-two-lines row painter."""
+    view.setModel(model)
+    if placeholder is None:
+        view.setItemDelegate(TrackDelegate(view))
+    else:
+        view.setItemDelegate(TrackDelegate(view, placeholder))
+    view.setUniformItemSizes(True)
+    view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
+    view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
 
 
 class QueueModel(QAbstractListModel):
@@ -393,6 +534,16 @@ class QueueModel(QAbstractListModel):
         if not index.isValid() or not 0 <= index.row() < len(self._rows):
             return -1
         return self._rows[index.row()]
+
+    def flags(self, index: QModelIndex) -> Qt.ItemFlag:
+        flags = super().flags(index)
+        return flags | Qt.ItemFlag.ItemIsDragEnabled if index.isValid() else flags
+
+    def mimeTypes(self) -> list[str]:
+        return [TRACK_DRAG_MIME]
+
+    def mimeData(self, indexes) -> QMimeData:
+        return make_track_drag([self._rows[index.row()] for index in indexes])
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._rows)

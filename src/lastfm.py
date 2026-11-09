@@ -7,8 +7,10 @@ append the shared secret and take the MD5 of the result.
 """
 
 import hashlib
+import html
 import json
 import os
+import re
 import sys
 import time
 import urllib.error
@@ -152,6 +154,19 @@ def fetch_play_counts(
         if page <= total_pages:
             time.sleep(PAGE_PAUSE_SECONDS)
     return counts
+
+
+def fetch_artist_bio(api_key: str, artist: str) -> str:
+    """The short biography of an artist as plain text, "" if Last.fm has none."""
+    try:
+        payload = _call(api_key, "", "artist.getInfo", {"artist": artist, "autocorrect": "1"})
+    except LastFmError as error:
+        if error.code == 6:  # Last.fm does not know this artist
+            return ""
+        raise
+    summary = payload.get("artist", {}).get("bio", {}).get("summary", "")
+    summary = re.sub(r"<a\b[^>]*>\s*Read more on Last\.fm\s*</a>\.?", "", summary, flags=re.I)
+    return html.unescape(re.sub(r"<[^>]+>", "", summary)).strip()
 
 
 # ----- running requests in the background -----

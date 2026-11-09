@@ -24,6 +24,11 @@ from PySide6.QtNetwork import QLocalSocket
 # Discord Developer Portal. Leave it empty to show the application's icon.
 LARGE_IMAGE_KEY = "mh"
 
+# The badge in the corner of the large image; hovering it shows the file's
+# format. Upload a different image and put its key here to change the badge,
+# or leave it empty to have no badge.
+SMALL_IMAGE_KEY = "mh"
+
 # What Discord shows in the member list: 0 = "Listening to MusicHive",
 # 1 = the artist, 2 = the title.
 STATUS_DISPLAY_TYPE = 0
@@ -42,29 +47,35 @@ def make_activity(
     title: str,
     artist: str,
     album: str,
+    audio_format: str,
     position_ms: int,
     duration_ms: int,
     paused: bool,
 ) -> dict:
-    """The presence for a track: title, artist and, while playing, a progress bar."""
+    """The presence for a track: title, artist, album and a progress bar."""
     activity: dict = {"type": ACTIVITY_LISTENING, "details": _field(title)}
 
-    if paused:
-        activity["state"] = _field(f"{artist} (paused)" if artist else "Paused")
-    else:
-        if artist:
-            activity["state"] = _field(artist)
-        # A start and an end time (in seconds) make Discord draw a progress bar.
+    if artist:
+        activity["state"] = _field(artist)
+
+    # A start and an end time (in seconds) make Discord draw a progress bar.
+    # A start alone makes it count up, which is wrong for a paused track.
+    if duration_ms > 0 or not paused:
         start = int(time.time()) - position_ms // 1000
         timestamps = {"start": start}
         if duration_ms > 0:
             timestamps["end"] = start + duration_ms // 1000
         activity["timestamps"] = timestamps
 
+    assets: dict = {}
     if LARGE_IMAGE_KEY:
-        assets = {"large_image": LARGE_IMAGE_KEY}
+        assets["large_image"] = LARGE_IMAGE_KEY
         if album:
-            assets["large_text"] = _field(album)  # shown when hovering the image
+            assets["large_text"] = _field(album)  # Discord shows this as the third line
+    if SMALL_IMAGE_KEY and audio_format:
+        assets["small_image"] = SMALL_IMAGE_KEY
+        assets["small_text"] = _field(audio_format)  # shown when hovering the badge
+    if assets:
         activity["assets"] = assets
 
     if STATUS_DISPLAY_TYPE:
@@ -126,6 +137,7 @@ class DiscordPresence(QObject):
         self._enabled = False
         self._ready = False  # True once Discord has answered our handshake
         self._blocked = False  # Discord refused us (for example a wrong application id)
+        self._holding = False  # paused: keep pulling the progress bar back
         self._buffer = bytearray()
         self._last_send = 0.0
         self._reported_missing = False
@@ -163,6 +175,15 @@ class DiscordPresence(QObject):
             return  # an update is already coming up at least as soon
         self._timer.start(wait_ms)
 
+    def hold_position(self, held: bool) -> None:
+        """Keep re-sending the presence while paused.
+
+        Discord has no paused progress bar: it moves the bar along by itself
+        from the timestamps. Re-sending as often as allowed keeps it near the
+        paused position.
+        """
+        self._holding = held
+
     def shutdown(self) -> None:
         self.set_enabled(False)
 
@@ -189,6 +210,8 @@ class DiscordPresence(QObject):
 
         self._write_frame(OP_FRAME, self._command(activity))
         self._last_send = time.monotonic()
+        if self._holding and activity is not None:
+            self._timer.start(int(MIN_UPDATE_INTERVAL * 1000))
 
     @staticmethod
     def _command(activity: dict | None) -> dict:

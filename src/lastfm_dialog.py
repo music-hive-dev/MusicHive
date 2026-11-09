@@ -12,7 +12,7 @@ from PySide6.QtWidgets import QMessageBox, QWidget
 from src.lastfm import LastFmClient
 
 
-def _load_dialog(path: Path, parent: QWidget):
+def load_dialog(path: Path, parent: QWidget):
     ui_file = QFile(str(path))
     if not ui_file.open(QIODevice.ReadOnly):
         raise RuntimeError(f"Cannot open {path}: {ui_file.errorString()}")
@@ -38,7 +38,7 @@ class LastFmDialog:
     ) -> None:
         self.client = client
         self._apply_counts = apply_counts
-        self.dialog = _load_dialog(ui_path, parent)
+        self.dialog = load_dialog(ui_path, parent)
         d = self.dialog
         self._login_text = d.lastFmLoginButton.text()
 

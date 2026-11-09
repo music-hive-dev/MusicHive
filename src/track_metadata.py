@@ -5,7 +5,8 @@ falls back to the file name, so a broken file never breaks the library.
 """
 
 import base64
-from dataclasses import dataclass
+import re
+from dataclasses import dataclass, field
 from functools import lru_cache
 from pathlib import Path
 
@@ -16,6 +17,92 @@ from mutagen.id3 import ID3
 # Image files looked for next to the music when a track has no embedded art.
 COVER_FILE_STEMS = ("cover", "folder", "front", "album", "albumart")
 COVER_FILE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
+
+# What ID3 (MP3, WAV) calls its frames, in the names Vorbis comments (FLAC, Ogg)
+# use, so that one tag has one name whatever the file format.
+_ID3_TAG_NAMES = {
+    "TALB": "album",
+    "TBPM": "bpm",
+    "TCMP": "compilation",
+    "TCOM": "composer",
+    "TCOP": "copyright",
+    "TDEN": "encodingdate",
+    "TDLY": "playlistdelay",
+    "TDOR": "originaldate",
+    "TDRC": "date",
+    "TDRL": "releasedate",
+    "TDTG": "taggingdate",
+    "TENC": "encodedby",
+    "TEXT": "lyricist",
+    "TFLT": "filetype",
+    "TIT1": "grouping",
+    "TIT2": "title",
+    "TIT3": "subtitle",
+    "TKEY": "initialkey",
+    "TLAN": "language",
+    "TLEN": "length",
+    "TMED": "media",
+    "TMOO": "mood",
+    "TOAL": "originalalbum",
+    "TOFN": "originalfilename",
+    "TOLY": "originallyricist",
+    "TOPE": "originalartist",
+    "TOWN": "owner",
+    "TPE1": "artist",
+    "TPE2": "albumartist",
+    "TPE3": "conductor",
+    "TPE4": "remixer",
+    "TPOS": "discnumber",
+    "TPRO": "producednotice",
+    "TPUB": "publisher",
+    "TRCK": "tracknumber",
+    "TRSN": "radiostation",
+    "TRSO": "radiostationowner",
+    "TSO2": "albumartistsort",
+    "TSOA": "albumsort",
+    "TSOC": "composersort",
+    "TSOP": "artistsort",
+    "TSOT": "titlesort",
+    "TSRC": "isrc",
+    "TSSE": "encoder",
+    "TSST": "discsubtitle",
+    "WCOM": "commercialurl",
+    "WCOP": "copyrighturl",
+    "WOAF": "fileurl",
+    "WOAR": "artisturl",
+    "WOAS": "sourceurl",
+    "WORS": "radiourl",
+    "WPAY": "paymenturl",
+    "WPUB": "publisherurl",
+}
+# Different spellings of the same tag.
+_TAG_ALIASES = {
+    "disc": "discnumber",
+    "id3v1comment": "comment",
+    "key": "initialkey",
+    "label": "publisher",
+    "organization": "publisher",
+    "tempo": "bpm",
+    "track": "tracknumber",
+    "unsyncedlyrics": "lyrics",
+    "year": "date",
+}
+# Pictures stored as text, and iTunes' internal playback data.
+_IGNORED_TAGS = {
+    "coverart",
+    "coverartmime",
+    "itunnorm",
+    "itunpgap",
+    "itunsmpb",
+    "metadatablockpicture",
+}
+
+
+def _with_year(text: str, year: str) -> str:
+    """`text` followed by "(Year)", or whichever of the two exists."""
+    if not year:
+        return text
+    return f"{text} ({year})" if text else f"({year})"
 
 
 @dataclass
@@ -32,14 +119,19 @@ class TrackInfo:
     duration_ms: int | None = None
     # Identifies the cover image; tracks with the same cover share one key.
     cover_key: str | None = None
+    # Text tags: all of them during a scan (read_all_tags), later only those with a column.
+    tags: dict[str, str] = field(default_factory=dict)
 
     @property
     def subtitle(self) -> str:
         """The second line of a library row: "Artist – Album (Year)"."""
         line = " – ".join(part for part in (self.artist, self.album) if part)
-        if self.year:
-            line = f"{line} ({self.year})" if line else f"({self.year})"
-        return line
+        return _with_year(line, self.year)
+
+    @property
+    def album_line(self) -> str:
+        """"Album (Year)", or whichever of the two exists."""
+        return _with_year(self.album, self.year)
 
 
 def read_track_info(path: Path) -> tuple[TrackInfo, bytes | None]:
@@ -63,6 +155,10 @@ def read_track_info(path: Path) -> tuple[TrackInfo, bytes | None]:
         info.genre = _genre_text(tags)
         info.track_number = _leading_number(_tag_text(tags, "TRCK", "tracknumber"))
         info.disc_number = _leading_number(_tag_text(tags, "TPOS", "discnumber"))
+        try:
+            info.tags = read_all_tags(tags)
+        except Exception:
+            info.tags = {}
 
         length = getattr(getattr(audio, "info", None), "length", None)
         if length:
@@ -77,6 +173,65 @@ def read_track_info(path: Path) -> tuple[TrackInfo, bytes | None]:
         cover = _folder_cover(path.parent)
 
     return info, cover
+
+
+def read_all_tags(tags) -> dict[str, str]:
+    """Every text tag in a file, under one name per tag whatever the format.
+
+    Names are lower case without spaces, such as "composer" or "albumartist".
+    A tag with several values has them joined by "; ". Pictures and other
+    binary data are left out.
+    """
+    found: dict[str, list[str]] = {}
+    if isinstance(tags, ID3):
+        entries = (entry for frame in tags.values() for entry in _id3_frame_entries(frame))
+    elif hasattr(tags, "as_dict"):  # Vorbis comments
+        entries = tags.as_dict().items()
+    else:
+        return {}
+
+    for name, values in entries:
+        clean_name = re.sub(r"[\s_-]+", "", str(name).casefold())
+        clean_name = _TAG_ALIASES.get(clean_name, clean_name)
+        if clean_name and clean_name not in _IGNORED_TAGS:
+            kept = found.setdefault(clean_name, [])
+            kept.extend(value for value in _texts(values) if value not in kept)
+    return {name: "; ".join(values) for name, values in found.items() if values}
+
+
+def _texts(values) -> list[str]:
+    """Non-empty text values from a value or a list of them."""
+    if not isinstance(values, (list, tuple)):
+        values = [values]
+    return [str(value).strip() for value in values if str(value).strip()]
+
+
+def _id3_frame_entries(frame) -> list[tuple[str, object]]:
+    """The (tag name, values) that one ID3 frame holds. None for binary frames."""
+    frame_id = frame.FrameID
+    if frame_id == "TXXX":
+        return [(frame.desc, frame.text)]
+    if frame_id == "TCON":
+        return [("genre", frame.genres)]
+    if frame_id == "COMM":
+        return [(frame.desc or "comment", frame.text)]
+    if frame_id == "USLT":
+        return [("lyrics", frame.text)]
+    if frame_id == "WXXX":
+        return [(frame.desc or "url", frame.url)]
+    if frame_id == "TIPL":  # roles, such as producer or engineer
+        return [(role, person) for role, person in frame.people]
+    if frame_id == "TMCL":  # musicians and their instruments
+        return [("performer", f"{person} ({role})") for role, person in frame.people]
+    if frame_id == "POPM":
+        return [("rating", frame.rating)]
+    if frame_id == "PCNT":
+        return [("playcount", frame.count)]
+    if frame_id.startswith("T"):
+        return [(_ID3_TAG_NAMES.get(frame_id, frame_id), frame.text)]
+    if frame_id.startswith("W"):
+        return [(_ID3_TAG_NAMES.get(frame_id, frame_id), frame.url)]
+    return []
 
 
 def _leading_number(text: str) -> int | None:
@@ -230,10 +385,7 @@ class TrackDetails:
     @property
     def album_line(self) -> str:
         """Line three of the panel: album (year), or whichever exists."""
-        line = self.album
-        if self.year:
-            line = f"{line} ({self.year})" if line else f"({self.year})"
-        return line
+        return _with_year(self.album, self.year)
 
 
 def read_track_details(path: Path) -> TrackDetails:

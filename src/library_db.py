@@ -18,9 +18,19 @@ from pathlib import Path
 
 from src.track_metadata import TrackInfo
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 DB_NAME = "musichive.db"
 DATA_DIR_NAME = ".musichive"
+
+# Every text tag of every track, one row per tag (see track_metadata.read_all_tags).
+_TRACK_TAGS_TABLE = """
+CREATE TABLE IF NOT EXISTS track_tags (
+    rel_path TEXT NOT NULL,
+    name     TEXT NOT NULL,
+    value    TEXT NOT NULL,
+    PRIMARY KEY (rel_path, name)
+) WITHOUT ROWID;
+"""
 
 _SCHEMA = """
 CREATE TABLE meta (
@@ -52,7 +62,8 @@ CREATE TABLE plays (
     rel_path TEXT PRIMARY KEY,
     count    INTEGER NOT NULL
 );
-"""
+""" + _TRACK_TAGS_TABLE
+
 
 @dataclass(frozen=True)
 class LibraryInfo:
@@ -94,6 +105,7 @@ class SavedSession:
     order_position: int  # where the playing track is within `order`
     queued: list[bool] = field(default_factory=list)  # which entries the user queued
     stop_after_index: int = -1  # entry playback ends after, or -1
+    playlist: str = ""  # the playlist the order comes from ("" means the library)
 
 
 def track_key(artist: str, title: str) -> str:
@@ -188,6 +200,7 @@ def _upgrade_schema(conn: sqlite3.Connection) -> None:
             "CREATE TABLE IF NOT EXISTS plays "
             "(rel_path TEXT PRIMARY KEY, count INTEGER NOT NULL)"
         )
+        conn.execute(_TRACK_TAGS_TABLE)
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
     except sqlite3.OperationalError:
@@ -323,8 +336,29 @@ def migrate_old_libraries() -> int:
 # ----- tracks -----
 
 
-def load_library(info: LibraryInfo) -> LoadedLibrary:
-    """Read every saved track and cover thumbnail of a library."""
+def all_tag_names(db_path: Path) -> list[str]:
+    """The name of every tag found in a library's files."""
+    with connect(db_path) as conn:
+        return [name for (name,) in conn.execute("SELECT DISTINCT name FROM track_tags")]
+
+
+def load_tag_values(db_path: Path, names: list[str]) -> dict[str, dict[str, str]]:
+    """The values of these tags: {relative path: {tag name: value}}."""
+    if not names:
+        return {}
+    values: dict[str, dict[str, str]] = {}
+    marks = ", ".join("?" * len(names))
+    with connect(db_path) as conn:
+        for rel_path, name, value in conn.execute(
+            f"SELECT rel_path, name, value FROM track_tags WHERE name IN ({marks})", names
+        ):
+            values.setdefault(rel_path, {})[name] = value
+    return values
+
+
+def load_library(info: LibraryInfo, tag_names: list[str] | None = None) -> LoadedLibrary:
+    """Read every saved track and cover thumbnail of a library, with these tags."""
+    tag_values = load_tag_values(info.db_path, tag_names or [])
     paths: list[Path] = []
     infos: list[TrackInfo] = []
     with connect(info.db_path) as conn:
@@ -363,6 +397,7 @@ def load_library(info: LibraryInfo) -> LoadedLibrary:
                     duration_ms=duration,
                     cover_key=cover_key,
                     play_count=plays,
+                    tags=tag_values.get(rel_path, {}),
                 )
             )
         covers = {
@@ -448,10 +483,16 @@ def save_scan(
         )
         for position, track in enumerate(tracks)
     )
+    tag_rows = (
+        (track.rel_path, name, value)
+        for track in tracks
+        for name, value in track.info.tags.items()
+    )
     with connect(db_path) as conn:
         with conn:  # commits on success, rolls back on error
             conn.execute("DELETE FROM tracks")
             conn.execute("DELETE FROM covers")
+            conn.execute("DELETE FROM track_tags")
             conn.executemany(
                 "INSERT INTO covers (cover_key, thumbnail) VALUES (?, ?)",
                 covers.items(),
@@ -462,6 +503,10 @@ def save_scan(
                 "duration_ms, file_size, modified, cover_key) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 rows,
+            )
+            conn.executemany(
+                "INSERT INTO track_tags (rel_path, name, value) VALUES (?, ?, ?)",
+                tag_rows,
             )
             conn.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES ('scanned_at', ?)",
@@ -475,6 +520,7 @@ def remove_track(db_path: Path, rel_path: str) -> None:
         with conn:
             conn.execute("DELETE FROM tracks WHERE rel_path = ?", (rel_path,))
             conn.execute("DELETE FROM plays WHERE rel_path = ?", (rel_path,))
+            conn.execute("DELETE FROM track_tags WHERE rel_path = ?", (rel_path,))
             conn.execute(
                 "DELETE FROM covers WHERE cover_key NOT IN "
                 "(SELECT cover_key FROM tracks WHERE cover_key IS NOT NULL)"
@@ -496,6 +542,7 @@ def save_session(db_path: Path, session: SavedSession) -> None:
             json.dumps([1 if flag else 0 for flag in session.queued], separators=(",", ":")),
         ),
         ("session_stop_after", str(session.stop_after_index)),
+        ("session_playlist", session.playlist),
     ]
     with connect(db_path) as conn:
         with conn:
@@ -523,6 +570,7 @@ def load_session(db_path: Path) -> SavedSession | None:
             order_position=int(meta["session_order_position"]),
             queued=queued,
             stop_after_index=int(meta.get("session_stop_after", -1)),
+            playlist=meta.get("session_playlist", ""),
         )
     except (KeyError, ValueError, TypeError):
         return None
@@ -534,7 +582,7 @@ def clear_session(db_path: Path) -> None:
             conn.execute(
                 "DELETE FROM meta WHERE key IN ('session_track', "
                 "'session_position_ms', 'session_order', 'session_order_position', "
-                "'session_queued', 'session_stop_after')"
+                "'session_queued', 'session_stop_after', 'session_playlist')"
             )
 
 

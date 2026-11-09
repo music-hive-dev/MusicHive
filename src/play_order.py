@@ -117,6 +117,20 @@ class PlayOrder:
         """Set the order used when the play order is rebuilt or starts over."""
         self._context = list(rows)
 
+    def context_changed(self, rows: list[int]) -> None:
+        """The list being played was edited: what follows the playing track now
+        follows `rows`. A shuffled order is left alone, and so is everything
+        when the playing track is no longer in the list."""
+        current = self.current_row
+        if self.shuffle or current not in rows:
+            self._context = list(rows)
+            return
+        stop_row = next((e.row for e in self._entries if e.uid == self._stop_after), None)
+        self._rebuild(first=current, context=rows)
+        if stop_row is not None:
+            upcoming = self._entries[self._position :]
+            self._stop_after = next((e.uid for e in upcoming if e.row == stop_row), None)
+
     def jump_to_upcoming(self, offset: int) -> int:
         """The user picked the item `offset` places down the Upcoming list.
 
