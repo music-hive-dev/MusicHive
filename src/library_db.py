@@ -18,7 +18,7 @@ from pathlib import Path
 
 from src.track_metadata import TrackInfo
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 8
 DB_NAME = "musichive.db"
 DATA_DIR_NAME = ".musichive"
 
@@ -30,6 +30,23 @@ CREATE TABLE IF NOT EXISTS track_tags (
     value    TEXT NOT NULL,
     PRIMARY KEY (rel_path, name)
 ) WITHOUT ROWID;
+"""
+
+# When each song first joined the library. Rescans rebuild the tracks table, so
+# this lives apart from it, as the play counts do.
+_TRACK_ADDED_TABLE = """
+CREATE TABLE IF NOT EXISTS track_added (
+    rel_path TEXT PRIMARY KEY,
+    added_at REAL NOT NULL
+);
+"""
+
+# Star ratings, kept apart from the tracks table so that rescans leave them alone.
+_RATINGS_TABLE = """
+CREATE TABLE IF NOT EXISTS ratings (
+    rel_path TEXT PRIMARY KEY,
+    rating   INTEGER NOT NULL
+);
 """
 
 _SCHEMA = """
@@ -59,10 +76,11 @@ CREATE TABLE tracks (
 );
 
 CREATE TABLE plays (
-    rel_path TEXT PRIMARY KEY,
-    count    INTEGER NOT NULL
+    rel_path    TEXT PRIMARY KEY,
+    count       INTEGER NOT NULL,
+    last_played REAL
 );
-""" + _TRACK_TAGS_TABLE
+""" + _TRACK_TAGS_TABLE + _TRACK_ADDED_TABLE + _RATINGS_TABLE
 
 
 @dataclass(frozen=True)
@@ -200,7 +218,18 @@ def _upgrade_schema(conn: sqlite3.Connection) -> None:
             "CREATE TABLE IF NOT EXISTS plays "
             "(rel_path TEXT PRIMARY KEY, count INTEGER NOT NULL)"
         )
+        play_columns = {row[1] for row in conn.execute("PRAGMA table_info(plays)")}
+        if "last_played" not in play_columns:
+            conn.execute("ALTER TABLE plays ADD COLUMN last_played REAL")
         conn.execute(_TRACK_TAGS_TABLE)
+        conn.execute(_TRACK_ADDED_TABLE)
+        conn.execute(_RATINGS_TABLE)
+        # Nobody noted when existing songs arrived: their file date is the best guess.
+        conn.execute(
+            "INSERT OR IGNORE INTO track_added (rel_path, added_at) "
+            "SELECT rel_path, COALESCE(modified, ?) FROM tracks",
+            (datetime.now().timestamp(),),
+        )
         conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         conn.commit()
     except sqlite3.OperationalError:
@@ -365,8 +394,10 @@ def load_library(info: LibraryInfo, tag_names: list[str] | None = None) -> Loade
         rows = conn.execute(
             "SELECT t.rel_path, t.title, t.artist, t.album_artist, t.album, "
             "t.year, t.genre, t.track_number, t.disc_number, t.duration_ms, "
-            "t.cover_key, COALESCE(p.count, 0) "
+            "t.cover_key, COALESCE(p.count, 0), t.file_size, a.added_at, p.last_played, r.rating "
             "FROM tracks t LEFT JOIN plays p ON p.rel_path = t.rel_path "
+            "LEFT JOIN track_added a ON a.rel_path = t.rel_path "
+            "LEFT JOIN ratings r ON r.rel_path = t.rel_path "
             "ORDER BY t.position"
         )
         for (
@@ -382,6 +413,10 @@ def load_library(info: LibraryInfo, tag_names: list[str] | None = None) -> Loade
             duration,
             cover_key,
             plays,
+            file_size,
+            added_at,
+            last_played,
+            rating,
         ) in rows:
             paths.append(info.root / rel_path)
             infos.append(
@@ -397,6 +432,10 @@ def load_library(info: LibraryInfo, tag_names: list[str] | None = None) -> Loade
                     duration_ms=duration,
                     cover_key=cover_key,
                     play_count=plays,
+                    file_size=file_size,
+                    added_at=added_at,
+                    last_played=last_played,
+                    rating=rating or 0,
                     tags=tag_values.get(rel_path, {}),
                 )
             )
@@ -416,18 +455,32 @@ def library_stats(db_path: Path) -> LibraryStats:
         ).fetchone()
     return LibraryStats(count, size, duration)
 
-def increment_play_count(db_path: Path, rel_path: str) -> int:
-    """Add one play to a track and return its new play count."""
+def increment_play_count(db_path: Path, rel_path: str, played_at: float) -> int:
+    """Add one play to a track, note when, and return its new play count."""
     with connect(db_path) as conn:
         with conn:
             conn.execute(
-                "INSERT INTO plays (rel_path, count) VALUES (?, 1) "
-                "ON CONFLICT(rel_path) DO UPDATE SET count = count + 1",
-                (rel_path,),
+                "INSERT INTO plays (rel_path, count, last_played) VALUES (?, 1, ?) "
+                "ON CONFLICT(rel_path) DO UPDATE SET "
+                "count = count + 1, last_played = excluded.last_played",
+                (rel_path, played_at),
             )
             return conn.execute(
                 "SELECT count FROM plays WHERE rel_path = ?", (rel_path,)
             ).fetchone()[0]
+
+
+def set_rating(db_path: Path, rel_path: str, rating: int) -> None:
+    """Save a track's star rating (0 removes it)."""
+    with connect(db_path) as conn:
+        with conn:
+            if rating:
+                conn.execute(
+                    "INSERT OR REPLACE INTO ratings (rel_path, rating) VALUES (?, ?)",
+                    (rel_path, rating),
+                )
+            else:
+                conn.execute("DELETE FROM ratings WHERE rel_path = ?", (rel_path,))
 
 
 def load_play_counts(db_path: Path) -> dict[str, int]:
@@ -508,6 +561,21 @@ def save_scan(
                 "INSERT INTO track_tags (rel_path, name, value) VALUES (?, ?, ?)",
                 tag_rows,
             )
+            # A rating in a file wins; a song without one keeps the rating it has here.
+            conn.executemany(
+                "INSERT OR REPLACE INTO ratings (rel_path, rating) VALUES (?, ?)",
+                ((track.rel_path, track.info.rating) for track in tracks if track.info.rating),
+            )
+            # On a library's first scan nothing is "new", so file dates tell songs apart.
+            first_scan = conn.execute("SELECT COUNT(*) FROM track_added").fetchone()[0] == 0
+            now = datetime.now().timestamp()
+            conn.executemany(
+                "INSERT OR IGNORE INTO track_added (rel_path, added_at) VALUES (?, ?)",
+                (
+                    (track.rel_path, track.modified if first_scan and track.modified else now)
+                    for track in tracks
+                ),
+            )
             conn.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES ('scanned_at', ?)",
                 (datetime.now().isoformat(timespec="seconds"),),
@@ -520,7 +588,9 @@ def remove_track(db_path: Path, rel_path: str) -> None:
         with conn:
             conn.execute("DELETE FROM tracks WHERE rel_path = ?", (rel_path,))
             conn.execute("DELETE FROM plays WHERE rel_path = ?", (rel_path,))
+            conn.execute("DELETE FROM ratings WHERE rel_path = ?", (rel_path,))
             conn.execute("DELETE FROM track_tags WHERE rel_path = ?", (rel_path,))
+            conn.execute("DELETE FROM track_added WHERE rel_path = ?", (rel_path,))
             conn.execute(
                 "DELETE FROM covers WHERE cover_key NOT IN "
                 "(SELECT cover_key FROM tracks WHERE cover_key IS NOT NULL)"

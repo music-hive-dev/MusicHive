@@ -24,6 +24,19 @@ class Playlist:
     filter_kind: str = ""  # the tag the song table is filtered by, e.g. "album_artist"
     filter_value: str = ""  # the chosen value of that tag ("" shows every song)
     folder: str = ""  # the folder it is kept in, in the side list ("" means none)
+    rules: list[dict] | None = None  # set for an auto-playlist (see auto_playlist.py)
+    match_any: bool = False  # an auto-playlist needs any rule to match, not all of them
+    no_duplicates: bool = False  # an auto-playlist keeps one copy of the same song
+    limit: dict | None = None  # how much of an auto-playlist to keep (see auto_playlist.py)
+
+    @property
+    def is_auto(self) -> bool:
+        return self.rules is not None
+
+    @property
+    def read_only(self) -> bool:
+        """True if songs cannot be added to it or rearranged."""
+        return self.locked or self.is_auto
 
 
 class PlaylistStore:
@@ -109,6 +122,8 @@ class PlaylistStore:
         filter_kind = data.get("filter_kind")
         filter_value = data.get("filter_value")
         folder = data.get("folder")
+        rules = data.get("rules")
+        limit = data.get("limit")
         return Playlist(
             name,
             tracks,
@@ -117,6 +132,10 @@ class PlaylistStore:
             filter_kind if isinstance(filter_kind, str) else "",
             filter_value if isinstance(filter_value, str) else "",
             folder if isinstance(folder, str) else "",
+            rules if isinstance(rules, list) else None,
+            data.get("match_any") is True,
+            data.get("no_duplicates") is True,
+            limit if isinstance(limit, dict) else None,
         )
 
     def save(self, playlist: Playlist) -> None:
@@ -133,6 +152,10 @@ class PlaylistStore:
                     "filter_kind": playlist.filter_kind,
                     "filter_value": playlist.filter_value,
                     "folder": playlist.folder,
+                    "rules": playlist.rules,
+                    "match_any": playlist.match_any,
+                    "no_duplicates": playlist.no_duplicates,
+                    "limit": playlist.limit,
                     "tracks": playlist.tracks,
                 },
                 ensure_ascii=False,
@@ -268,6 +291,21 @@ class PlaylistStore:
     def set_description(self, name: str, description: str) -> None:
         playlist = self.load(name)
         playlist.description = description
+        self.save(playlist)
+
+    def set_rules(
+        self,
+        name: str,
+        rules: list[dict],
+        match_any: bool,
+        no_duplicates: bool,
+        limit: dict | None,
+    ) -> None:
+        playlist = self.load(name)
+        playlist.rules = rules
+        playlist.match_any = match_any
+        playlist.no_duplicates = no_duplicates
+        playlist.limit = limit
         self.save(playlist)
 
     def set_filter(self, name: str, kind: str, value: str) -> None:

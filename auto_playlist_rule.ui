@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>autoPlaylistRule</class>
+ <widget class="QWidget" name="autoPlaylistRule">
+  <layout class="QHBoxLayout" name="autoPlaylistRuleLayout">
+   <property name="leftMargin">
+    <number>0</number>
+   </property>
+   <property name="topMargin">
+    <number>0</number>
+   </property>
+   <property name="rightMargin">
+    <number>0</number>
+   </property>
+   <property name="bottomMargin">
+    <number>0</number>
+   </property>
+   <item>
+    <widget class="QComboBox" name="ruleTagCombo">
+     <property name="styleSheet">
+      <string notr="true">QComboBox { combobox-popup: 0; }</string>
+     </property>
+     <property name="maxVisibleItems">
+      <number>15</number>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QComboBox" name="ruleComparisonCombo">
+     <item>
+      <property name="text">
+       <string>contains</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>does not contain</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>is</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>is not</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>starts with</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>ends with</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>is greater than</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>is less than</string>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLineEdit" name="ruleValueEdit"/>
+   </item>
+   <item>
+    <widget class="QPushButton" name="ruleRemoveButton">
+     <property name="toolTip">
+      <string>Remove this rule</string>
+     </property>
+     <property name="text">
+      <string/>
+     </property>
+     <property name="icon">
+      <iconset>
+       <normaloff>assets/minus.svg</normaloff>assets/minus.svg</iconset>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

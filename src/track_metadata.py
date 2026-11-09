@@ -12,7 +12,7 @@ from pathlib import Path
 
 from mutagen import File as MutagenFile
 from mutagen.flac import Picture
-from mutagen.id3 import ID3
+from mutagen.id3 import ID3, POPM
 
 # Image files looked for next to the music when a track has no embedded art.
 COVER_FILE_STEMS = ("cover", "folder", "front", "album", "albumart")
@@ -98,6 +98,10 @@ _IGNORED_TAGS = {
 }
 
 
+_POPM_EMAIL = "Windows Media Player 9 Series"
+_POPM_RATINGS = (0, 1, 64, 128, 196, 255)  # by number of stars
+
+
 def _with_year(text: str, year: str) -> str:
     """`text` followed by "(Year)", or whichever of the two exists."""
     if not year:
@@ -119,6 +123,10 @@ class TrackInfo:
     duration_ms: int | None = None
     # Identifies the cover image; tracks with the same cover share one key.
     cover_key: str | None = None
+    file_size: int | None = None  # in bytes
+    added_at: float | None = None  # when it first joined the library, in seconds since 1970
+    last_played: float | None = None  # when a play last counted, in seconds since 1970
+    rating: int = 0  # stars, from 0 to 5
     # Text tags: all of them during a scan (read_all_tags), later only those with a column.
     tags: dict[str, str] = field(default_factory=dict)
 
@@ -159,6 +167,7 @@ def read_track_info(path: Path) -> tuple[TrackInfo, bytes | None]:
             info.tags = read_all_tags(tags)
         except Exception:
             info.tags = {}
+        info.rating = read_rating(tags)
 
         length = getattr(getattr(audio, "info", None), "length", None)
         if length:
@@ -173,6 +182,66 @@ def read_track_info(path: Path) -> tuple[TrackInfo, bytes | None]:
         cover = _folder_cover(path.parent)
 
     return info, cover
+
+
+def read_rating(tags) -> int:
+    """The stars (1 to 5) stored in a file's tags, or 0 if it has no rating."""
+    try:
+        if isinstance(tags, ID3):
+            ratings = [frame.rating for frame in tags.getall("POPM") if frame.rating]
+            return _stars_from_popm(ratings[0]) if ratings else 0
+        values = tags.get("rating") if tags is not None else None
+        return _stars_from_text(values[0]) if values else 0
+    except (ValueError, TypeError, AttributeError):
+        return 0
+
+
+def _stars_from_popm(rating: int) -> int:
+    """POPM is 1 to 255; programs use different steps, so go by ranges."""
+    for stars, upper_limit in enumerate((31, 95, 159, 223), start=1):
+        if rating <= upper_limit:
+            return stars
+    return 5
+
+
+def _stars_from_text(text: str) -> int:
+    """A RATING tag: 0 to 100 (KDE, MusicHive), 1 to 5, or a fraction such as 0.8."""
+    value = float(text)
+    if value <= 0:
+        return 0
+    if value < 1:
+        return max(1, round(value * 5))
+    if value <= 5:
+        return round(value)
+    return max(1, min(5, round(value / 20)))
+
+
+def write_rating(path: Path, stars: int) -> None:
+    """Store a rating of 0 to 5 stars in a file's tags. Raises on failure.
+
+    These are the conventions most players and KDE's Dolphin understand: an
+    ID3 POPM frame on the Windows Media Player scale, and RATING from 0 to 100
+    in FLAC and Ogg files.
+    """
+    audio = MutagenFile(str(path))
+    if audio is None:
+        raise ValueError("unknown file format")
+    if audio.tags is None:
+        audio.add_tags()
+    tags = audio.tags
+    if isinstance(tags, ID3):
+        # Only one rating, so that no player reads an old one. Its play count is kept.
+        count = max((getattr(frame, "count", 0) for frame in tags.getall("POPM")), default=0)
+        tags.delall("POPM")
+        if stars or count:
+            tags.add(POPM(email=_POPM_EMAIL, rating=_POPM_RATINGS[stars], count=count))
+        audio.save(v2_version=3 if tags.version[1] == 3 else 4)  # keep the file's ID3 version
+        return
+    if stars:
+        tags["rating"] = str(stars * 20)
+    elif "rating" in tags:
+        del tags["rating"]
+    audio.save()
 
 
 def read_all_tags(tags) -> dict[str, str]:
@@ -374,6 +443,7 @@ class TrackDetails:
     year: str = ""
     audio_format: str = ""  # e.g. "FLAC 44.1 kHz @ 906k Stereo"
     cover: bytes | None = None  # the full-size cover image, as stored in the file
+    rating: int = 0  # stars stored in the file, from 0 to 5
 
     @property
     def artist_line(self) -> str:
@@ -406,6 +476,7 @@ def read_track_details(path: Path) -> TrackDetails:
         year = _tag_text(tags, "TDRC", "TYER", "date", "year")
         details.year = year[:4] if year[:4].isdigit() else ""
         details.audio_format = _describe_format(audio, path)
+        details.rating = read_rating(tags)
         try:
             details.cover = _embedded_cover(audio)
         except Exception:

@@ -5,6 +5,7 @@ import json
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import (
@@ -134,11 +135,42 @@ COLUMNS = (
     ),
 )
 
+RATING_COLUMN_KEY = "Rating"
+
+
+def _date_text(seconds: float | None) -> str:
+    return datetime.fromtimestamp(seconds).strftime("%Y-%m-%d %H:%M") if seconds else ""
+
+
+LAST_PLAYED_COLUMN = Column(
+    "Last Played",
+    text=lambda info: _date_text(info.last_played),
+    sort_key=lambda info: info.last_played or 0,
+    width=130,
+)
+
+# Built-in columns that are only offered in the column window, not shown by default.
+OPTIONAL_COLUMNS = (
+    Column(
+        "Date Added",
+        text=lambda info: _date_text(info.added_at),
+        sort_key=lambda info: info.added_at or 0,
+        width=130,
+    ),
+    LAST_PLAYED_COLUMN,
+    Column(
+        RATING_COLUMN_KEY,
+        text=lambda info: "★" * info.rating,
+        sort_key=lambda info: info.rating,
+        width=90,
+    ),
+)
+
 POSITION_COLUMN_KEY = "#"  # in a playlist, this column shows the position
 TAG_KEY_PREFIX = "tag:"
 
 # These tags already have a built-in column, which handles them better.
-_TAGS_WITH_A_COLUMN = {"album", "artist", "genre", "title", "tracknumber"}
+_TAGS_WITH_A_COLUMN = {"album", "artist", "genre", "rating", "title", "tracknumber"}
 
 # Tag names are stored in lower case without spaces; these need more than a capital.
 _TAG_TITLES = {
@@ -178,7 +210,7 @@ def tag_column(name: str) -> Column:
 
 def columns_from_keys(keys: list[str]) -> list[Column]:
     """The columns of a saved layout. An empty layout gives the default columns."""
-    built_in = {column.key: column for column in COLUMNS}
+    built_in = {column.key: column for column in (*COLUMNS, *OPTIONAL_COLUMNS)}
     columns = []
     for key in dict.fromkeys(keys):
         if key in built_in:
@@ -191,7 +223,11 @@ def columns_from_keys(keys: list[str]) -> list[Column]:
 def all_columns(tag_names: list[str]) -> list[Column]:
     """Every column on offer: the built-in ones, then the tags by name."""
     tags = [tag_column(name) for name in tag_names if name not in _TAGS_WITH_A_COLUMN]
-    return [*COLUMNS, *sorted(tags, key=lambda column: column.title.casefold())]
+    return [
+        *COLUMNS,
+        *OPTIONAL_COLUMNS,
+        *sorted(tags, key=lambda column: column.title.casefold()),
+    ]
 
 # ----- models -----
 
@@ -270,6 +306,25 @@ class TrackListModel(QAbstractTableModel):
         column = self._plays_column()
         if column >= 0:
             cell = self.index(row, column)
+            self.dataChanged.emit(cell, cell)
+
+    def set_last_played(self, row: int, played_at: float) -> None:
+        """Note when a track was last played and repaint its cell."""
+        if not 0 <= row < len(self._infos):
+            return
+        self._infos[row].last_played = played_at
+        self._repaint_cell(row, LAST_PLAYED_COLUMN.key)
+
+    def set_rating(self, row: int, rating: int) -> None:
+        """Change a track's star rating and repaint its cell."""
+        if 0 <= row < len(self._infos):
+            self._infos[row].rating = rating
+            self._repaint_cell(row, RATING_COLUMN_KEY)
+
+    def _repaint_cell(self, row: int, key: str) -> None:
+        keys = [column.key for column in self.columns]
+        if key in keys:
+            cell = self.index(row, keys.index(key))
             self.dataChanged.emit(cell, cell)
 
     def set_all_play_counts(self, counts: list[int]) -> None:

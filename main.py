@@ -4,6 +4,7 @@ import hashlib
 import html
 import sqlite3
 import sys
+import time
 from pathlib import Path
 import random
 import json
@@ -86,22 +87,27 @@ from src.mpris import NO_TRACK, MprisService, cover_file_url, file_url
 from src.track_list import (
     all_columns,
     columns_from_keys,
+    tag_column,
     QueueModel,
     SortedTrackModel,
     TrackListModel,
     setup_track_view,
 )
+from src.rating_writer import RatingWriter
+from src.star_rating import StarRating
 from src.tray import TrayMinimizer
 from src.track_metadata import read_track_details
 from src.playlist_models import (
     ClickFilter,
+    HistoryTrackModel,
     PlaylistSortedModel,
     PlaylistTrackModel,
     IconAnimation,
     is_animated_gif,
     make_square_icon,
 )
-from src.playlist_dialog import PlaylistDetails, PlaylistEditDialog
+from src.auto_playlist import TIME_TAG, apply_limit, song_matches
+from src.playlist_dialog import AutoPlaylistEditDialog, PlaylistDetails, PlaylistEditDialog
 from src.playlists import Playlist, PlaylistStore
 
 
@@ -124,6 +130,8 @@ LASTFM_API_KEY = _SECRETS.get("lastfm_api_key", "")
 LASTFM_API_SECRET = _SECRETS.get("lastfm_api_secret", "")
 LASTFM_UI_FILE = Path(__file__).parent / "lastfm.ui"
 PLAYLIST_EDIT_UI_FILE = Path(__file__).parent / "playlist_edit.ui"
+AUTO_PLAYLIST_EDIT_UI_FILE = Path(__file__).parent / "auto_playlist_edit.ui"
+AUTO_PLAYLIST_RULE_UI_FILE = Path(__file__).parent / "auto_playlist_rule.ui"
 COLUMNS_EDIT_UI_FILE = Path(__file__).parent / "columns_edit.ui"
 COVER_WINDOW_UI_FILE = Path(__file__).parent / "cover_window.ui"
 
@@ -140,6 +148,9 @@ GROUP_ICON_SIDE = 128  # pixels, the image at the top of the Artists and Albums 
 GROUP_SOURCE_PREFIX = "/"
 
 SONGS_FILTER_OWNER = "songs"  # the Songs tab, in the saved filters
+HISTORY_SOURCE = "history"  # the History tab, as a list that can be played from
+# Offered in an auto-playlist's rules even before a library has been rescanned.
+COMMON_RULE_TAGS = ("album", "albumartist", "artist", "date", "genre", "rating", "time", "title")
 
 # What MPRIS calls the playback states and repeat modes.
 MPRIS_STATUS = {"playing": "Playing", "paused": "Paused", "stopped": "Stopped"}
@@ -464,6 +475,7 @@ class MusicHive:
             (w.playlistSongList, "playlist"),
             (w.artistSongList, "artist"),
             (w.albumSongList, "album"),
+            (w.historyList, HISTORY_SOURCE),
         ):
             view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             view.customContextMenuRequested.connect(
@@ -476,12 +488,14 @@ class MusicHive:
         self.play_source: str | None = None  # the one being played (None = the library)
         self.source_group: str | None = None  # or the tab being played ("artist", "album")
         self.playlist_placeholder = asset_icon("list-music")  # for playlists without an icon
+        self.auto_playlist_cache: dict[str, list[int]] = {}  # rules as text -> library rows
 
         # The side list: Playlists and Computer, which open and close when clicked.
         self.side_model = SideListModel(
             asset_icon("chevron-right"),
             asset_icon("chevron-down"),
             asset_icon("list-music"),
+            asset_icon("bot"),
             asset_icon("folder"),
             w,
         )
@@ -543,6 +557,14 @@ class MusicHive:
                 ),
             ),
         }
+        # The History tab: songs in the order they were last played
+        self.history_tracks = HistoryTrackModel(self.library_model, w)
+        self.history_proxy = SortedTrackModel(w)
+        self.history_proxy.setSourceModel(self.history_tracks)
+        setup_library_table(w.historyList, self.history_proxy)
+        self.restore_table_layout(w.historyList, "historyHeaderState")
+        w.historyList.doubleClicked.connect(self.play_history_item)
+
         self.library_model.modelReset.connect(self.refresh_filter_bars)
 
         for button in (
@@ -581,6 +603,12 @@ class MusicHive:
         self.cover_window = None  # created the first time a cover is opened
         self._cover_click = ClickFilter(w.trackInfoCoverImg)
         self._cover_click.clicked.connect(self.show_full_cover)
+        self.rating_stars = StarRating(
+            w.trackRatingStars, asset_icon("star"), asset_icon("star_full")
+        )
+        self.rating_stars.rated.connect(self.on_track_rated)
+        self.rating_writer = RatingWriter(w)
+        self.rating_writer.failed.connect(self.on_rating_write_failed)
         for label in (
             w.trackInfoTitle,
             w.trackInfoArtistAlbumArtist,
@@ -744,6 +772,7 @@ class MusicHive:
         self.settings.setValue("openTab", self.window.podcastsTab.currentWidget().objectName())
         self.save_session()
         self.artist_info.shutdown()
+        self.rating_writer.shutdown()
         self.mpris.shutdown()
         self.discord.shutdown()
         self.lastfm.shutdown()
@@ -882,6 +911,7 @@ class MusicHive:
         return [
             (w.libraryList, "libraryHeaderState"),
             (w.playlistSongList, "playlistHeaderState"),
+            (w.historyList, "historyHeaderState"),
             *pages,
         ]
 
@@ -905,10 +935,10 @@ class MusicHive:
 
     def apply_table_columns(self, keys: list[str]) -> None:
         """Show these columns in every song table, keeping widths and sorting."""
-        old_columns = self.library_model.columns
         before = []
         for view, _key in self.song_tables():
             header = view.horizontalHeader()
+            old_columns = view.model().columns
             widths = {
                 column.key: view.columnWidth(index) for index, column in enumerate(old_columns)
             }
@@ -920,13 +950,14 @@ class MusicHive:
         self.load_column_tags(columns)
         self.library_model.set_columns(columns)
 
-        new_keys = [column.key for column in columns]
         for view, widths, sort_key, order in before:
-            for index, column in enumerate(columns):
+            view_columns = view.model().columns  # History adds a column of its own
+            view_keys = [column.key for column in view_columns]
+            for index, column in enumerate(view_columns):
                 view.setColumnWidth(index, widths.get(column.key, column.width))
-            view.sortByColumn(new_keys.index(sort_key) if sort_key in new_keys else -1, order)
+            view.sortByColumn(view_keys.index(sort_key) if sort_key in view_keys else -1, order)
 
-        self.settings.setValue("tableColumns", json.dumps(new_keys))
+        self.settings.setValue("tableColumns", json.dumps([column.key for column in columns]))
         self.save_table_layouts()
         if self.current_index >= 0:
             self.select_in_table(self.current_index)
@@ -1005,6 +1036,8 @@ class MusicHive:
         elif source in self.group_pages:
             page = self.group_pages[source]
             view, shown = page.view, self.group_display_rows(page)
+        elif source == HISTORY_SOURCE:
+            view, shown = w.historyList, self.history_display_rows()
         else:
             view, shown = w.playlistSongList, self.playlist_display_rows()
         positions = sorted(index.row() for index in view.selectionModel().selectedRows())
@@ -1014,7 +1047,7 @@ class MusicHive:
         """Ctrl+A: select every song in the table on screen."""
         w = self.window
         group_views = [page.view for page in self.group_pages.values()]
-        for view in (w.libraryList, w.playlistSongList, *group_views):
+        for view in (w.libraryList, w.playlistSongList, w.historyList, *group_views):
             if view.isVisible():
                 view.setFocus()
                 view.selectAll()
@@ -1050,8 +1083,9 @@ class MusicHive:
 
     def count_play(self, entry: dict, started_at: int | None) -> None:
         """A play counts: raise the play count and scrobble it to Last.fm."""
+        played_at = time.time()
         try:
-            count = library_db.increment_play_count(entry["db_path"], entry["rel_path"])
+            count = library_db.increment_play_count(entry["db_path"], entry["rel_path"], played_at)
         except sqlite3.Error:
             count = None
 
@@ -1063,6 +1097,8 @@ class MusicHive:
                 row = -1
             if row >= 0:
                 self.library_model.set_play_count(row, count)
+                self.library_model.set_last_played(row, played_at)
+                self.refresh_history()
 
         if entry["artist"] and entry["title"]:  # Last.fm needs both
             self.lastfm.enqueue_scrobble(
@@ -1165,7 +1201,61 @@ class MusicHive:
         cover = QImage.fromData(details.cover) if details.cover else None
         self.full_cover = cover if cover is not None and not cover.isNull() else None
         self.mpris_art_url = cover_file_url(details.cover) if details.cover else ""
+        self.adopt_file_rating(details.rating)
+        self.show_current_rating()
         self.cover_view.set_image(cover)
+
+    def adopt_file_rating(self, rating: int) -> None:
+        """Use the rating found in the file that started, if another program changed it."""
+        library = self.loaded_library
+        info = self.library_model.info(self.current_index)
+        if library is None or info is None or not rating or rating == info.rating:
+            return
+        self.library_model.set_rating(self.current_index, rating)
+        try:
+            path = self.relative_path(self.tracks[self.current_index])
+            library_db.set_rating(library.db_path, path, rating)
+        except sqlite3.Error:
+            pass  # the next rescan reads it from the file again
+        self.update_rating_playlists()
+
+    def update_rating_playlists(self) -> None:
+        """A rating changed: auto-playlists with a rating rule must look again."""
+        for key in [key for key in self.auto_playlist_cache if '"tag": "rating"' in key]:
+            del self.auto_playlist_cache[key]
+        store = self.playlist_store
+        if store is None:
+            return
+        for name in {self.current_playlist, self.play_source} - {None}:
+            playlist = store.load(name)
+            if playlist.is_auto and any(rule["tag"] == "rating" for rule in playlist.rules):
+                self.playlist_edited(name)
+
+    def show_current_rating(self) -> None:
+        info = self.library_model.info(self.current_index)
+        self.rating_stars.set_rating(info.rating if info else 0, enabled=info is not None)
+
+    def on_track_rated(self, rating: int) -> None:
+        """The user clicked a star: save the rating of the playing track."""
+        library = self.loaded_library
+        info = self.library_model.info(self.current_index)
+        if library is None or info is None:
+            return
+        path = self.relative_path(self.tracks[self.current_index])
+        try:
+            library_db.set_rating(library.db_path, path, rating)
+        except sqlite3.Error as error:
+            self.show_status(f"Cannot save the rating: {error}")
+            return
+        self.library_model.set_rating(self.current_index, rating)
+        self.show_current_rating()
+        self.rating_writer.write(self.tracks[self.current_index], rating)
+        self.update_rating_playlists()
+        stars = f"{rating} star{'' if rating == 1 else 's'}"
+        self.show_status(f"Rated '{info.title}' {stars}" if rating else f"Cleared the rating of '{info.title}'")
+
+    def on_rating_write_failed(self, file_name: str, message: str) -> None:
+        self.show_status(f"Could not write the rating to {file_name}: {message}")
 
     def show_full_cover(self) -> None:
         """Open the playing track's cover at its full resolution."""
@@ -1217,6 +1307,7 @@ class MusicHive:
             label.clear()
         self.full_cover = None
         self.mpris_art_url = ""
+        self.rating_stars.set_rating(0, enabled=False)
         self.cover_view.set_image(None)
         self.update_window_title()
 
@@ -1290,7 +1381,7 @@ class MusicHive:
 
     def show_track_menu(self, view, pos, source: str) -> None:
         """Right-click menu for a song. `source` is "library", "upcoming", "playlist",
-        "artist" or "album"."""
+        "artist", "album" or "history"."""
         index = view.indexAt(pos)
         if not index.isValid():
             return
@@ -1301,6 +1392,11 @@ class MusicHive:
             page = self.group_pages[source]
             row = page.tracks.library_row(page.proxy.mapToSource(index).row())
             context = self.group_display_rows(page)
+            group = source
+        elif source == HISTORY_SOURCE:
+            offset = -1
+            row = self.history_tracks.library_row(self.history_proxy.mapToSource(index).row())
+            context = self.history_display_rows()
             group = source
         elif source == "upcoming":
             offset = index.row()  # places down the Upcoming list (0 = playing)
@@ -1367,12 +1463,12 @@ class MusicHive:
         menu.addSeparator()
 
         add(menu, "Edit…", "edit", lambda: None, enabled=False, tip="Not available yet")
-        in_playlist = source == "playlist"
+        in_playlist = source == "playlist" and not self.is_auto_playlist(self.current_playlist)
         add(
             menu, f"Delete from playlist{several}", "delete_from_playlist",
             lambda: self.remove_from_playlist(rows),
             enabled=in_playlist,
-            tip="" if in_playlist else "Only available inside a playlist",
+            tip="" if in_playlist else "Only available inside a normal playlist",
         )
         add(
             menu, "Delete file", "delete_file", lambda: self.delete_file(row),
@@ -1707,6 +1803,8 @@ class MusicHive:
 
     def refresh_filter_bars(self) -> None:
         """The library changed: rebuild the filter bars of every tab."""
+        self.auto_playlist_cache.clear()  # library rows and tags may be different now
+        self.refresh_history()
         for bar in self.filter_bars():
             bar.forget()
         for page in self.group_pages.values():
@@ -1849,7 +1947,31 @@ class MusicHive:
 
     def source_group_rows(self) -> list[int]:
         """Library rows of the tab being played, as its table shows them."""
+        if self.source_group == HISTORY_SOURCE:
+            return self.history_display_rows()
         return self.group_display_rows(self.group_pages[self.source_group])
+
+    # ----- the History tab -----
+
+    def refresh_history(self) -> None:
+        """Show every song that has been played, the most recent first."""
+        library = self.library_model
+        rows = [row for row in range(library.rowCount()) if library.info(row).last_played]
+        rows.sort(key=lambda row: library.info(row).last_played, reverse=True)
+        bar = self.window.historyList.verticalScrollBar()
+        scroll = bar.value()
+        self.history_tracks.set_rows(rows)
+        QTimer.singleShot(0, lambda: bar.setValue(scroll))
+
+    def history_display_rows(self) -> list[int]:
+        """Library rows of the History table, in the order it shows them."""
+        return [self.history_tracks.library_row(row) for row in self.history_proxy.source_rows()]
+
+    def play_history_item(self, model_index: QModelIndex) -> None:
+        """The user double-clicked a song in the History table."""
+        row = self.history_tracks.library_row(self.history_proxy.mapToSource(model_index).row())
+        if row >= 0:
+            self.play_now(row, context=self.history_display_rows(), group=HISTORY_SOURCE)
 
     def saved_play_source(self) -> str:
         """What the session remembers as being played ("" means the library)."""
@@ -1860,7 +1982,7 @@ class MusicHive:
     def restore_group_source(self, saved: str) -> None:
         """Go back to playing from the tab named by saved_play_source."""
         source = saved[len(GROUP_SOURCE_PREFIX):].partition("/")[0]
-        if source in self.group_pages:
+        if source in self.group_pages or source == HISTORY_SOURCE:
             self.set_play_source(None)
             self.source_group = source
 
@@ -1944,6 +2066,7 @@ class MusicHive:
 
         folder = value if kind == FOLDER else ""
         add("New playlist…", "new_playlist", lambda: self.new_playlist(folder=folder))
+        add("New auto-playlist…", "new_playlist", lambda: self.new_auto_playlist(folder=folder))
         add("New folder…", "new_folder", self.new_playlist_folder)
         add("Import playlist…", "import_playlist", self.import_playlist)
         if kind == FOLDER:
@@ -1964,11 +2087,12 @@ class MusicHive:
             lambda: self.remove_playlist_icon(name),
             enabled=store.icon_file(name).exists(),
         )
-        locked = self.side_model.is_locked(name)
-        add(
-            "Unlock playlist" if locked else "Lock playlist", "lock_playlist",
-            lambda: self.set_playlist_locked(name, not locked),
-        )
+        if not store.load(name).is_auto:
+            locked = self.side_model.is_locked(name)
+            add(
+                "Unlock playlist" if locked else "Lock playlist", "lock_playlist",
+                lambda: self.set_playlist_locked(name, not locked),
+            )
         add("Export playlist…", "export_playlist", lambda: self.export_playlist(name))
 
         current_folder = store.load(name).folder
@@ -2118,12 +2242,71 @@ class MusicHive:
         """Library rows of a playlist's songs, in the order it was saved."""
         if self.playlist_store is None:
             return []
+        playlist = self.playlist_store.load(name)
+        if playlist.is_auto:
+            return self.auto_playlist_rows(playlist)
         rows_by_rel = self.rows_by_relative_path()
-        return [
-            rows_by_rel[rel]
-            for rel in self.playlist_store.load(name).tracks
-            if rel in rows_by_rel
-        ]
+        return [rows_by_rel[rel] for rel in playlist.tracks if rel in rows_by_rel]
+
+    def auto_playlist_rows(self, playlist: Playlist) -> list[int]:
+        """Library rows of a playlist's songs: in library order, or as its limit chose them."""
+        library = self.loaded_library
+        if library is None:
+            return []
+        rules = playlist.rules
+        key = json.dumps(
+            [rules, playlist.match_any, playlist.no_duplicates, playlist.limit], sort_keys=True
+        )
+        if key not in self.auto_playlist_cache:
+            names = sorted({rule["tag"] for rule in rules} - {"rating", TIME_TAG})
+
+            def tags_of(row: int, path: Path) -> dict[str, str]:
+                """The song's tags, plus what MusicHive itself knows about it."""
+                info = self.library_model.info(row)
+                return {
+                    **values.get(self.relative_path(path), {}),
+                    "rating": str(info.rating),  # 0 for an unrated song
+                    TIME_TAG: str((info.duration_ms or 0) // 1000),
+                }
+
+            try:
+                values = library_db.load_tag_values(library.db_path, names)
+            except sqlite3.Error:
+                values = {}
+            rows = [
+                row
+                for row, path in enumerate(self.tracks)
+                if song_matches(rules, tags_of(row, path), playlist.match_any)
+            ]
+            if playlist.no_duplicates:
+                rows = self.without_duplicates(rows)
+            if playlist.limit is not None:
+                rows = apply_limit(rows, self.library_model.info, self.album_key, playlist.limit)
+            self.auto_playlist_cache[key] = rows
+        return list(self.auto_playlist_cache[key])
+
+    def album_key(self, row: int) -> str:
+        return group_key("album", self.library_model.info(row), self.tracks[row].parent)
+
+    def without_duplicates(self, rows: list[int]) -> list[int]:
+        """Keep the first of the songs with the same artist and title.
+
+        Without an artist there is too little to tell two songs are the same.
+        """
+        seen: set[str] = set()
+        kept = []
+        for row in rows:
+            info = self.library_model.info(row)
+            key = library_db.track_key(info.artist, info.title) if info.artist else None
+            if key is None or key not in seen:
+                kept.append(row)
+            if key is not None:
+                seen.add(key)
+        return kept
+
+    def is_auto_playlist(self, name: str | None) -> bool:
+        store = self.playlist_store
+        return store is not None and name is not None and store.load(name).is_auto
 
     def refresh_playlist_list(self, select: str | None = None) -> None:
         """Re-read the playlists (names, icons, song counts) and show one of them."""
@@ -2132,7 +2315,7 @@ class MusicHive:
         entries = []
         for name in names:
             playlist = store.load(name)
-            entries.append((name, playlist.folder, playlist.locked))
+            entries.append((name, playlist.folder, playlist.read_only, playlist.is_auto))
         folders = store.folders() if store is not None else []
         self.side_model.rebuild(folders, entries, self.pinned_folders)
         self.apply_side_expansion()
@@ -2176,8 +2359,11 @@ class MusicHive:
         rows = self.playlist_rows(name)
         playlist = store.load(name)
         shown = self.playlist_filter.show(name, rows, playlist.filter_kind, playlist.filter_value)
-        self.playlist_tracks.set_playlist(name, shown, playlist.locked)
+        self.playlist_tracks.set_playlist(name, shown, playlist.read_only)
         self.show_lock_state(name, playlist.locked)
+        if playlist.is_auto:
+            w.playlistLockButton.setEnabled(False)
+            w.playlistLockButton.setToolTip("An auto-playlist fills itself from its rules.")
         w.playlistsTabPlaylistName.setText(name)
         w.playlistsTabStats.setText(self.describe_playlist(shown))
         self.playlist_description.set_text(playlist.description)
@@ -2340,16 +2526,25 @@ class MusicHive:
             self.show_status(f"Added {self.describe_songs(add_rows)} to {name}")
 
     def ask_playlist_details(
-        self, window_title: str, name: str = "", description: str = ""
+        self,
+        window_title: str,
+        name: str = "",
+        description: str = "",
+        rules: list[dict] | None = None,
+        match_any: bool = False,
+        no_duplicates: bool = False,
+        limit: dict | None = None,
     ) -> PlaylistDetails | None:
-        """Open the playlist window. None if the user cancels."""
+        """Open the playlist window, or the auto-playlist one if `rules` is given.
+
+        None if the user cancels.
+        """
         store = self.playlist_store
         icon = None
         if name and store.icon_file(name).exists():
             loaded = QImage(str(store.icon_file(name)))
             icon = loaded if not loaded.isNull() else None
-        return PlaylistEditDialog(
-            PLAYLIST_EDIT_UI_FILE,
+        arguments = (
             self.window,
             self.playlist_placeholder,
             lambda text: store.check_name(text, name or None),
@@ -2358,12 +2553,58 @@ class MusicHive:
             description,
             icon,
             store.animated_icon(name) if name else None,
+        )
+        if rules is None:
+            return PlaylistEditDialog(PLAYLIST_EDIT_UI_FILE, *arguments).run()
+        return AutoPlaylistEditDialog(
+            AUTO_PLAYLIST_EDIT_UI_FILE,
+            AUTO_PLAYLIST_RULE_UI_FILE,
+            self.rule_tag_choices(rules),
+            rules,
+            match_any,
+            no_duplicates,
+            limit,
+            *arguments,
         ).run()
+
+    def rule_tag_choices(self, rules: list[dict]) -> list[tuple[str, str]]:
+        """The tags an auto-playlist's rules can use, as (name, title) by title."""
+        library = self.loaded_library
+        try:
+            names = library_db.all_tag_names(library.db_path) if library else []
+        except sqlite3.Error:
+            names = []
+        names = {*names, *COMMON_RULE_TAGS, *(rule["tag"] for rule in rules)}
+        titled = [(name, tag_column(name).title) for name in names]
+        return sorted(titled, key=lambda choice: choice[1].casefold())
+
+    def new_auto_playlist(self, folder: str = "") -> None:
+        """Create a playlist that fills itself from rules."""
+        store = self.playlist_store
+        if store is None:
+            return
+        details = self.ask_playlist_details("New auto-playlist", rules=[])
+        if details is None:
+            return
+        try:
+            store.save(Playlist(details.name, folder=folder, rules=details.rules))
+            self.save_playlist_details(details.name, details)
+        except OSError as error:
+            QMessageBox.warning(self.window, "Cannot create playlist", str(error))
+            return
+        self.open_side_entries(entry_id(SECTION, PLAYLISTS_SECTION))
+        if folder:
+            self.open_side_entries(entry_id(FOLDER, folder))
+        self.refresh_playlist_list(select=details.name)
 
     def save_playlist_details(self, name: str, details: PlaylistDetails) -> None:
         """Store the description and image from the playlist window. Raises OSError."""
         store = self.playlist_store
         store.set_description(name, details.description)
+        if details.rules is not None:
+            store.set_rules(
+                name, details.rules, details.match_any, details.no_duplicates, details.limit
+            )
         if details.icon_changed:
             if details.icon is None:
                 store.remove_icon(name)
@@ -2377,7 +2618,16 @@ class MusicHive:
         if store is None or name is None:
             self.show_status("Select or create a playlist first")
             return
-        details = self.ask_playlist_details("Edit playlist", name, store.load(name).description)
+        playlist = store.load(name)
+        details = self.ask_playlist_details(
+            "Edit auto-playlist" if playlist.is_auto else "Edit playlist",
+            name,
+            playlist.description,
+            playlist.rules,
+            playlist.match_any,
+            playlist.no_duplicates,
+            playlist.limit,
+        )
         if details is None:
             return
         current = name
@@ -2392,6 +2642,8 @@ class MusicHive:
         scroll = bar.value()
         self.refresh_playlist_list(select=current)
         QTimer.singleShot(0, lambda: bar.setValue(scroll))
+        if details.rules is not None and current == self.play_source and self.current_index >= 0:
+            self.update_play_context()  # the rules may have changed what comes next
 
     def move_playlist(self, old: str, new: str) -> None:
         """Rename a playlist and everything that refers to it. Raises OSError."""
@@ -2526,7 +2778,7 @@ class MusicHive:
 
     def refresh_playlist_entry(self, name: str) -> None:
         """Update a playlist's row in the side list."""
-        self.side_model.set_locked(name, self.playlist_store.load(name).locked)
+        self.side_model.set_locked(name, self.playlist_store.load(name).read_only)
 
     def select_playlist_songs(self, rows: list[int]) -> None:
         """Make these library rows the selection in the playlist table."""

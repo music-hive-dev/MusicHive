@@ -8,6 +8,7 @@ from PySide6.QtCore import QStandardPaths
 from PySide6.QtGui import QIcon, QImage, QPixmap
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
+from src.auto_playlist import COMPARISONS, LIMIT_ORDERS, LIMIT_UNITS
 from src.lastfm_dialog import load_dialog
 from src.playlist_models import (
     ClickFilter,
@@ -26,6 +27,10 @@ class PlaylistDetails:
     icon: QImage | None  # the image to use; None means no image
     icon_changed: bool
     animation: Path | None = None  # the GIF the image came from, if it is animated
+    rules: list[dict] | None = None  # an auto-playlist's rules (None for a normal playlist)
+    match_any: bool = False
+    no_duplicates: bool = False
+    limit: dict | None = None
 
 
 class PlaylistEditDialog:
@@ -138,3 +143,112 @@ class PlaylistEditDialog:
         self._icon_changed = True
         self._animation = None
         self._show_icon()
+
+
+class AutoPlaylistEditDialog(PlaylistEditDialog):
+    """The window of an auto-playlist: the same fields, plus its rules.
+
+    `tags` lists the tags on offer as (name, title).
+    """
+
+    def __init__(
+        self,
+        ui_path: Path,
+        rule_ui_path: Path,
+        tags: list[tuple[str, str]],
+        rules: list[dict],
+        match_any: bool,
+        no_duplicates: bool,
+        limit: dict | None,
+        *args,
+    ) -> None:
+        super().__init__(ui_path, *args)
+        self._rule_ui_path = rule_ui_path
+        self._tags = tags
+        self._rows: list[QWidget] = []
+        self._rules: list[dict] = []
+        self._match_any = match_any
+        self._no_duplicates = no_duplicates
+        self.dialog.autoPlaylistMatchCombo.setCurrentIndex(1 if match_any else 0)  # all, any
+        self.dialog.autoPlaylistNoDuplicatesCheck.setChecked(no_duplicates)
+        self._limit = limit
+        self._show_limit(limit)
+        self.dialog.autoPlaylistAddRuleButton.clicked.connect(
+            lambda _checked=False: self._add_row()
+        )
+        for rule in rules:
+            self._add_row(rule)
+        if not rules:
+            self._add_row()
+
+    def run(self) -> PlaylistDetails | None:
+        details = super().run()
+        if details is not None:
+            details.rules = self._rules
+            details.match_any = self._match_any
+            details.no_duplicates = self._no_duplicates
+            details.limit = self._limit
+        return details
+
+    def _on_save(self) -> None:
+        self._rules = [
+            {
+                "tag": row.ruleTagCombo.currentData(),
+                "comparison": COMPARISONS[row.ruleComparisonCombo.currentIndex()],
+                "value": row.ruleValueEdit.text().strip(),
+            }
+            for row in self._rows
+            if row.ruleValueEdit.text().strip()  # a rule without a value says nothing
+        ]
+        self._match_any = self.dialog.autoPlaylistMatchCombo.currentIndex() == 1
+        self._no_duplicates = self.dialog.autoPlaylistNoDuplicatesCheck.isChecked()
+        self._limit = self._entered_limit()
+        super()._on_save()
+
+    def _show_limit(self, limit: dict | None) -> None:
+        d = self.dialog
+        for widget in (
+            d.autoPlaylistLimitAmount,
+            d.autoPlaylistLimitUnit,
+            d.autoPlaylistLimitByLabel,
+            d.autoPlaylistLimitOrder,
+        ):
+            widget.setEnabled(limit is not None)
+            d.autoPlaylistLimitCheck.toggled.connect(widget.setEnabled)
+        d.autoPlaylistLimitCheck.setChecked(limit is not None)
+        if limit is not None:
+            d.autoPlaylistLimitAmount.setValue(limit["amount"])
+            d.autoPlaylistLimitUnit.setCurrentIndex(LIMIT_UNITS.index(limit["unit"]))
+            d.autoPlaylistLimitOrder.setCurrentIndex(LIMIT_ORDERS.index(limit["order"]))
+
+    def _entered_limit(self) -> dict | None:
+        d = self.dialog
+        if not d.autoPlaylistLimitCheck.isChecked():
+            return None
+        return {
+            "amount": d.autoPlaylistLimitAmount.value(),
+            "unit": LIMIT_UNITS[d.autoPlaylistLimitUnit.currentIndex()],
+            "order": LIMIT_ORDERS[d.autoPlaylistLimitOrder.currentIndex()],
+        }
+
+    def _add_row(self, rule: dict | None = None) -> None:
+        contents = self.dialog.autoPlaylistRulesContents
+        row = load_dialog(self._rule_ui_path, contents)
+        for name, title in self._tags:
+            row.ruleTagCombo.addItem(title, name)
+        if rule is None:
+            row.ruleTagCombo.setCurrentIndex(max(0, row.ruleTagCombo.findData("genre")))
+        else:
+            row.ruleTagCombo.setCurrentIndex(max(0, row.ruleTagCombo.findData(rule["tag"])))
+            if rule["comparison"] in COMPARISONS:
+                row.ruleComparisonCombo.setCurrentIndex(COMPARISONS.index(rule["comparison"]))
+            row.ruleValueEdit.setText(rule["value"])
+        row.ruleRemoveButton.clicked.connect(lambda _checked=False, r=row: self._remove_row(r))
+        self._rows.append(row)
+        layout = contents.layout()
+        layout.insertWidget(layout.count() - 1, row)  # above the spacer
+
+    def _remove_row(self, row: QWidget) -> None:
+        self._rows.remove(row)
+        self.dialog.autoPlaylistRulesContents.layout().removeWidget(row)
+        row.deleteLater()

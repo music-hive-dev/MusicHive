@@ -15,6 +15,7 @@ from PySide6.QtGui import QImage, QImageReader, QMovie
 from PySide6.QtWidgets import QWidget
 
 from src.track_list import (
+    LAST_PLAYED_COLUMN,
     POSITION_COLUMN_KEY,
     TRACK_DRAG_MIME,
     Column,
@@ -206,6 +207,49 @@ class PlaylistTrackModel(QAbstractTableModel):
                     self.index(position, top_left.column()),
                     self.index(position, bottom_right.column()),
                 )
+
+
+class HistoryTrackModel(PlaylistTrackModel):
+    """The History table: the usual columns, always ending with Last Played."""
+
+    @property
+    def columns(self) -> list[Column]:
+        columns = self._library.columns
+        if any(column.key == LAST_PLAYED_COLUMN.key for column in columns):
+            return columns  # the user has already chosen to show it
+        return [*columns, LAST_PLAYED_COLUMN]
+
+    def _is_extra_column(self, column: int) -> bool:
+        return self._library.columnCount() <= column < len(self.columns)
+
+    def sort_key(self, row: int, column: int):
+        if self._is_extra_column(column):
+            return LAST_PLAYED_COLUMN.sort_key(self._library.info(self.library_row(row)))
+        return super().sort_key(row, column)
+
+    def columnCount(self, parent: QModelIndex = QModelIndex()) -> int:
+        return 0 if parent.isValid() else len(self.columns)
+
+    def headerData(
+        self,
+        section: int,
+        orientation: Qt.Orientation,
+        role: int = Qt.ItemDataRole.DisplayRole,
+    ):
+        if not self._is_extra_column(section) or orientation != Qt.Orientation.Horizontal:
+            return super().headerData(section, orientation, role)
+        if role == Qt.ItemDataRole.DisplayRole:
+            return LAST_PLAYED_COLUMN.title
+        return super().headerData(0, orientation, role)  # looks like the other headers
+
+    def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
+        if (
+            index.isValid()
+            and self._is_extra_column(index.column())
+            and role == Qt.ItemDataRole.DisplayRole
+        ):
+            return LAST_PLAYED_COLUMN.text(self._library.info(self.library_row(index.row())))
+        return super().data(index, role)
 
 
 class PlaylistSortedModel(SortedTrackModel):

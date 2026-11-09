@@ -62,6 +62,7 @@ class SideListModel(QStandardItemModel):
         closed_icon: QIcon,
         open_icon: QIcon,
         playlist_icon: QIcon,
+        auto_playlist_icon: QIcon,
         folder_icon: QIcon,
         parent: QObject | None = None,
     ) -> None:
@@ -71,6 +72,7 @@ class SideListModel(QStandardItemModel):
         self._closed_folder_icon = _joined_icon(closed_icon, folder_icon)
         self._open_folder_icon = _joined_icon(open_icon, folder_icon)
         self._playlist_icon = _joined_icon(None, playlist_icon)
+        self._auto_playlist_icon = _joined_icon(None, auto_playlist_icon)
         self._pin_icon = _joined_icon(None, folder_icon)
         self._playlists: dict[str, QStandardItem] = {}
         self._locked: set[str] = set()
@@ -78,13 +80,13 @@ class SideListModel(QStandardItemModel):
     def rebuild(
         self,
         folders: list[str],
-        playlists: list[tuple[str, str, bool]],
+        playlists: list[tuple[str, str, bool, bool]],
         pins: list[str],
     ) -> None:
-        """Fill the list. `playlists` holds (name, folder, locked); "" means no folder."""
+        """Fill the list. `playlists` holds (name, folder, locked, is_auto); "" means no folder."""
         self.clear()
         self._playlists.clear()
-        self._locked = {name for name, _folder, locked in playlists if locked}
+        self._locked = {name for name, _folder, locked, _auto in playlists if locked}
 
         section = self._opening_item("Playlists", SECTION, PLAYLISTS_SECTION)
         self.appendRow(section)
@@ -92,9 +94,9 @@ class SideListModel(QStandardItemModel):
         for folder in folders:
             folder_items[folder] = self._opening_item(folder, FOLDER, folder)
             section.appendRow(folder_items[folder])
-        for name, folder, _locked in playlists:
+        for name, folder, _locked, is_auto in playlists:
             item = self._item(name, PLAYLIST, name)
-            item.setIcon(self._playlist_icon)
+            item.setIcon(self._auto_playlist_icon if is_auto else self._playlist_icon)
             item.setSelectable(True)
             item.setDropEnabled(True)
             folder_items.get(folder, section).appendRow(item)
