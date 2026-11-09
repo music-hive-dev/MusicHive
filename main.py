@@ -82,6 +82,7 @@ from src.lastfm import LastFmClient
 from src.lastfm_dialog import LastFmDialog, load_dialog
 from src.listening import ListenTracker
 from src.m3u import M3uTrack, read_m3u, write_m3u
+from src.mpris import NO_TRACK, MprisService, cover_file_url, file_url
 from src.track_list import (
     all_columns,
     columns_from_keys,
@@ -90,6 +91,7 @@ from src.track_list import (
     TrackListModel,
     setup_track_view,
 )
+from src.tray import TrayMinimizer
 from src.track_metadata import read_track_details
 from src.playlist_models import (
     ClickFilter,
@@ -138,6 +140,10 @@ GROUP_ICON_SIDE = 128  # pixels, the image at the top of the Artists and Albums 
 GROUP_SOURCE_PREFIX = "/"
 
 SONGS_FILTER_OWNER = "songs"  # the Songs tab, in the saved filters
+
+# What MPRIS calls the playback states and repeat modes.
+MPRIS_STATUS = {"playing": "Playing", "paused": "Paused", "stopped": "Stopped"}
+MPRIS_LOOP_STATUS = {"off": "None", "one": "Track", "all": "Playlist"}
 
 # Volume change for one notch of the mouse wheel, in percent.
 VOLUME_WHEEL_STEP = 1
@@ -377,6 +383,22 @@ class MusicHive:
 
 
         # Discord Rich Presence (off until the user turns it on in the menu)
+        # Lets desktop widgets show and control the player
+        self.mpris = MprisService(w)
+        self.mpris_art_url = ""
+        self.mpris.raise_requested.connect(self.raise_window)
+        self.mpris.quit_requested.connect(self.quit_app)
+        self.mpris.next_requested.connect(self.play_next)
+        self.mpris.previous_requested.connect(self.play_previous)
+        self.mpris.play_requested.connect(self.on_mpris_play)
+        self.mpris.pause_requested.connect(self.on_mpris_pause)
+        self.mpris.play_pause_requested.connect(self.on_play_pause)
+        self.mpris.stop_requested.connect(self.player.stop)
+        self.mpris.seek_requested.connect(self.on_mpris_seek)
+        self.mpris.shuffle_requested.connect(w.shuffleButton.setChecked)
+        self.mpris.loop_requested.connect(self.on_mpris_loop)
+        self.mpris.volume_requested.connect(self.on_mpris_volume)
+
         self.discord = DiscordPresence(DISCORD_CLIENT_ID, self.build_discord_activity, w)
         self.discord.status_message.connect(self.show_status)
         discord_on = bool(DISCORD_CLIENT_ID) and self.settings.value(
@@ -595,7 +617,8 @@ class MusicHive:
         w.actionRemoveLibrary.triggered.connect(self.remove_library)
         w.actionImportPlaylist.triggered.connect(self.import_playlist)
         w.actionExportPlaylist.triggered.connect(lambda: self.export_playlist())
-        w.actionQuit.triggered.connect(w.close)
+        w.actionQuit.triggered.connect(lambda _checked=False: self.quit_app())
+        self.setup_tray()
         w.actionPlayPause.triggered.connect(self.on_play_pause)
         w.actionPrevious.triggered.connect(self.play_previous)
         w.actionNext.triggered.connect(self.play_next)
@@ -657,9 +680,50 @@ class MusicHive:
         self.clear_track_info()
         self.restore_libraries()
         self.restore_open_tab()
+        self.update_mpris()
+        self.mpris.start()
 
     def show(self) -> None:
         self.window.show()
+
+    @staticmethod
+    def quit_app() -> None:
+        """End the program. Closing the window may only hide it to the tray."""
+        QApplication.quit()
+
+    def setup_tray(self) -> None:
+        """Create the tray icon and connect the checkbox in the View menu."""
+        w = self.window
+        menu = QMenu(w)
+        for label, icon, callback in (
+            ("Show MusicHive", "library", self.raise_window),
+            ("Play/Pause", "play", self.on_play_pause),
+            ("Next", "skip-forward", self.play_next),
+            ("Previous", "skip-back", self.play_previous),
+            ("Quit", "door-open", self.quit_app),
+        ):
+            action = menu.addAction(asset_icon(icon), label)
+            action.triggered.connect(lambda _checked=False, c=callback: c())
+        folder = Path(__file__).parent
+        self.tray = TrayMinimizer(
+            w,
+            QIcon(str(folder / "musichive_dark.svg")),
+            QIcon(str(folder / "musichive_light.svg")),
+            menu,
+            self.raise_window,
+        )
+
+        action = w.actionMinimizeToTray
+        if not TrayMinimizer.is_available():
+            action.setEnabled(False)
+            action.setToolTip("Your desktop has no system tray")
+        action.setChecked(self.settings.value("minimizeToTray", False, type=bool))
+        action.toggled.connect(self.on_minimize_to_tray_toggled)
+        self.tray.set_enabled(action.isChecked())
+
+    def on_minimize_to_tray_toggled(self, enabled: bool) -> None:
+        self.settings.setValue("minimizeToTray", enabled)
+        self.tray.set_enabled(enabled)
 
     def restore_open_tab(self) -> None:
         """Open the tab that was open when the app last closed."""
@@ -680,6 +744,7 @@ class MusicHive:
         self.settings.setValue("openTab", self.window.podcastsTab.currentWidget().objectName())
         self.save_session()
         self.artist_info.shutdown()
+        self.mpris.shutdown()
         self.discord.shutdown()
         self.lastfm.shutdown()
         self.player.shutdown()
@@ -705,6 +770,7 @@ class MusicHive:
         if w.muteButton.isChecked():
             w.muteButton.setChecked(False)  # changing the volume unmutes
         self.update_volume_ui()
+        self.update_mpris()
         if w.volumeSlider.isSliderDown():
             # Show the value next to the cursor while dragging.
             QToolTip.showText(QCursor.pos(), f"{value}%", w.volumeSlider)
@@ -712,6 +778,7 @@ class MusicHive:
     def on_mute_toggled(self, muted: bool) -> None:
         self.player.set_muted(muted)
         self.update_volume_ui()
+        self.update_mpris()
 
     def update_volume_ui(self) -> None:
         """Match the mute button's icon and both tooltips to the volume."""
@@ -727,6 +794,78 @@ class MusicHive:
             key = "silent" if volume == 0 else "low" if volume <= 50 else "high"
             w.muteButton.setToolTip(f"Volume: {volume}% – click to mute")
         w.muteButton.setIcon(self.volume_icons[key])
+
+    # ----- MPRIS (desktop widgets) -----
+
+    def mpris_metadata(self) -> dict:
+        """What MPRIS shows about the current track."""
+        row = self.current_index
+        info = self.library_model.info(row)
+        if info is None or not 0 <= row < len(self.tracks):
+            return {"mpris:trackid": ("o", NO_TRACK)}
+        metadata = {
+            "mpris:trackid": ("o", f"/org/musichive/track/{row}"),
+            "xesam:title": ("s", info.title),
+            "xesam:url": ("s", file_url(self.tracks[row])),
+        }
+        duration_ms = self.duration_ms or info.duration_ms or 0
+        if duration_ms:
+            metadata["mpris:length"] = ("x", duration_ms * 1000)
+        if self.mpris_art_url:
+            metadata["mpris:artUrl"] = ("s", self.mpris_art_url)
+        if info.artist:
+            metadata["xesam:artist"] = ("as", [info.artist])
+        if info.album_artist:
+            metadata["xesam:albumArtist"] = ("as", [info.album_artist])
+        if info.album:
+            metadata["xesam:album"] = ("s", info.album)
+        if info.genre:
+            metadata["xesam:genre"] = ("as", [info.genre])
+        if info.track_number:
+            metadata["xesam:trackNumber"] = ("i", info.track_number)
+        if info.disc_number:
+            metadata["xesam:discNumber"] = ("i", info.disc_number)
+        return metadata
+
+    def update_mpris(self) -> None:
+        """Tell the desktop the player's current state."""
+        w = self.window
+        metadata = self.mpris_metadata()
+        self.mpris.set_properties(
+            PlaybackStatus=MPRIS_STATUS[self.playback_state],
+            LoopStatus=MPRIS_LOOP_STATUS[self.play_order.repeat],
+            Shuffle=w.shuffleButton.isChecked(),
+            Volume=0.0 if w.muteButton.isChecked() else w.volumeSlider.value() / 100,
+            Metadata=metadata,
+            CanSeek=metadata["mpris:trackid"][1] != NO_TRACK,
+        )
+
+    def raise_window(self) -> None:
+        w = self.window
+        w.setWindowState(w.windowState() & ~Qt.WindowState.WindowMinimized)
+        w.show()
+        w.raise_()
+        w.activateWindow()
+
+    def on_mpris_play(self) -> None:
+        if self.playback_state != "playing":
+            self.on_play_pause()
+
+    def on_mpris_pause(self) -> None:
+        if self.playback_state == "playing":
+            self.player.pause()
+
+    def on_mpris_seek(self, position_ms: int) -> None:
+        self.player.seek(position_ms)
+        self.discord.request_update()
+
+    def on_mpris_loop(self, status: str) -> None:
+        for mode, name in MPRIS_LOOP_STATUS.items():
+            if name == status:
+                self.set_repeat_mode(mode)
+
+    def on_mpris_volume(self, volume: float) -> None:
+        self.window.volumeSlider.setValue(round(volume * 100))
 
     def update_window_title(self, title: str = "", artist: str = "") -> None:
         """The window title: "MusicHive", or "MusicHive – Title – Artist" while
@@ -1025,6 +1164,7 @@ class MusicHive:
         self.update_window_title(details.title, details.artist)
         cover = QImage.fromData(details.cover) if details.cover else None
         self.full_cover = cover if cover is not None and not cover.isNull() else None
+        self.mpris_art_url = cover_file_url(details.cover) if details.cover else ""
         self.cover_view.set_image(cover)
 
     def show_full_cover(self) -> None:
@@ -1076,6 +1216,7 @@ class MusicHive:
         ):
             label.clear()
         self.full_cover = None
+        self.mpris_art_url = ""
         self.cover_view.set_image(None)
         self.update_window_title()
 
@@ -1085,6 +1226,7 @@ class MusicHive:
         self.clear_track_info()
         self.discord_active = False
         self.discord.request_update()
+        self.update_mpris()
 
     # ----- play order, shuffle and repeat -----
 
@@ -1122,15 +1264,19 @@ class MusicHive:
         self.settings.setValue("shuffle", enabled)
         self.refresh_upcoming()
         self.show_status("Shuffle on" if enabled else "Shuffle off")
+        self.update_mpris()
 
     def cycle_repeat(self) -> None:
         """Repeat button: off -> all -> one -> off."""
         modes = PlayOrder.REPEAT_MODES
-        mode = modes[(modes.index(self.play_order.repeat) + 1) % len(modes)]
+        self.set_repeat_mode(modes[(modes.index(self.play_order.repeat) + 1) % len(modes)])
+
+    def set_repeat_mode(self, mode: str) -> None:
         self.play_order.set_repeat(mode)
         self.settings.setValue("repeat", mode)
         self.update_repeat_button()
         self.show_status(REPEAT_STATUS[mode])
+        self.update_mpris()
 
     def update_repeat_button(self) -> None:
         """Make the repeat button show the current mode."""
@@ -2948,6 +3094,7 @@ class MusicHive:
         self.duration_ms = 0  # the real length arrives from the player in a moment
         self.begin_listening()
         self.discord.request_update()
+        self.update_mpris()
 
     def on_track_finished(self) -> None:
         stop_here = self.play_order.take_stop_after()
@@ -3001,9 +3148,11 @@ class MusicHive:
             self.discord_active = False
         self.discord.hold_position(state == "paused")
         self.discord.request_update()
+        self.update_mpris()
 
     def on_position_changed(self, position_ms: int) -> None:
         self.position_ms = position_ms
+        self.mpris.set_position(position_ms)
         slider = self.window.progressSlider
         if slider.isSliderDown():  # the user is dragging; don't fight them
             return
@@ -3018,6 +3167,7 @@ class MusicHive:
         self.window.progressSlider.setRange(0, duration_ms)
         self.window.durationLabel.setText(format_time(duration_ms))
         self.discord.request_update()
+        self.update_mpris()
 
     def on_player_error(self, message: str) -> None:
         self.show_nothing_playing()

@@ -1716,6 +1716,7 @@ QWidget {
     <property name="title">
      <string>&amp;View</string>
     </property>
+    <addaction name="actionMinimizeToTray"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -2617,6 +2618,17 @@ QWidget {
    </property>
    <property name="shortcut">
     <string>F1</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionMinimizeToTray">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Minimize to tray</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>
