@@ -670,6 +670,50 @@ QMenuBar {
        <attribute name="title">
         <string>Now Playing</string>
        </attribute>
+       <layout class="QGridLayout" name="nowPlayingLayout">
+        <item row="0" column="0">
+         <widget class="QWidget" name="nowPlayingVisualizer">
+          <property name="sizePolicy">
+           <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+            <horstretch>0</horstretch>
+            <verstretch>0</verstretch>
+           </sizepolicy>
+          </property>
+         </widget>
+        </item>
+        <item row="0" column="0">
+         <widget class="QListWidget" name="nowPlayingLyrics">
+          <property name="styleSheet">
+           <string notr="true">QListWidget { background: transparent; }
+QListWidget::item, QListWidget::item:hover { background: transparent; }</string>
+          </property>
+          <property name="font">
+           <font>
+            <family>Inter</family>
+            <pointsize>13</pointsize>
+           </font>
+          </property>
+          <property name="focusPolicy">
+           <enum>Qt::FocusPolicy::NoFocus</enum>
+          </property>
+          <property name="frameShape">
+           <enum>QFrame::Shape::NoFrame</enum>
+          </property>
+          <property name="horizontalScrollBarPolicy">
+           <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+          </property>
+          <property name="selectionMode">
+           <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
+          </property>
+          <property name="verticalScrollMode">
+           <enum>QAbstractItemView::ScrollMode::ScrollPerPixel</enum>
+          </property>
+          <property name="wordWrap">
+           <bool>true</bool>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="songsTab">
        <attribute name="icon">
@@ -753,6 +797,9 @@ QMenuBar {
               </item>
               <item>
                <widget class="QLineEdit" name="lineEdit">
+            <property name="clearButtonEnabled">
+             <bool>true</bool>
+            </property>
                 <property name="maximumSize">
                  <size>
                   <width>256</width>
@@ -1723,6 +1770,7 @@ QWidget {
     <property name="title">
      <string>&amp;Edit</string>
     </property>
+    <addaction name="actionSettings"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
@@ -1730,6 +1778,7 @@ QWidget {
     </property>
     <addaction name="actionDiscordPresence"/>
     <addaction name="actionAudioScrobbleLastFm"/>
+    <addaction name="actionAutoTagGenres"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -2688,6 +2737,29 @@ QWidget {
    </property>
    <property name="shortcut">
     <string>F1</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionAutoTagGenres">
+   <property name="text">
+    <string>Auto-Tag Genres…</string>
+   </property>
+   <property name="toolTip">
+    <string>Replace the genres of the selected songs with those found online</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSettings">
+   <property name="icon">
+    <iconset>
+     <normaloff>assets/settings.svg</normaloff>assets/settings.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Settings…</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

@@ -169,6 +169,36 @@ def fetch_artist_bio(api_key: str, artist: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", summary)).strip()
 
 
+def fetch_top_tags(api_key: str, artist: str, title: str, album: str) -> list[str]:
+    """The tags listeners gave a song, or else its album, or else its artist; best first."""
+    lookups = [
+        ("track.getTopTags", {"artist": artist, "track": title}),
+        ("album.getTopTags", {"artist": artist, "album": album}),
+        ("artist.getTopTags", {"artist": artist}),
+    ]
+    for method, params in lookups:
+        if not all(params.values()):
+            continue  # the song does not have this information
+        try:
+            payload = _call(api_key, "", method, {**params, "autocorrect": "1"})
+        except LastFmError as error:
+            if error.code == 6:  # Last.fm does not know it
+                continue
+            raise
+        tags = payload.get("toptags", {}).get("tag", [])
+        if isinstance(tags, dict):  # a single tag is not wrapped in a list
+            tags = [tags]
+        names = [
+            name
+            for tag in tags
+            if int(tag.get("count", 0) or 0) >= 10
+            and not (name := str(tag.get("name", "")).strip()).isdigit()  # years are not genres
+        ]
+        if names:
+            return names
+    return []
+
+
 # ----- running requests in the background -----
 
 

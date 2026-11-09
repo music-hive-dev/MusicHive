@@ -55,7 +55,7 @@ class ArtistRecord:
 # ----- the web services (these run on a background thread) -----
 
 
-def _download(url: str) -> bytes | None:
+def download(url: str) -> bytes | None:
     """The contents of `url`, or None if it does not exist."""
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     try:
@@ -80,7 +80,7 @@ def find_deezer_picture(name: str) -> str | None:
     somebody else's face.
     """
     query = urllib.parse.urlencode({"q": name, "limit": "10"})
-    body = _download(f"{DEEZER_SEARCH_URL}?{query}")
+    body = download(f"{DEEZER_SEARCH_URL}?{query}")
     if body is None:
         return None
     try:
@@ -111,7 +111,7 @@ def _write_file(path: Path, data: bytes) -> None:
 def lookup_artist(name: str, api_key: str, record_path: Path, image_path: Path) -> ArtistRecord:
     """Ask the internet about an artist and save what it says."""
     picture_url = find_deezer_picture(name)
-    picture = _download(picture_url) if picture_url else None
+    picture = download(picture_url) if picture_url else None
 
     description = ""
     bio_checked = False

@@ -371,6 +371,17 @@ def all_tag_names(db_path: Path) -> list[str]:
         return [name for (name,) in conn.execute("SELECT DISTINCT name FROM track_tags")]
 
 
+def load_search_text(db_path: Path) -> dict[str, str]:
+    """All of each song's tags as one text, without its lyrics: {relative path: text}."""
+    with connect(db_path) as conn:
+        return dict(
+            conn.execute(
+                "SELECT rel_path, group_concat(value, ' ') FROM track_tags "
+                "WHERE name != 'lyrics' GROUP BY rel_path"
+            )
+        )
+
+
 def load_tag_values(db_path: Path, names: list[str]) -> dict[str, dict[str, str]]:
     """The values of these tags: {relative path: {tag name: value}}."""
     if not names:
@@ -579,6 +590,37 @@ def save_scan(
             conn.execute(
                 "INSERT OR REPLACE INTO meta (key, value) VALUES ('scanned_at', ?)",
                 (datetime.now().isoformat(timespec="seconds"),),
+            )
+
+
+def update_tracks(db_path: Path, tracks: list[ScannedTrack], covers: dict[str, bytes]) -> None:
+    """Store new tags for some tracks, after their files were edited."""
+    with connect(db_path) as conn:
+        with conn:
+            conn.executemany(
+                "INSERT OR IGNORE INTO covers (cover_key, thumbnail) VALUES (?, ?)",
+                covers.items(),
+            )
+            for track in tracks:
+                info = track.info
+                conn.execute(
+                    "UPDATE tracks SET title = ?, artist = ?, album_artist = ?, album = ?, "
+                    "year = ?, genre = ?, track_number = ?, disc_number = ?, duration_ms = ?, "
+                    "file_size = ?, modified = ?, cover_key = ? WHERE rel_path = ?",
+                    (
+                        info.title, info.artist, info.album_artist, info.album, info.year,
+                        info.genre, info.track_number, info.disc_number, info.duration_ms,
+                        track.file_size, track.modified, info.cover_key, track.rel_path,
+                    ),
+                )
+                conn.execute("DELETE FROM track_tags WHERE rel_path = ?", (track.rel_path,))
+                conn.executemany(
+                    "INSERT INTO track_tags (rel_path, name, value) VALUES (?, ?, ?)",
+                    [(track.rel_path, name, value) for name, value in info.tags.items()],
+                )
+            conn.execute(
+                "DELETE FROM covers WHERE cover_key NOT IN "
+                "(SELECT cover_key FROM tracks WHERE cover_key IS NOT NULL)"
             )
 
 

@@ -2,6 +2,7 @@
 a model for the Upcoming list, and the row painter the Upcoming list uses."""
 
 import json
+import re
 import unicodedata
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -74,10 +75,18 @@ class Column:
         return f"{TAG_KEY_PREFIX}{self.tag}" if self.tag else self.title
 
 
-def _text_key(text: str) -> str:
+def text_key(text: str) -> str:
     """Sort key for text: ignores case and accents (so "Ärzte" sorts under A)."""
     decomposed = unicodedata.normalize("NFKD", text.casefold())
     return "".join(char for char in decomposed if not unicodedata.combining(char))
+
+
+def _first_genre(text: str) -> str:
+    """The first genre of "Rock, Pop", with a small plus if there are more."""
+    genres = [genre for genre in re.split(r"\s*[;,]\s*", text.strip()) if genre]
+    if not genres:
+        return ""
+    return f"{genres[0]}\u207a" if len(genres) > 1 else genres[0]
 
 
 def _year_key(info: TrackInfo) -> int:
@@ -94,19 +103,19 @@ COLUMNS = (
     Column(
         "Title",
         text=lambda info: info.title,
-        sort_key=lambda info: _text_key(info.title),
+        sort_key=lambda info: text_key(info.title),
         width=260,
     ),
     Column(
         "Artist",
         text=lambda info: info.artist,
-        sort_key=lambda info: _text_key(info.artist),
+        sort_key=lambda info: text_key(info.artist),
         width=170,
     ),
     Column(
         "Album",
         text=lambda info: info.album,
-        sort_key=lambda info: _text_key(info.album),
+        sort_key=lambda info: text_key(info.album),
         width=200,
     ),
     Column(
@@ -123,8 +132,8 @@ COLUMNS = (
     ),
     Column(
         "Genre",
-        text=lambda info: info.genre,
-        sort_key=lambda info: _text_key(info.genre),
+        text=lambda info: _first_genre(info.genre),
+        sort_key=lambda info: text_key(info.genre),
         width=130,
     ),
     Column(
@@ -196,7 +205,7 @@ _TAG_TITLES = {
 
 def _tag_sort_key(text: str) -> tuple:
     """Numbers in number order (for BPM and the like), and before any text."""
-    return (0, int(text), "") if text.isdecimal() else (1, 0, _text_key(text))
+    return (0, int(text), "") if text.isdecimal() else (1, 0, text_key(text))
 
 
 def tag_column(name: str) -> Column:
@@ -307,6 +316,14 @@ class TrackListModel(QAbstractTableModel):
         if column >= 0:
             cell = self.index(row, column)
             self.dataChanged.emit(cell, cell)
+
+    def update_track(self, row: int, info: TrackInfo, covers: dict[str, bytes]) -> None:
+        """Show new tags for a track and repaint its row."""
+        if not 0 <= row < len(self._infos):
+            return
+        self._infos[row] = info
+        self._cover_data.update(covers)
+        self.dataChanged.emit(self.index(row, 0), self.index(row, len(self.columns) - 1))
 
     def set_last_played(self, row: int, played_at: float) -> None:
         """Note when a track was last played and repaint its cell."""

@@ -2,6 +2,7 @@
 
 import hashlib
 import threading
+from pathlib import Path
 
 from PySide6.QtCore import QBuffer, QIODevice, QObject, QRunnable, Qt, Signal
 from PySide6.QtGui import QImage
@@ -34,6 +35,40 @@ def make_thumbnail(data: bytes) -> bytes | None:
     if not square.save(buffer, "JPEG", 90):
         return None
     return bytes(buffer.data())
+
+
+def scan_file(
+    path: Path, root: Path, covers: dict[str, bytes], undecodable: set[str]
+) -> ScannedTrack:
+    """Read one track. New cover thumbnails are added to `covers` under their key."""
+    try:
+        info, cover_bytes = read_track_info(path)
+    except Exception:
+        info, cover_bytes = TrackInfo(title=path.stem), None
+
+    if cover_bytes:
+        key = hashlib.sha1(cover_bytes).hexdigest()
+        if key not in covers and key not in undecodable:
+            thumbnail = make_thumbnail(cover_bytes)
+            if thumbnail is None:
+                undecodable.add(key)
+            else:
+                covers[key] = thumbnail
+        if key in covers:
+            info.cover_key = key
+
+    try:
+        stat = path.stat()
+        size, modified = stat.st_size, stat.st_mtime
+    except OSError:
+        size = modified = None
+
+    return ScannedTrack(
+        rel_path=path.relative_to(root).as_posix(),
+        info=info,
+        file_size=size,
+        modified=modified,
+    )
 
 
 class ScanSignals(QObject):
@@ -82,36 +117,7 @@ class ScanTask(QRunnable):
                     signals.cancelled.emit(library.id)
                     return
 
-                try:
-                    info, cover_bytes = read_track_info(path)
-                except Exception:
-                    info, cover_bytes = TrackInfo(title=path.stem), None
-
-                if cover_bytes:
-                    key = hashlib.sha1(cover_bytes).hexdigest()
-                    if key not in covers and key not in undecodable:
-                        thumbnail = make_thumbnail(cover_bytes)
-                        if thumbnail is None:
-                            undecodable.add(key)
-                        else:
-                            covers[key] = thumbnail
-                    if key in covers:
-                        info.cover_key = key
-
-                try:
-                    stat = path.stat()
-                    size, modified = stat.st_size, stat.st_mtime
-                except OSError:
-                    size = modified = None
-
-                tracks.append(
-                    ScannedTrack(
-                        rel_path=path.relative_to(library.root).as_posix(),
-                        info=info,
-                        file_size=size,
-                        modified=modified,
-                    )
-                )
+                tracks.append(scan_file(path, library.root, covers, undecodable))
                 if done % 10 == 0 or done == total:
                     signals.progress.emit(library.id, done, total)
 

@@ -12,7 +12,7 @@ from pathlib import Path
 
 from mutagen import File as MutagenFile
 from mutagen.flac import Picture
-from mutagen.id3 import ID3, POPM
+from mutagen.id3 import APIC, COMM, ID3, POPM, TXXX, USLT, Frames
 
 # Image files looked for next to the music when a track has no embedded art.
 COVER_FILE_STEMS = ("cover", "folder", "front", "album", "albumart")
@@ -25,6 +25,7 @@ _ID3_TAG_NAMES = {
     "TBPM": "bpm",
     "TCMP": "compilation",
     "TCOM": "composer",
+    "TCON": "genre",
     "TCOP": "copyright",
     "TDEN": "encodingdate",
     "TDLY": "playlistdelay",
@@ -78,6 +79,8 @@ _ID3_TAG_NAMES = {
 # Different spellings of the same tag.
 _TAG_ALIASES = {
     "disc": "discnumber",
+    "totaldiscs": "disctotal",
+    "totaltracks": "tracktotal",
     "id3v1comment": "comment",
     "key": "initialkey",
     "label": "publisher",
@@ -87,6 +90,16 @@ _TAG_ALIASES = {
     "unsyncedlyrics": "lyrics",
     "year": "date",
 }
+_ID3_FRAME_IDS = {name: frame_id for frame_id, name in _ID3_TAG_NAMES.items()}
+# Vorbis comment names that are not simply the tag name in capitals.
+_VORBIS_NAMES = {"publisher": "ORGANIZATION"}
+# Free text: a ";" in these does not separate values.
+_SINGLE_VALUE_TAGS = {"comment", "lyrics"}
+# Tags that are not edited as text: the star rating and what players keep up to date.
+PROTECTED_TAGS = {"length", "playcount", "rating"}
+# Track and disc numbers: ID3 stores "3/12" in one frame, Vorbis comments two tags.
+_NUMBER_TAGS = (("tracknumber", "tracktotal", "TRCK"), ("discnumber", "disctotal", "TPOS"))
+
 # Pictures stored as text, and iTunes' internal playback data.
 _IGNORED_TAGS = {
     "coverart",
@@ -216,13 +229,27 @@ def _stars_from_text(text: str) -> int:
     return max(1, min(5, round(value / 20)))
 
 
-def write_rating(path: Path, stars: int) -> None:
-    """Store a rating of 0 to 5 stars in a file's tags. Raises on failure.
+@dataclass
+class TagChanges:
+    """What to change in a file's tags. Whatever is not mentioned stays as it is."""
 
-    These are the conventions most players and KDE's Dolphin understand: an
-    ID3 POPM frame on the Windows Media Player scale, and RATING from 0 to 100
-    in FLAC and Ogg files.
-    """
+    tags: dict[str, str] = field(default_factory=dict)  # new text; "" removes the tag
+    cover: bytes | None = None
+    cover_changed: bool = False  # with `cover` None, this removes the picture
+    rating: int | None = None  # stars; None leaves the rating alone
+
+    @property
+    def is_empty(self) -> bool:
+        return not self.tags and not self.cover_changed and self.rating is None
+
+
+def write_rating(path: Path, stars: int) -> None:
+    """Store a rating of 0 to 5 stars in a file's tags. Raises on failure."""
+    write_tag_changes(path, TagChanges(rating=stars))
+
+
+def write_tag_changes(path: Path, changes: TagChanges) -> None:
+    """Apply changes to a file's tags. Raises on failure."""
     audio = MutagenFile(str(path))
     if audio is None:
         raise ValueError("unknown file format")
@@ -230,18 +257,170 @@ def write_rating(path: Path, stars: int) -> None:
         audio.add_tags()
     tags = audio.tags
     if isinstance(tags, ID3):
+        _write_id3_tags(tags, changes.tags)
+    else:
+        _write_vorbis_tags(tags, changes.tags)
+    if changes.rating is not None:
+        _set_rating(tags, changes.rating)
+    if changes.cover_changed:
+        _set_cover(audio, changes.cover)
+    if isinstance(tags, ID3):
+        # Keep the file's ID3 version. No separator means several values stay separate,
+        # instead of being merged into text like "Rock/Pop".
+        audio.save(v2_version=3 if tags.version[1] == 3 else 4, v23_sep=None)
+    else:
+        audio.save()
+
+
+def _tag_values(name: str, text: str) -> list[str]:
+    """The separate values typed for a tag, as in "Rock; Pop"."""
+    if name in _SINGLE_VALUE_TAGS:
+        return [text]
+    return [value for value in re.split(r"\s*;\s*", text.strip()) if value]
+
+
+def _write_vorbis_tags(tags, changes: dict[str, str]) -> None:
+    for name, text in changes.items():
+        for key in list(tags.keys()):
+            if clean_tag_name(key) == name:
+                del tags[key]
+        if text.strip():
+            tags[_VORBIS_NAMES.get(name, name.upper())] = _tag_values(name, text)
+
+
+def _write_id3_tags(tags: ID3, changes: dict[str, str]) -> None:
+    changes = dict(changes)
+    for number_tag, total_tag, frame_id in _NUMBER_TAGS:
+        if number_tag in changes or total_tag in changes:
+            old = tags.get(frame_id)
+            number, _, total = (str(old.text[0]) if old and old.text else "").partition("/")
+            number = changes.pop(number_tag, number).strip()
+            total = changes.pop(total_tag, total).strip()
+            tags.delall(frame_id)
+            if number:
+                text = f"{number}/{total}" if total else number
+                tags.add(Frames[frame_id](encoding=3, text=[text]))
+    for name, text in changes.items():
+        _remove_id3_tag(tags, name)
+        if text.strip():
+            tags.add(_new_id3_frame(name, text))
+
+
+def _remove_id3_tag(tags: ID3, name: str) -> None:
+    """Remove a tag, whichever kind of frame it is stored in."""
+    for frame in list(tags.values()):
+        if not any(clean_tag_name(entry[0]) == name for entry in _id3_frame_entries(frame)):
+            continue
+        if frame.FrameID == "TIPL":  # holds other people's roles too
+            frame.people = [pair for pair in frame.people if clean_tag_name(pair[0]) != name]
+            if frame.people:
+                continue
+        del tags[frame.HashKey]
+
+
+def _new_id3_frame(name: str, text: str):
+    if name == "comment":
+        return COMM(encoding=3, lang="eng", desc="", text=[text])
+    if name == "lyrics":
+        return USLT(encoding=3, lang="eng", desc="", text=text)
+    frame_id = _ID3_FRAME_IDS.get(name)
+    if frame_id is None:
+        return TXXX(encoding=3, desc=name.upper(), text=_tag_values(name, text))
+    if frame_id.startswith("W"):
+        return Frames[frame_id](url=text)
+    return Frames[frame_id](encoding=3, text=_tag_values(name, text))
+
+
+def _set_rating(tags, stars: int) -> None:
+    """These are the conventions most players and KDE's Dolphin understand: an ID3
+    POPM frame on the Windows Media Player scale, RATING from 0 to 100 otherwise."""
+    if isinstance(tags, ID3):
         # Only one rating, so that no player reads an old one. Its play count is kept.
         count = max((getattr(frame, "count", 0) for frame in tags.getall("POPM")), default=0)
         tags.delall("POPM")
         if stars or count:
             tags.add(POPM(email=_POPM_EMAIL, rating=_POPM_RATINGS[stars], count=count))
-        audio.save(v2_version=3 if tags.version[1] == 3 else 4)  # keep the file's ID3 version
-        return
-    if stars:
+    elif stars:
         tags["rating"] = str(stars * 20)
     elif "rating" in tags:
         del tags["rating"]
-    audio.save()
+
+
+def _set_cover(audio, data: bytes | None) -> None:
+    """Replace a file's pictures with this front cover (None removes them)."""
+    tags = audio.tags
+    mime = "image/png" if data and data.startswith(b"\x89PNG") else "image/jpeg"
+    if isinstance(tags, ID3):
+        tags.delall("APIC")
+        if data:
+            tags.add(APIC(encoding=3, mime=mime, type=3, desc="", data=data))
+        return
+    picture = Picture()
+    picture.type = 3
+    picture.mime = mime
+    picture.data = data or b""
+    if hasattr(audio, "clear_pictures"):  # FLAC keeps pictures in their own blocks
+        audio.clear_pictures()
+        if data:
+            audio.add_picture(picture)
+        return
+    for key in ("metadata_block_picture", "coverart", "coverartmime"):
+        if key in tags:
+            del tags[key]
+    if data:
+        tags["metadata_block_picture"] = [base64.b64encode(picture.write()).decode("ascii")]
+
+
+@dataclass
+class EditableFile:
+    """What the tag editor shows about one file."""
+
+    tags: dict[str, str] = field(default_factory=dict)
+    cover: bytes | None = None  # only a picture inside the file, not a cover.jpg next to it
+    rating: int = 0
+    lrc_text: str | None = None  # the .lrc file next to the song; None if there is none
+
+
+def _read_lrc(path: Path) -> str | None:
+    try:
+        data = path.with_suffix(".lrc").read_bytes()
+    except OSError:
+        return None
+    try:
+        return data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        return data.decode("latin-1")
+
+
+def read_editable_file(path: Path) -> EditableFile:
+    """Read a file for the tag editor. A file that can't be read comes back empty."""
+    result = EditableFile(lrc_text=_read_lrc(path))
+    try:
+        audio = MutagenFile(str(path))
+    except Exception:
+        return result
+    if audio is None:
+        return result
+    result.tags = read_all_tags(audio.tags)
+    for name in PROTECTED_TAGS:
+        result.tags.pop(name, None)
+    for number_tag, total_tag, _frame_id in _NUMBER_TAGS:
+        number, _, total = result.tags.get(number_tag, "").partition("/")
+        if total:
+            result.tags[number_tag] = number
+            result.tags.setdefault(total_tag, total)
+    result.rating = read_rating(audio.tags)
+    try:
+        result.cover = _embedded_cover(audio)
+    except Exception:
+        result.cover = None
+    return result
+
+
+def clean_tag_name(name) -> str:
+    """The one name a tag goes by: lower case, no spaces, spelling variants merged."""
+    cleaned = re.sub(r"[\s_-]+", "", str(name).casefold())
+    return _TAG_ALIASES.get(cleaned, cleaned)
 
 
 def read_all_tags(tags) -> dict[str, str]:
@@ -260,8 +439,7 @@ def read_all_tags(tags) -> dict[str, str]:
         return {}
 
     for name, values in entries:
-        clean_name = re.sub(r"[\s_-]+", "", str(name).casefold())
-        clean_name = _TAG_ALIASES.get(clean_name, clean_name)
+        clean_name = clean_tag_name(name)
         if clean_name and clean_name not in _IGNORED_TAGS:
             kept = found.setdefault(clean_name, [])
             kept.extend(value for value in _texts(values) if value not in kept)
@@ -444,6 +622,7 @@ class TrackDetails:
     audio_format: str = ""  # e.g. "FLAC 44.1 kHz @ 906k Stereo"
     cover: bytes | None = None  # the full-size cover image, as stored in the file
     rating: int = 0  # stars stored in the file, from 0 to 5
+    lyrics: str = ""  # timed (LRC) or plain, from a .lrc file or the song itself
 
     @property
     def artist_line(self) -> str:
@@ -485,7 +664,27 @@ def read_track_details(path: Path) -> TrackDetails:
     if details.cover is None:
         details.cover = _folder_cover(path.parent)
 
+    try:
+        details.lyrics = _song_lyrics(audio, path)
+    except Exception:
+        details.lyrics = ""
     return details
+
+
+def _song_lyrics(audio, path: Path) -> str:
+    """A .lrc file next to the song wins; then timed lyrics in it, then plain ones."""
+    from_file = _read_lrc(path)
+    if from_file and from_file.strip():
+        return from_file
+    tags = audio.tags if audio is not None else None
+    if isinstance(tags, ID3):
+        for frame in tags.getall("SYLT"):
+            if frame.format == 2:  # the times are in milliseconds
+                return "\n".join(
+                    f"[{ms // 60000:02d}:{ms % 60000 / 1000:05.2f}]{text.strip()}"
+                    for text, ms in frame.text
+                )
+    return read_all_tags(tags).get("lyrics", "")
 
 
 def _describe_format(audio, path: Path) -> str:

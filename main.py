@@ -27,11 +27,13 @@ from PySide6.QtCore import (
     QUrl,
 )
 from PySide6.QtGui import (
+    QAction,
     QCursor,
     QDesktopServices,
     QIcon,
     QImage,
     QKeySequence,
+    QPainter,
     QPalette,
     QPixmap,
     QShortcut,
@@ -87,16 +89,25 @@ from src.mpris import NO_TRACK, MprisService, cover_file_url, file_url
 from src.track_list import (
     all_columns,
     columns_from_keys,
+    text_key,
     tag_column,
     QueueModel,
     SortedTrackModel,
     TrackListModel,
     setup_track_view,
 )
-from src.rating_writer import RatingWriter
+from src.online_search import (
+    AUTO_TAG_CANCELLED,
+    AutoTagSong,
+    OnlineSearch,
+    ask_auto_tag_count,
+)
+from src.tag_editor import TagEditorDialog
+from src.tag_writer import SaveResult, TagJob, TagWriter
+from src.now_playing import LyricsView, Visualizer
 from src.star_rating import StarRating
 from src.tray import TrayMinimizer
-from src.track_metadata import read_track_details
+from src.track_metadata import TagChanges, read_editable_file, read_track_details
 from src.playlist_models import (
     ClickFilter,
     HistoryTrackModel,
@@ -133,6 +144,9 @@ PLAYLIST_EDIT_UI_FILE = Path(__file__).parent / "playlist_edit.ui"
 AUTO_PLAYLIST_EDIT_UI_FILE = Path(__file__).parent / "auto_playlist_edit.ui"
 AUTO_PLAYLIST_RULE_UI_FILE = Path(__file__).parent / "auto_playlist_rule.ui"
 COLUMNS_EDIT_UI_FILE = Path(__file__).parent / "columns_edit.ui"
+TAG_EDIT_UI_FILE = Path(__file__).parent / "tag_edit.ui"
+SETTINGS_UI_FILE = Path(__file__).parent / "settings.ui"
+AUTO_TAG_UI_FILE = Path(__file__).parent / "auto_tag_genres.ui"
 COVER_WINDOW_UI_FILE = Path(__file__).parent / "cover_window.ui"
 
 # How long after a track starts before Last.fm is told what is playing.
@@ -148,6 +162,8 @@ GROUP_ICON_SIDE = 128  # pixels, the image at the top of the Artists and Albums 
 GROUP_SOURCE_PREFIX = "/"
 
 SONGS_FILTER_OWNER = "songs"  # the Songs tab, in the saved filters
+SONG_SEARCH_DELAY_MS = 200
+SEARCH_CLEAR_ICON_SCALE = 0.55  # how much of its button the search bar's clear icon fills
 HISTORY_SOURCE = "history"  # the History tab, as a list that can be played from
 # Offered in an auto-playlist's rules even before a library has been rescanned.
 COMMON_RULE_TAGS = ("album", "albumartist", "artist", "date", "genre", "rating", "time", "title")
@@ -242,6 +258,22 @@ def asset_icon(name: str) -> QIcon:
     if icon.isNull():
         print(f"MusicHive: missing or unreadable icon: {path}", file=sys.stderr)
     return icon
+
+
+def small_asset_icon(name: str, scale: float) -> QIcon:
+    """An icon from the assets folder, drawn smaller on a transparent square.
+
+    For places where Qt always draws an icon at one size.
+    """
+    side = 64
+    pixmap = QPixmap(side, side)
+    pixmap.fill(Qt.GlobalColor.transparent)
+    glyph = round(side * scale)
+    margin = (side - glyph) // 2
+    painter = QPainter(pixmap)
+    asset_icon(name).paint(painter, QRect(margin, margin, glyph, glyph))
+    painter.end()
+    return QIcon(pixmap)
 
 
 def setup_library_table(view, model) -> None:
@@ -535,6 +567,19 @@ class MusicHive:
         )
         self.song_filter.chosen.connect(self.on_song_filter_chosen)
 
+        # The search bar of the Songs tab, which waits for a pause in the typing
+        self.song_search_index: list[str] | None = None  # one text per library row
+        self.song_search_timer = QTimer(w)
+        self.song_search_timer.setSingleShot(True)
+        self.song_search_timer.setInterval(SONG_SEARCH_DELAY_MS)
+        self.song_search_timer.timeout.connect(self.show_song_filter)
+        w.lineEdit.textChanged.connect(lambda _text: self.song_search_timer.start())
+        w.lineEdit.returnPressed.connect(self.search_songs_now)
+        clear_action = w.lineEdit.findChild(QAction, "_q_qlineeditclearaction")  # Qt's own
+        if clear_action is not None:
+            clear_action.setIcon(small_asset_icon("x", SEARCH_CLEAR_ICON_SCALE))
+        w.pushButton.clicked.connect(lambda _checked=False: self.search_songs_now())
+
         # The Artists and Albums tabs: the filter bar picks an artist or album.
         self.artist_info = ArtistInfoService(LASTFM_API_KEY, library_db.data_dir() / "artists", w)
         self.artist_info.artist_updated.connect(self.on_artist_updated)
@@ -603,12 +648,23 @@ class MusicHive:
         self.cover_window = None  # created the first time a cover is opened
         self._cover_click = ClickFilter(w.trackInfoCoverImg)
         self._cover_click.clicked.connect(self.show_full_cover)
+        self.visualizer = Visualizer(w.nowPlayingVisualizer)
+        self.player.buffer_output.audioBufferReceived.connect(self.visualizer.add_buffer)
+        self.lyrics_view = LyricsView(w.nowPlayingLyrics)
         self.rating_stars = StarRating(
             w.trackRatingStars, asset_icon("star"), asset_icon("star_full")
         )
         self.rating_stars.rated.connect(self.on_track_rated)
-        self.rating_writer = RatingWriter(w)
-        self.rating_writer.failed.connect(self.on_rating_write_failed)
+        self.online_search = OnlineSearch(LASTFM_API_KEY, w)
+        self.online_search.auto_tag_progress.connect(self.on_auto_tag_progress)
+        self.online_search.auto_tag_finished.connect(self.on_auto_tag_finished)
+        self.auto_tag_library: LibraryInfo | None = None  # set while auto-tagging runs
+        self.auto_tag_text = w.actionAutoTagGenres.text()
+        self.tags_saved_note = ""  # added to the next "saved" message
+        w.actionAutoTagGenres.triggered.connect(lambda _checked=False: self.on_auto_tag_clicked())
+        self.tag_writer = TagWriter(w)
+        self.tag_writer.rating_failed.connect(self.on_rating_write_failed)
+        self.tag_writer.tags_saved.connect(self.on_tags_saved)
         for label in (
             w.trackInfoTitle,
             w.trackInfoArtistAlbumArtist,
@@ -646,6 +702,8 @@ class MusicHive:
         w.actionImportPlaylist.triggered.connect(self.import_playlist)
         w.actionExportPlaylist.triggered.connect(lambda: self.export_playlist())
         w.actionQuit.triggered.connect(lambda _checked=False: self.quit_app())
+        self.settings_window = None  # created the first time it is opened
+        w.actionSettings.triggered.connect(lambda _checked=False: self.show_settings())
         self.setup_tray()
         w.actionPlayPause.triggered.connect(self.on_play_pause)
         w.actionPrevious.triggered.connect(self.play_previous)
@@ -719,6 +777,13 @@ class MusicHive:
         """End the program. Closing the window may only hide it to the tray."""
         QApplication.quit()
 
+    def show_settings(self) -> None:
+        if self.settings_window is None:
+            self.settings_window = load_dialog(SETTINGS_UI_FILE, self.window)
+        self.settings_window.show()
+        self.settings_window.raise_()
+        self.settings_window.activateWindow()
+
     def setup_tray(self) -> None:
         """Create the tray icon and connect the checkbox in the View menu."""
         w = self.window
@@ -772,7 +837,8 @@ class MusicHive:
         self.settings.setValue("openTab", self.window.podcastsTab.currentWidget().objectName())
         self.save_session()
         self.artist_info.shutdown()
-        self.rating_writer.shutdown()
+        self.online_search.shutdown()
+        self.tag_writer.shutdown()
         self.mpris.shutdown()
         self.discord.shutdown()
         self.lastfm.shutdown()
@@ -1201,6 +1267,8 @@ class MusicHive:
         cover = QImage.fromData(details.cover) if details.cover else None
         self.full_cover = cover if cover is not None and not cover.isNull() else None
         self.mpris_art_url = cover_file_url(details.cover) if details.cover else ""
+        self.lyrics_view.set_lyrics(details.lyrics)
+        self.lyrics_view.set_position(self.position_ms)
         self.adopt_file_rating(details.rating)
         self.show_current_rating()
         self.cover_view.set_image(cover)
@@ -1249,7 +1317,7 @@ class MusicHive:
             return
         self.library_model.set_rating(self.current_index, rating)
         self.show_current_rating()
-        self.rating_writer.write(self.tracks[self.current_index], rating)
+        self.tag_writer.write_rating(self.tracks[self.current_index], rating)
         self.update_rating_playlists()
         stars = f"{rating} star{'' if rating == 1 else 's'}"
         self.show_status(f"Rated '{info.title}' {stars}" if rating else f"Cleared the rating of '{info.title}'")
@@ -1307,6 +1375,7 @@ class MusicHive:
             label.clear()
         self.full_cover = None
         self.mpris_art_url = ""
+        self.lyrics_view.set_lyrics("")
         self.rating_stars.set_rating(0, enabled=False)
         self.cover_view.set_image(None)
         self.update_window_title()
@@ -1462,7 +1531,12 @@ class MusicHive:
         )
         menu.addSeparator()
 
-        add(menu, "Edit…", "edit", lambda: None, enabled=False, tip="Not available yet")
+        add(
+            menu, f"Edit…{several}", "edit",
+            lambda: self.edit_tags(rows, self.track_menu_neighbours(source, context)),
+            enabled=not scanning,
+            tip="Wait for the scan to finish" if scanning else "",
+        )
         in_playlist = source == "playlist" and not self.is_auto_playlist(self.current_playlist)
         add(
             menu, f"Delete from playlist{several}", "delete_from_playlist",
@@ -1599,6 +1673,7 @@ class MusicHive:
 
         library_view = self.window.libraryList
         self.show_tab_of(library_view)
+        self.clear_song_search()  # it could be hiding the song
         if field == "title":
             if not self.table_index(row).isValid():  # the Songs filter hides this track
                 self.on_song_filter_chosen(self.load_filter(SONGS_FILTER_OWNER)[0], "")
@@ -1779,9 +1854,168 @@ class MusicHive:
     # ----- artists and albums -----
 
     def make_filter_bar(self, combo, view, button, visible_key: str) -> FilterBar:
-        return FilterBar(
+        bar = FilterBar(
             combo, view, button, self.filter_groups, self.filter_cover, self.settings, visible_key
         )
+        bar.album_menu_requested.connect(self.show_album_menu)
+        return bar
+
+    # ----- the tag editor -----
+
+    def show_album_menu(self, rows: list[int], position) -> None:
+        """Right-click menu of an album in a filter list."""
+        menu = QMenu(self.window)
+        action = menu.addAction(self.menu_icons["edit"], "Edit…")
+        action.setEnabled(self.scan_task is None)
+        action.triggered.connect(lambda _checked=False: self.edit_tags(rows))
+        menu.exec(position)
+
+    def track_menu_neighbours(self, source: str, context: list[int] | None) -> list[int]:
+        """The songs around one in the list it was right-clicked in, in shown order."""
+        if context is not None:
+            return context
+        return self.play_order.upcoming_rows() if source == "upcoming" else self.display_rows()
+
+    def edit_tags(self, rows: list[int], neighbours: list[int] | None = None) -> None:
+        """Open the tag editor for these songs and write what the user changes.
+
+        The editor's arrow buttons go through `neighbours`.
+        """
+        library = self.loaded_library
+        if library is None:
+            return
+        paths = [self.tracks[row] for row in rows]
+        jobs = TagEditorDialog(
+            TAG_EDIT_UI_FILE,
+            self.window,
+            paths,
+            [read_editable_file(path) for path in paths],
+            asset_icon("image"),
+            asset_icon("star"),
+            asset_icon("star_full"),
+            self.online_search,
+            [self.tracks[row] for row in dict.fromkeys(neighbours or [])],
+        ).run()
+        if jobs:
+            self.show_status(f"Saving tags of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
+            self.tag_writer.save_tags(jobs, library.root, library.db_path)
+
+    def selected_song_rows(self) -> list[int]:
+        """The songs selected in the song table on screen."""
+        w = self.window
+        pages = [(page.view, page.source) for page in self.group_pages.values()]
+        tables = [
+            (w.libraryList, "library"),
+            (w.playlistSongList, "playlist"),
+            (w.historyList, HISTORY_SOURCE),
+            *pages,
+        ]
+        for view, source in tables:
+            if view.isVisible():
+                return self.selected_library_rows(source)
+        return []
+
+    def on_auto_tag_clicked(self) -> None:
+        """Tools menu: start auto-tagging the selected songs, or stop if it is running."""
+        if self.auto_tag_library is not None:
+            self.online_search.stop_auto_tag()
+            return
+        library = self.loaded_library
+        rows = self.selected_song_rows()
+        if library is None or not rows:
+            self.show_status("Select the songs to tag in a table first")
+            return
+        if self.scan_task is not None:
+            self.show_status("Wait for the scan to finish")
+            return
+        limit = ask_auto_tag_count(AUTO_TAG_UI_FILE, self.window, len(rows))
+        if limit == AUTO_TAG_CANCELLED:
+            return
+        songs = []
+        for row in rows:
+            info = self.library_model.info(row)
+            artist = info.artist or info.album_artist
+            songs.append(AutoTagSong(self.tracks[row], artist, info.title, info.album))
+        self.auto_tag_library = library
+        self.window.actionAutoTagGenres.setText("Stop Auto-Tagging Genres")
+        self.online_search.auto_tag(songs, limit)
+
+    def on_auto_tag_progress(self, done: int, total: int) -> None:
+        self.show_status(f"Looking up genres: {done} of {total}…")
+
+    def on_auto_tag_finished(self, results: list, not_found: int, error: str, stopped: bool) -> None:
+        library = self.auto_tag_library
+        self.auto_tag_library = None
+        self.window.actionAutoTagGenres.setText(self.auto_tag_text)
+        if stopped:
+            self.show_status("Stopped auto-tagging. No files were changed.")
+            return
+        if error:
+            QMessageBox.warning(self.window, "Auto-tag genres", f"The lookup stopped early: {error}")
+        if not results:
+            self.show_status("No genres were found for the selected songs")
+            return
+        self.tags_saved_note = f" (no genres found for {not_found})" if not_found else ""
+        jobs = [
+            TagJob(path, TagChanges({"genre": "; ".join(genres)})) for path, genres in results
+        ]
+        self.show_status(f"Saving the genres of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
+        self.tag_writer.save_tags(jobs, library.root, library.db_path)
+
+    def on_tags_saved(self, result: SaveResult) -> None:
+        """Files were edited: bring the database and everything on screen up to date."""
+        try:
+            library_db.update_tracks(result.db_path, result.tracks, result.covers)
+        except sqlite3.Error as error:
+            self.show_status(f"Tags were written, but the library could not be updated: {error}")
+            return
+        library = self.loaded_library
+        if library is not None and library.db_path == result.db_path:
+            self.show_saved_tags(result)
+        if result.failures:
+            name, reason = result.failures[0]
+            more = f" and {len(result.failures) - 1} more" if len(result.failures) > 1 else ""
+            self.show_status(f"Could not save {name}{more}: {reason}")
+        else:
+            count = f"{len(result.tracks)} song{'' if len(result.tracks) == 1 else 's'}"
+            self.show_status(f"Saved tags of {count}{self.tags_saved_note}")
+        self.tags_saved_note = ""
+
+    def show_saved_tags(self, result: SaveResult) -> None:
+        rows = self.rows_by_relative_path()
+        new_ratings = {
+            self.relative_path(job.path): job.changes.rating
+            for job in result.jobs
+            if job.changes.rating is not None
+        }
+        shown_tags = self.shown_tag_names()
+        for track in result.tracks:
+            row = rows.get(track.rel_path, -1)
+            old = self.library_model.info(row)
+            if old is None:
+                continue
+            info = track.info
+            info.tags = {name: info.tags[name] for name in shown_tags if name in info.tags}
+            info.play_count, info.added_at, info.last_played = (
+                old.play_count, old.added_at, old.last_played,
+            )
+            info.file_size = track.file_size
+            if track.rel_path in new_ratings:
+                info.rating = new_ratings[track.rel_path]
+                library_db.set_rating(result.db_path, track.rel_path, info.rating)
+            else:
+                info.rating = old.rating
+            self.library_model.update_track(row, info, result.covers)
+
+        self.refresh_filter_bars()
+        self.refresh_playlist_list(select=self.current_playlist)
+        self.refresh_upcoming(keep_scroll=True)
+        if 0 <= self.current_index < len(self.tracks):
+            edited = {job.path for job in result.jobs}
+            if self.tracks[self.current_index] in edited:
+                self.update_track_info(self.tracks[self.current_index])
+                self.update_mpris()
+                self.discord.request_update()
 
     def make_group_page(
         self, source: str, view, header_key: str, filter_bar: FilterBar
@@ -1804,6 +2038,7 @@ class MusicHive:
     def refresh_filter_bars(self) -> None:
         """The library changed: rebuild the filter bars of every tab."""
         self.auto_playlist_cache.clear()  # library rows and tags may be different now
+        self.song_search_index = None
         self.refresh_history()
         for bar in self.filter_bars():
             bar.forget()
@@ -1872,7 +2107,41 @@ class MusicHive:
         """Fill the Songs tab's filter bar and apply it to the table."""
         rows = list(range(len(self.tracks)))
         shown = self.song_filter.show(SONGS_FILTER_OWNER, rows, *self.load_filter(SONGS_FILTER_OWNER))
+        shown = self.song_search_matches(shown)
         self.library_proxy.set_shown_rows(None if len(shown) == len(rows) else shown)
+
+    def search_songs_now(self) -> None:
+        self.song_search_timer.stop()
+        self.show_song_filter()
+
+    def song_search_matches(self, rows: list[int]) -> list[int]:
+        """The rows containing every word typed in the search bar, in any tag."""
+        words = text_key(self.window.lineEdit.text()).split()
+        if not words:
+            return rows
+        if self.song_search_index is None:
+            self.song_search_index = self.build_song_search_index()
+        index = self.song_search_index
+        return [row for row in rows if all(word in index[row] for word in words)]
+
+    def build_song_search_index(self) -> list[str]:
+        library = self.loaded_library
+        try:
+            stored = library_db.load_search_text(library.db_path) if library else {}
+        except sqlite3.Error:
+            stored = {}
+        index = []
+        for row, path in enumerate(self.tracks):
+            info = self.library_model.info(row)
+            fields = (info.title, info.artist, info.album_artist, info.album, info.year, info.genre)
+            index.append(text_key(" ".join((*fields, stored.get(self.relative_path(path), "")))))
+        return index
+
+    def clear_song_search(self) -> None:
+        """Empty the search bar, so that it hides no songs."""
+        if self.window.lineEdit.text():
+            self.window.lineEdit.clear()
+            self.search_songs_now()
 
     def on_song_filter_chosen(self, kind: str, value: str) -> None:
         self.save_filter(SONGS_FILTER_OWNER, kind, value)
@@ -3405,6 +3674,7 @@ class MusicHive:
     def on_position_changed(self, position_ms: int) -> None:
         self.position_ms = position_ms
         self.mpris.set_position(position_ms)
+        self.lyrics_view.set_position(position_ms)
         slider = self.window.progressSlider
         if slider.isSliderDown():  # the user is dragging; don't fight them
             return

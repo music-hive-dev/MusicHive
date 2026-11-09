@@ -2,7 +2,7 @@
 
 from collections.abc import Callable
 
-from PySide6.QtCore import QModelIndex, QObject, QSettings, Signal
+from PySide6.QtCore import QModelIndex, QObject, QSettings, Qt, Signal
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QAbstractButton, QComboBox, QListView
 
@@ -33,6 +33,7 @@ class FilterBar(QObject):
     """
 
     chosen = Signal(str, str)  # kind, value ("" means every song)
+    album_menu_requested = Signal(list, object)  # the album's library rows, screen position
 
     def __init__(
         self,
@@ -61,6 +62,8 @@ class FilterBar(QObject):
             for kind, placeholder in PLACEHOLDERS.items()
         }
         view.selectionModel().currentChanged.connect(self._on_value_selected)
+        view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        view.customContextMenuRequested.connect(self._on_context_menu)
         combo.currentIndexChanged.connect(self._on_kind_chosen)
 
         button.toggled.connect(self._set_visible)
@@ -126,6 +129,16 @@ class FilterBar(QObject):
             return None
         _owner, kind, rows = self._signature
         return self._cover_for(kind, group, rows[group.rows[0]])
+
+    def _on_context_menu(self, pos) -> None:
+        """Right-clicking an album asks for its menu; other entries have none."""
+        group = self._model.group_at(self._view.indexAt(pos).row())
+        if group is None or not group.key or self._signature is None:
+            return
+        _owner, kind, rows = self._signature
+        if kind == "album":
+            library_rows = [rows[position] for position in sorted(group.rows)]
+            self.album_menu_requested.emit(library_rows, self._view.viewport().mapToGlobal(pos))
 
     def _set_visible(self, visible: bool) -> None:
         self._combo.setVisible(visible)

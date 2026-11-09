@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+<class>genreCompareDialog</class>
+<widget class="QDialog" name="genreCompareDialog">
+<property name="geometry"><rect><x>0</x><y>0</y><width>520</width><height>460</height></rect></property>
+<property name="windowTitle"><string>Compare genres</string></property>
+<layout class="QVBoxLayout" name="genreCompareDialogLayout"><item><widget class="QLabel" name="genreCompareCurrentTitle"><property name="text"><string>Current genres</string></property></widget></item><item><widget class="QLabel" name="genreCompareCurrent"><property name="wordWrap"><bool>true</bool></property><property name="text"><string></string></property></widget></item><item><widget class="QLabel" name="genreCompareFoundTitle"><property name="text"><string>Found online (tick the ones you want)</string></property></widget></item><item><widget class="QListWidget" name="genreCompareFound"/></item><item><layout class="QHBoxLayout" name="genreCompareButtons"><item><spacer name="genreCompareButtonsSpacer"><property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item><item><widget class="QPushButton" name="genreCompareDiscard"><property name="text"><string>Discard</string></property></widget></item><item><widget class="QPushButton" name="genreCompareApprove"><property name="text"><string>Use ticked genres</string></property></widget></item></layout></item></layout>
+</widget>
+<resources/>
+<connections/>
+</ui>

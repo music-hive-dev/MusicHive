@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from PySide6.QtCore import QObject, QUrl, Signal
-from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+from PySide6.QtMultimedia import QAudioBufferOutput, QAudioFormat, QAudioOutput, QMediaPlayer
 
 # Translate Qt's playback states into plain strings so the rest of the app
 # does not need to know about Qt Multimedia enums.
@@ -34,6 +34,14 @@ class AudioPlayer(QObject):
         self._audio_output = QAudioOutput(self)
         self._player.setAudioOutput(self._audio_output)
         self._audio_output.setVolume(0.7)
+
+        # A copy of the sound being played, for the visualiser.
+        audio_format = QAudioFormat()
+        audio_format.setSampleRate(44100)
+        audio_format.setChannelCount(1)
+        audio_format.setSampleFormat(QAudioFormat.SampleFormat.Int16)
+        self.buffer_output = QAudioBufferOutput(audio_format, self)
+        self._player.setAudioBufferOutput(self.buffer_output)
 
         self._current_track: Path | None = None
         # A position to jump to as soon as the loaded file is ready.
