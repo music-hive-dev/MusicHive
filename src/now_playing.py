@@ -6,7 +6,7 @@ import time
 from array import array
 from collections import deque
 
-from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter
 from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QWidget
@@ -35,7 +35,7 @@ _ARRAY_TYPES = {
 NO_LYRICS_TEXT = "No lyrics for this song"
 INSTRUMENTAL_LINE = "♪"
 DIM_ALPHA = 120
-CURRENT_LINE_EXTRA_POINTS = 10
+CURRENT_LINE_EXTRA_POINTS = 20
 
 
 class Visualizer(QObject):
@@ -194,6 +194,13 @@ class LyricsView(QObject):
         self._times: list[int] = []
         self._current = -1
         self.set_lyrics("")
+        view.installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:
+        if event.type() in (QEvent.Type.Show, QEvent.Type.Resize):
+            # Wait for the view to get its final size, or the centring is off.
+            QTimer.singleShot(0, self._recentre)
+        return False
 
     def set_lyrics(self, text: str) -> None:
         """Show these lyrics (see lyrics.py). Empty text says there are none."""
@@ -203,14 +210,18 @@ class LyricsView(QObject):
         self._times = lyrics.times_ms
         self._current = -1
         lines = lyrics.texts or [NO_LYRICS_TEXT]
+        if self._times:
+            view.addItem(self._make_gap())
         for line in lines:
             item = QListWidgetItem(line or (INSTRUMENTAL_LINE if self._times else " "))
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             item.setFlags(Qt.ItemFlag.ItemIsEnabled)
             view.addItem(item)
         if self._times:
-            for row in range(view.count()):
-                self._style_line(row, False)
+            view.addItem(self._make_gap())
+            self._size_gaps()
+            for line in range(len(lines)):
+                self._style_line(line, False)
         view.scrollToTop()
 
     def set_position(self, position_ms: int) -> None:
@@ -225,15 +236,44 @@ class LyricsView(QObject):
         self._current = line
         if line >= 0:
             self._style_line(line, True)
-            if self._view.isVisible():
-                self._view.scrollToItem(
-                    self._view.item(line), QListWidget.ScrollHint.PositionAtCenter
-                )
+            self._scroll_to_current()
         else:
             self._view.scrollToTop()
 
-    def _style_line(self, row: int, current: bool) -> None:
-        item = self._view.item(row)
+    @staticmethod
+    def _make_gap() -> QListWidgetItem:
+        """An empty row that gives the first or last line room to reach the centre."""
+        item = QListWidgetItem()
+        item.setFlags(Qt.ItemFlag.NoItemFlags)
+        return item
+
+    def _size_gaps(self) -> None:
+        if self._times:
+            view = self._view
+            gap = QSize(0, view.height() // 2)
+            view.item(0).setSizeHint(gap)
+            view.item(view.count() - 1).setSizeHint(gap)
+
+    def _recentre(self) -> None:
+        self._size_gaps()
+        self._scroll_to_current()
+
+    def _line_item(self, line: int) -> QListWidgetItem:
+        return self._view.item(line + 1)  # timed lyrics start after the top gap
+
+    def _scroll_to_current(self) -> None:
+        view = self._view
+        if not self._times or not view.isVisible():
+            return
+        # The current line is taller than the others; centre it at its new size.
+        view.doItemsLayout()
+        if self._current >= 0:
+            view.scrollToItem(
+                self._line_item(self._current), QListWidget.ScrollHint.PositionAtCenter
+            )
+
+    def _style_line(self, line: int, current: bool) -> None:
+        item = self._line_item(line)
         font = QFont(self._view.font())
         font.setBold(current)
         if current and font.pointSizeF() > 0:

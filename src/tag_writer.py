@@ -121,6 +121,9 @@ class TagWriter(QObject):
     def save_tags(self, jobs: list[TagJob], root: Path, db_path: Path) -> None:
         self._pool.start(_SaveTask(SaveResult(db_path, jobs), root, self._signals))
 
+    def is_busy(self) -> bool:
+        return self._pool.activeThreadCount() > 0
+
     def shutdown(self) -> None:
         """Let the work still waiting finish."""
         self._pool.waitForDone(30000)

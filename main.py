@@ -43,6 +43,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSlider,
     QApplication,
+    QDialogButtonBox,
     QFileDialog,
     QHeaderView,
     QLabel,
@@ -102,6 +103,9 @@ from src.online_search import (
     OnlineSearch,
     ask_auto_tag_count,
 )
+from src.equaliser import EqualiserWindow, load_equaliser
+from src.sound_settings import SoundSettingsTab, load_sound_settings
+from src.organise_files import FileMove, OrganiseDialog, OrganiseResult
 from src.tag_editor import TagEditorDialog
 from src.tag_writer import SaveResult, TagJob, TagWriter
 from src.now_playing import LyricsView, Visualizer
@@ -147,6 +151,8 @@ COLUMNS_EDIT_UI_FILE = Path(__file__).parent / "columns_edit.ui"
 TAG_EDIT_UI_FILE = Path(__file__).parent / "tag_edit.ui"
 SETTINGS_UI_FILE = Path(__file__).parent / "settings.ui"
 AUTO_TAG_UI_FILE = Path(__file__).parent / "auto_tag_genres.ui"
+ORGANISE_UI_FILE = Path(__file__).parent / "organise_files.ui"
+EQUALISER_UI_FILE = Path(__file__).parent / "equaliser.ui"
 COVER_WINDOW_UI_FILE = Path(__file__).parent / "cover_window.ui"
 
 # How long after a track starts before Last.fm is told what is playing.
@@ -649,7 +655,7 @@ class MusicHive:
         self._cover_click = ClickFilter(w.trackInfoCoverImg)
         self._cover_click.clicked.connect(self.show_full_cover)
         self.visualizer = Visualizer(w.nowPlayingVisualizer)
-        self.player.buffer_output.audioBufferReceived.connect(self.visualizer.add_buffer)
+        self.player.audio_buffer_ready.connect(self.visualizer.add_buffer)
         self.lyrics_view = LyricsView(w.nowPlayingLyrics)
         self.rating_stars = StarRating(
             w.trackRatingStars, asset_icon("star"), asset_icon("star_full")
@@ -662,6 +668,8 @@ class MusicHive:
         self.auto_tag_text = w.actionAutoTagGenres.text()
         self.tags_saved_note = ""  # added to the next "saved" message
         w.actionAutoTagGenres.triggered.connect(lambda _checked=False: self.on_auto_tag_clicked())
+        self.organise_error = ""  # why the library could not follow the moved files
+        w.actionOrganiseFiles.triggered.connect(lambda _checked=False: self.on_organise_clicked())
         self.tag_writer = TagWriter(w)
         self.tag_writer.rating_failed.connect(self.on_rating_write_failed)
         self.tag_writer.tags_saved.connect(self.on_tags_saved)
@@ -725,6 +733,10 @@ class MusicHive:
         saved_volume = self.settings.value("volume", w.volumeSlider.value(), type=int)
         w.volumeSlider.setValue(saved_volume)
         self.player.set_volume(w.volumeSlider.value())
+        self.player.set_equalizer(load_equaliser(self.settings))
+        self.player.set_sound_settings(load_sound_settings(self.settings))
+        self.equaliser_window: EqualiserWindow | None = None  # made when first opened
+        w.equalizerButton.clicked.connect(lambda _checked=False: self.show_equaliser())
         self.update_volume_ui()
         w.volumeSlider.valueChanged.connect(self.on_volume_changed)
         w.muteButton.toggled.connect(self.on_mute_toggled)
@@ -735,6 +747,7 @@ class MusicHive:
         # Player -> UI
         self.player.track_started.connect(self.on_track_started)
         self.player.track_finished.connect(self.on_track_finished)
+        self.player.track_ending.connect(self.on_track_ending)
         self.player.state_changed.connect(self.on_state_changed)
         self.player.position_changed.connect(self.on_position_changed)
         self.player.duration_changed.connect(self.on_duration_changed)
@@ -779,10 +792,23 @@ class MusicHive:
 
     def show_settings(self) -> None:
         if self.settings_window is None:
-            self.settings_window = load_dialog(SETTINGS_UI_FILE, self.window)
+            self.settings_window = d = load_dialog(SETTINGS_UI_FILE, self.window)
+            self.sound_settings_tab = SoundSettingsTab(
+                d, self.settings, self.player.set_sound_settings
+            )
+            d.settingsButtonBox.rejected.connect(d.reject)
+            # Enter confirms a typed number; it must not press Close as well.
+            d.settingsButtonBox.button(QDialogButtonBox.StandardButton.Close).setAutoDefault(False)
         self.settings_window.show()
         self.settings_window.raise_()
         self.settings_window.activateWindow()
+
+    def show_equaliser(self) -> None:
+        if self.equaliser_window is None:
+            self.equaliser_window = EqualiserWindow(
+                EQUALISER_UI_FILE, self.window, self.settings, self.player.set_equalizer
+            )
+        self.equaliser_window.show()
 
     def setup_tray(self) -> None:
         """Create the tray icon and connect the checkbox in the View menu."""
@@ -1845,7 +1871,9 @@ class MusicHive:
         self.position_ms = position_ms
         self.select_in_table(row)
         self.refresh_upcoming()
-        if not self.player.load_file(self.tracks[row], position_ms):
+        info = self.library_model.info(row)
+        duration_ms = (info.duration_ms or 0) if info is not None else 0
+        if not self.player.load_file(self.tracks[row], position_ms, duration_ms):
             self.reset_play_order()  # the song file is gone
             return False
         return True
@@ -1961,6 +1989,88 @@ class MusicHive:
         ]
         self.show_status(f"Saving the genres of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
         self.tag_writer.save_tags(jobs, library.root, library.db_path)
+
+    # ----- organising files -----
+
+    def on_organise_clicked(self) -> None:
+        """Tools menu: move the library's files to where a naming template says."""
+        library = self.loaded_library
+        if library is None:
+            self.show_status("Open a library first")
+            return
+        if self.scan_task is not None:
+            self.show_status("Wait for the scan to finish")
+            return
+        if self.auto_tag_library is not None or self.tag_writer.is_busy():
+            self.show_status("Wait for the tags to finish saving")
+            return
+        try:
+            titled = set(library_db.load_tag_values(library.db_path, ["title"]))
+        except sqlite3.Error as error:
+            self.show_status(f"Cannot read library '{library.name}': {error}")
+            return
+        self.organise_error = ""
+        result = OrganiseDialog(
+            ORGANISE_UI_FILE,
+            self.window,
+            self.settings,
+            library.root,
+            [self.relative_path(path) for path in self.tracks],
+            [self.library_model.info(row) for row in range(len(self.tracks))],
+            titled,
+            self.apply_file_moves,
+        ).run()
+        self.show_organise_result(result)
+
+    def apply_file_moves(self, moves: list[FileMove]) -> bool:
+        """Some files moved: follow them. Returns False if they could not be saved."""
+        library = self.loaded_library
+        renamed = {move.old: move.new for move in moves}
+        for move in moves:
+            path = library.root / move.new
+            self.tracks[move.row] = path
+            self.library_model.set_path(move.row, path)
+        entry = self.listen_entry
+        if entry is not None and entry["rel_path"] in renamed:
+            entry["rel_path"] = renamed[entry["rel_path"]]
+            entry["path"] = library.root / entry["rel_path"]
+        try:
+            library_db.move_tracks(library.db_path, renamed)
+            if self.playlist_store is not None:
+                self.playlist_store.rename_tracks(renamed)
+        except (sqlite3.Error, OSError) as error:
+            self.organise_error = str(error)
+            return False
+        return True
+
+    def show_organise_result(self, result: OrganiseResult) -> None:
+        if result.moved:
+            self.refresh_filter_bars()
+            self.refresh_playlist_list(select=self.current_playlist)
+            self.refresh_upcoming(keep_scroll=True)
+            if self.current_index in {move.row for move in result.moved}:
+                self.update_track_info(self.tracks[self.current_index])
+                self.update_mpris()
+                self.discord.request_update()
+        if self.organise_error:
+            QMessageBox.warning(
+                self.window,
+                "Organise files",
+                "Files were moved, but the library could not be updated:\n"
+                f"{self.organise_error}",
+            )
+        if result.failures:
+            lines = [f"{name}: {reason}" for name, reason in result.failures[:10]]
+            if len(result.failures) > len(lines):
+                lines.append(f"…and {len(result.failures) - len(lines)} more")
+            QMessageBox.warning(
+                self.window, "Some files could not be moved", "\n".join(lines)
+            )
+        if result.moved or result.failures:
+            count = len(result.moved)
+            note = " before stopping" if result.stopped else ""
+            failed = f", {len(result.failures)} failed" if result.failures else ""
+            self.show_status(f"Moved {count} file{'' if count == 1 else 's'}{note}{failed}")
 
     def on_tags_saved(self, result: SaveResult) -> None:
         """Files were edited: bring the database and everything on screen up to date."""
@@ -3574,7 +3684,7 @@ class MusicHive:
         """Restart the track if it is well underway, otherwise go back one."""
         if self.current_index < 0:
             return
-        if self.position_ms > PREVIOUS_RESTART_THRESHOLD_MS:
+        if self.position_ms - self.player.sound_start_ms > PREVIOUS_RESTART_THRESHOLD_MS:
             self.player.seek(0)  # keeps the current play/pause state
             self.discord.request_update()
             return
@@ -3616,6 +3726,11 @@ class MusicHive:
         self.begin_listening()
         self.discord.request_update()
         self.update_mpris()
+
+    def on_track_ending(self) -> None:
+        """A crossfade is due. If nothing comes next, the track just plays to its end."""
+        if not self.play_order.ends_after_current():
+            self.on_track_finished()
 
     def on_track_finished(self) -> None:
         stop_here = self.play_order.take_stop_after()
@@ -3701,6 +3816,16 @@ def main() -> int:
     app.setApplicationName("MusicHive")
     app.setDesktopFileName("musichive")  # must match musichive.desktop
     music_hive = MusicHive()
+    # Menus and dialogs only see the application palette, so give them the
+    # selection colours from player.ui instead of the system accent colour.
+    palette = app.palette()
+    for role in (
+        QPalette.ColorRole.Highlight,
+        QPalette.ColorRole.HighlightedText,
+        QPalette.ColorRole.Accent,
+    ):
+        palette.setColor(role, music_hive.window.palette().color(role))
+    app.setPalette(palette)
     app.aboutToQuit.connect(music_hive.shutdown)
     music_hive.show()
     return app.exec()

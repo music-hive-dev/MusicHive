@@ -288,6 +288,14 @@ class PlaylistStore:
         for name in self.names():
             self.remove_tracks(name, [rel_path])
 
+    def rename_tracks(self, moves: dict[str, str]) -> None:
+        """Songs' files moved ({old relative path: new one}): follow them in every playlist."""
+        for name in self.names():
+            playlist = self.load(name)
+            if any(track in moves for track in playlist.tracks):
+                playlist.tracks = [moves.get(track, track) for track in playlist.tracks]
+                self.save(playlist)
+
     def set_description(self, name: str, description: str) -> None:
         playlist = self.load(name)
         playlist.description = description

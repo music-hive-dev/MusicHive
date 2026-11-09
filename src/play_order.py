@@ -191,6 +191,14 @@ class PlayOrder:
         self._stop_after = None
         return True
 
+    def ends_after_current(self) -> bool:
+        """True if playback will not move on by itself after the playing track."""
+        if self.stop_after_offset() == 0:
+            return True
+        if self.repeat in ("one", "all"):
+            return False
+        return self._position + 1 >= len(self._entries)
+
     # ----- moving through the order -----
 
     def next(self, ended_naturally: bool = False) -> int | None:

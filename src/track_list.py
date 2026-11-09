@@ -298,6 +298,11 @@ class TrackListModel(QAbstractTableModel):
     def drag_data(self, rows: list[int]) -> QMimeData:
         return make_track_drag(rows)
 
+    def set_path(self, row: int, path: Path) -> None:
+        """Note where a track's file is now (its file was moved)."""
+        if 0 <= row < len(self._paths):
+            self._paths[row] = path
+
     def remove_row(self, row: int) -> None:
         """Remove one track from the list (its file was deleted)."""
         if not 0 <= row < len(self._paths):

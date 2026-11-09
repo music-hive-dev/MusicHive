@@ -624,6 +624,18 @@ def update_tracks(db_path: Path, tracks: list[ScannedTrack], covers: dict[str, b
             )
 
 
+def move_tracks(db_path: Path, moves: dict[str, str]) -> None:
+    """Note that files moved ({old relative path: new one}), keeping all they had here."""
+    pairs = [(new, old) for old, new in moves.items()]
+    with connect(db_path) as conn:
+        with conn:
+            for table in ("tracks", "plays", "ratings", "track_tags", "track_added"):
+                # REPLACE: the song that moved in wins over old rows left under that path.
+                conn.executemany(
+                    f"UPDATE OR REPLACE {table} SET rel_path = ? WHERE rel_path = ?", pairs
+                )
+
+
 def remove_track(db_path: Path, rel_path: str) -> None:
     """Drop one track from a library (after its file was deleted)."""
     with connect(db_path) as conn:

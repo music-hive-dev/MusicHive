@@ -1,0 +1,165 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>organiseDialog</class>
+ <widget class="QDialog" name="organiseDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>1000</width>
+    <height>640</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Organise Files</string>
+  </property>
+  <layout class="QVBoxLayout" name="organiseLayout">
+   <item>
+    <layout class="QHBoxLayout" name="organiseTemplateRow">
+     <item>
+      <widget class="QLabel" name="organiseTemplateLabel">
+       <property name="text">
+        <string>Naming template:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="organiseTemplate">
+       <property name="text">
+        <string>&lt;albumartist&gt;/&lt;album&gt;/&lt;trackno&gt; - &lt;title&gt; - &lt;artist&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="organiseInsertTag">
+       <property name="toolTip">
+        <string>Insert a tag at the cursor</string>
+       </property>
+       <item><property name="text"><string>Insert tag…</string></property></item>
+       <item><property name="text"><string>&lt;title&gt;</string></property></item>
+       <item><property name="text"><string>&lt;artist&gt;</string></property></item>
+       <item><property name="text"><string>&lt;albumartist&gt;</string></property></item>
+       <item><property name="text"><string>&lt;album&gt;</string></property></item>
+       <item><property name="text"><string>&lt;trackno&gt;</string></property></item>
+       <item><property name="text"><string>&lt;discno&gt;</string></property></item>
+       <item><property name="text"><string>&lt;year&gt;</string></property></item>
+       <item><property name="text"><string>&lt;genre&gt;</string></property></item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="organiseHint">
+     <property name="text">
+      <string>Use / to make folders. The file extension is added automatically.</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="organiseSkipMissing">
+     <property name="text">
+      <string>Skip files that are missing tags used in the template</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="organiseRemoveEmpty">
+     <property name="text">
+      <string>Remove folders left empty by the move</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QTableWidget" name="organisePreview">
+     <property name="editTriggers">
+      <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+     </property>
+     <property name="alternatingRowColors">
+      <bool>true</bool>
+     </property>
+     <property name="selectionMode">
+      <enum>QAbstractItemView::SelectionMode::NoSelection</enum>
+     </property>
+     <property name="textElideMode">
+      <enum>Qt::TextElideMode::ElideMiddle</enum>
+     </property>
+     <property name="showGrid">
+      <bool>false</bool>
+     </property>
+     <property name="wordWrap">
+      <bool>false</bool>
+     </property>
+     <attribute name="verticalHeaderVisible">
+      <bool>false</bool>
+     </attribute>
+     <column>
+      <property name="text">
+       <string>Original file</string>
+      </property>
+     </column>
+     <column>
+      <property name="text">
+       <string>New file</string>
+      </property>
+     </column>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="organiseSummary">
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QProgressBar" name="organiseProgress">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="organiseButtonRow">
+     <item>
+      <spacer name="organiseButtonSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>40</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="organiseMoveButton">
+       <property name="text">
+        <string>Move Files</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDialogButtonBox" name="organiseButtonBox">
+       <property name="standardButtons">
+        <set>QDialogButtonBox::StandardButton::Close</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

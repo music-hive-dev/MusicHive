@@ -587,6 +587,16 @@ def _folder_cover(directory: Path) -> bytes | None:
 @lru_cache(maxsize=512)
 def _find_folder_cover(directory: str) -> str | None:
     """Path of the folder's cover image, cached so each folder is listed once."""
+    return find_folder_cover(directory)
+
+
+def forget_folder_covers() -> None:
+    """Files were moved: look in the folders again next time."""
+    _find_folder_cover.cache_clear()
+
+
+def find_folder_cover(directory: str) -> str | None:
+    """Path of the folder's cover image, as the folder is right now."""
     try:
         entries = list(Path(directory).iterdir())
     except OSError:

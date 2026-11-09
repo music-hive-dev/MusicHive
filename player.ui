@@ -127,6 +127,24 @@
        </color>
       </brush>
      </colorrole>
+     <colorrole role="Highlight">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>108</red>
+        <green>83</green>
+        <blue>166</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="HighlightedText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
      <colorrole role="AlternateBase">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
@@ -166,9 +184,9 @@
      <colorrole role="Accent">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
+        <red>108</red>
+        <green>83</green>
+        <blue>166</blue>
        </color>
       </brush>
      </colorrole>
@@ -282,6 +300,24 @@
        </color>
       </brush>
      </colorrole>
+     <colorrole role="Highlight">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>108</red>
+        <green>83</green>
+        <blue>166</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="HighlightedText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
      <colorrole role="AlternateBase">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
@@ -321,9 +357,9 @@
      <colorrole role="Accent">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>0</red>
-        <green>0</green>
-        <blue>0</blue>
+        <red>108</red>
+        <green>83</green>
+        <blue>166</blue>
        </color>
       </brush>
      </colorrole>
@@ -437,6 +473,24 @@
        </color>
       </brush>
      </colorrole>
+     <colorrole role="Highlight">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>108</red>
+        <green>83</green>
+        <blue>166</blue>
+       </color>
+      </brush>
+     </colorrole>
+     <colorrole role="HighlightedText">
+      <brush brushstyle="SolidPattern">
+       <color alpha="255">
+        <red>255</red>
+        <green>255</green>
+        <blue>255</blue>
+       </color>
+      </brush>
+     </colorrole>
      <colorrole role="AlternateBase">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
@@ -476,9 +530,9 @@
      <colorrole role="Accent">
       <brush brushstyle="SolidPattern">
        <color alpha="255">
-        <red>17</red>
-        <green>17</green>
-        <blue>17</blue>
+        <red>108</red>
+        <green>83</green>
+        <blue>166</blue>
        </color>
       </brush>
      </colorrole>
@@ -558,14 +612,14 @@ QPushButton:disabled {
 }
 
 /* ----- Horizontal Sliders ----- */
-QSlider::groove {
+QSlider::groove:horizontal {
     background-color: #312d34;
     height: 6px;
     border: none;
     border-radius: 3px;
 }
 
-QSlider::handle {
+QSlider::handle:horizontal {
     background-color: #6c53a6;
     border: none;
     width: 14px;
@@ -574,7 +628,30 @@ QSlider::handle {
     border-radius: 7px;
 }
 
-QSlider::sub-page {
+QSlider::sub-page:horizontal {
+    background-color: #433d47;
+    border: none;
+    border-radius: 3px;
+}
+
+/* ----- Vertical Sliders ----- */
+QSlider::groove:vertical {
+    background-color: #312d34;
+    width: 6px;
+    border: none;
+    border-radius: 3px;
+}
+
+QSlider::handle:vertical {
+    background-color: #6c53a6;
+    border: none;
+    width: 14px;
+    height: 14px;
+    margin: 0 -4px;
+    border-radius: 7px;
+}
+
+QSlider::add-page:vertical {
     background-color: #433d47;
     border: none;
     border-radius: 3px;
@@ -1779,6 +1856,7 @@ QWidget {
     <addaction name="actionDiscordPresence"/>
     <addaction name="actionAudioScrobbleLastFm"/>
     <addaction name="actionAutoTagGenres"/>
+    <addaction name="actionOrganiseFiles"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -2748,6 +2826,17 @@ QWidget {
    </property>
    <property name="toolTip">
     <string>Replace the genres of the selected songs with those found online</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionOrganiseFiles">
+   <property name="text">
+    <string>Organise Files…</string>
+   </property>
+   <property name="toolTip">
+    <string>Move and rename the library's files according to a naming template</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

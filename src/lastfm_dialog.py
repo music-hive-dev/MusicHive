@@ -7,7 +7,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QFile, QIODevice
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtWidgets import QMessageBox, QWidget
+from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton, QWidget
 
 from src.lastfm import LastFmClient
 
@@ -46,6 +46,12 @@ class LastFmDialog:
         d.lastFmLogoutButton.clicked.connect(client.logout)
         d.lastFmRememberCheckBox.toggled.connect(client.set_remember)
         d.lastFmDownloadButton.clicked.connect(self._on_download_clicked)
+        d.lastFmImportButton.clicked.connect(self._on_import_clicked)
+        d.lastFmBacklogPerDay.setValue(client.backlog_per_day)
+        d.lastFmBacklogPerDay.valueChanged.connect(client.set_backlog_per_day)
+        # Enter confirms a typed number; it must not press a button as well.
+        for button in d.findChildren(QPushButton):
+            button.setAutoDefault(False)
         d.lastFmButtonBox_2.rejected.connect(d.reject)
 
         client.state_changed.connect(self.refresh)
@@ -82,6 +88,16 @@ class LastFmDialog:
         d.lastFmLoginButton.setEnabled(client.is_configured and state != "in")
         d.lastFmLogoutButton.setEnabled(state == "in")
         d.lastFmDownloadButton.setEnabled(state == "in" and not client.is_downloading)
+        d.lastFmImportButton.setEnabled(state == "in")
+        waiting = client.backlog_count
+        if waiting:
+            days = -(-waiting // client.backlog_per_day)  # rounded up
+            d.lastFmBacklogLabel.setText(
+                f"{waiting} imported plays waiting: about {days} day{'' if days == 1 else 's'} "
+                "with MusicHive open."
+            )
+        else:
+            d.lastFmBacklogLabel.setText("")
 
     # ----- buttons -----
 
@@ -90,6 +106,27 @@ class LastFmDialog:
             self.client.cancel_login()
         else:
             self.client.start_login()
+
+    def _on_import_clicked(self) -> None:
+        d = self.dialog
+        chosen, _used_filter = QFileDialog.getOpenFileName(
+            d, "Import scrobble log", "", "Scrobble logs (*.log);;All files (*)"
+        )
+        if not chosen:
+            return
+        try:
+            result = self.client.import_scrobble_log(Path(chosen))
+        except OSError as error:
+            QMessageBox.warning(d, "Import scrobble log", f"Could not read the file:\n{error}")
+            return
+        notes = [f"Added {result.added} plays."]
+        if result.already_imported:
+            notes.append(f"{result.already_imported} were imported before and left out.")
+        if result.skipped_on_player:
+            notes.append(f"{result.skipped_on_player} were skipped on the player and left out.")
+        if result.unreadable:
+            notes.append(f"{result.unreadable} lines could not be read.")
+        QMessageBox.information(d, "Import scrobble log", "\n".join(notes))
 
     def _on_download_clicked(self) -> None:
         d = self.dialog
