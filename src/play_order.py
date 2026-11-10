@@ -163,6 +163,42 @@ class PlayOrder:
             index += 1
         self._entries.insert(index, self._new_entry(row, queued=True))
 
+    def add_to_end(self, row: int) -> None:
+        """Queue `row` at the very end of the Upcoming list, after everything else."""
+        if self._position >= 0 and 0 <= row < self._count:
+            self._entries.append(self._new_entry(row, queued=True))
+
+    def insert_upcoming(self, offset: int, rows: list[int]) -> None:
+        """Queue `rows`, in this order, `offset` places down the Upcoming list
+        (never above the playing track; past the end means at the end)."""
+        if self._position < 0:
+            return
+        index = min(max(self._position + offset, self._position + 1), len(self._entries))
+        entries = [self._new_entry(row, queued=True) for row in rows if 0 <= row < self._count]
+        self._entries[index:index] = entries
+
+    def move_upcoming(self, offsets: list[int], offset: int) -> bool:
+        """Move the entries `offsets` places down the Upcoming list so they sit,
+        in their current order, where `offset` was. The playing track (offset 0)
+        stays where it is. Returns True if anything moved."""
+        if self._position < 0:
+            return False
+        start = self._position
+        indexes = sorted({start + o for o in offsets if o > 0 and start + o < len(self._entries)})
+        if not indexes:
+            return False
+        target = min(max(start + offset, start + 1), len(self._entries))
+        moving = [self._entries[index] for index in indexes]
+        # Taking them out shifts the target up by however many were above it.
+        target -= sum(1 for index in indexes if index < target)
+        taken = set(indexes)
+        rest = [entry for index, entry in enumerate(self._entries) if index not in taken]
+        rest[target:target] = moving
+        if rest == self._entries:
+            return False
+        self._entries = rest
+        return True
+
     def remove_upcoming(self, offset: int) -> bool:
         """Remove the entry `offset` places down the Upcoming list.
 

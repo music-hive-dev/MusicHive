@@ -229,6 +229,7 @@ MENU_ICONS = {
     "play_now": "play",
     "play_next": "list-start",
     "add_to_queue": "list-plus",
+    "add_to_end": "list-end",
     "add_to_playlist": "list-music",
     "cut": "scissors",
     "copy": "clipboard-copy",
@@ -796,8 +797,18 @@ class MusicHive:
         # follow it in play order. It reads its data from the library model.
         self.queue_model = QueueModel(self.library_model, w)
         setup_track_view(w.upcomingList, self.queue_model)
-        w.upcomingList.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
+        # Songs dragged from the other lists can be dropped between its rows,
+        # and songs dragged within it are moved.
+        w.upcomingList.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        w.upcomingList.setDragDropOverwriteMode(False)
+        w.upcomingList.setDropIndicatorShown(True)
         w.upcomingList.doubleClicked.connect(self.play_upcoming_item)
+        # Delete removes the selected songs (never the playing one) from the list.
+        delete_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), w.upcomingList)
+        delete_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
+        delete_shortcut.activated.connect(
+            lambda: self.remove_from_upcoming([o for o in self.selected_upcoming_offsets() if o > 0])
+        )
         w.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, w.upcomingDock)
         self.setup_dock_toggles()
 
@@ -929,6 +940,8 @@ class MusicHive:
         self.side_model.songs_dropped.connect(self.add_to_playlist, queued)
         self.playlist_proxy.songs_added.connect(self.add_to_shown_playlist, queued)
         self.playlist_proxy.songs_rearranged.connect(self.rearrange_playlist, queued)
+        self.queue_model.songs_dropped.connect(self.drop_into_upcoming, queued)
+        self.queue_model.songs_moved.connect(self.move_in_upcoming, queued)
         self.side_model.drop_refused.connect(self.show_status)
         self.playlist_proxy.drop_refused.connect(self.show_status)
 
@@ -2344,6 +2357,7 @@ class MusicHive:
 
         add(menu, "Play next", "play_next", lambda: self.queue_tracks([row], play_next=True))
         add(menu, "Add to queue", "add_to_queue", lambda: self.queue_tracks([row], play_next=False))
+        add(menu, "Add to end of queue", "add_to_end", lambda: self.queue_tracks([row], at_end=True))
         self.add_playlist_submenu(menu, [row])
         menu.addSeparator()
 
@@ -2461,6 +2475,10 @@ class MusicHive:
             menu, f"Add to queue{several}", "add_to_queue",
             lambda: self.queue_tracks(rows, play_next=False),
         )
+        add(
+            menu, f"Add to end of queue{several}", "add_to_end",
+            lambda: self.queue_tracks(rows, at_end=True),
+        )
         self.add_playlist_submenu(menu, rows, several)
         menu.addSeparator()
 
@@ -2563,8 +2581,9 @@ class MusicHive:
             )
         self.play_index(row)
 
-    def queue_tracks(self, rows: list[int], play_next: bool) -> None:
-        """Play next / Add to queue, keeping the songs in the order given."""
+    def queue_tracks(self, rows: list[int], play_next: bool = False, at_end: bool = False) -> None:
+        """Play next / Add to queue / Add to end of queue, keeping the songs in
+        the order given."""
         if self.current_index < 0:
             # Nothing is playing, so the first song starts and the rest queue behind it.
             self.play_order.start_at(rows[0], self.play_source_rows())
@@ -2578,11 +2597,33 @@ class MusicHive:
             for row in reversed(rows):  # each one goes right after the playing track
                 self.play_order.play_next(row)
             self.show_status(f"Playing next: {what}")
+        elif at_end:
+            for row in rows:
+                self.play_order.add_to_end(row)
+            self.show_status(f"Added to end of queue: {what}")
         else:
             for row in rows:
                 self.play_order.add_to_queue(row)
             self.show_status(f"Added to queue: {what}")
         self.refresh_upcoming(keep_scroll=True)
+
+    def drop_into_upcoming(self, rows: list[int], offset: int) -> None:
+        """Songs were dropped on the Upcoming list, `offset` places down it."""
+        rows = [row for row in rows if 0 <= row < len(self.tracks)]
+        if not rows:
+            return
+        if self.current_index < 0:
+            self.queue_tracks(rows)  # nothing is playing: the first song starts
+            return
+        self.play_order.insert_upcoming(offset, rows)
+        what = self.library_model.info(rows[0]).title if len(rows) == 1 else f"{len(rows)} songs"
+        self.show_status(f"Added to queue: {what}")
+        self.refresh_upcoming(keep_scroll=True)
+
+    def move_in_upcoming(self, offsets: list[int], offset: int) -> None:
+        """Songs dragged within the Upcoming list were dropped `offset` places down it."""
+        if self.play_order.move_upcoming(offsets, offset):
+            self.refresh_upcoming(keep_scroll=True)
 
     def selected_upcoming_offsets(self) -> list[int]:
         """The selected rows of the Upcoming list, top to bottom."""

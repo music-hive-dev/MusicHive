@@ -41,6 +41,7 @@ STOP_AFTER_ICON = ASSETS_DIR / "eject.svg"  # marks the track playback will end 
 _LEFT_ALIGNED = (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter).value
 
 TRACK_DRAG_MIME = "application/x-musichive-tracks"
+UPCOMING_DRAG_MIME = "application/x-musichive-from-upcoming"  # positions dragged out of Upcoming
 
 
 def make_track_drag(rows: list[int], playlist: str | None = None) -> QMimeData:
@@ -597,7 +598,15 @@ class QueueModel(QAbstractListModel):
 
     It stores only library row numbers and reads everything else (title, tags,
     cover) from the library model, so nothing is copied.
+
+    Songs dragged in from other lists can be dropped between its rows: the
+    signal gives their library rows and how far down the list they go. Songs
+    dragged within the list are moved: songs_moved gives the positions they
+    came from and the position they were dropped at.
     """
+
+    songs_dropped = Signal(list, int)
+    songs_moved = Signal(list, int)
 
     def __init__(self, library_model: TrackListModel, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -621,13 +630,37 @@ class QueueModel(QAbstractListModel):
 
     def flags(self, index: QModelIndex) -> Qt.ItemFlag:
         flags = super().flags(index)
-        return flags | Qt.ItemFlag.ItemIsDragEnabled if index.isValid() else flags
+        if not index.isValid():
+            # Drops land between rows only: the rows themselves don't accept them.
+            return flags | Qt.ItemFlag.ItemIsDropEnabled
+        return flags | Qt.ItemFlag.ItemIsDragEnabled
 
     def mimeTypes(self) -> list[str]:
         return [TRACK_DRAG_MIME]
 
     def mimeData(self, indexes) -> QMimeData:
-        return make_track_drag([self._rows[index.row()] for index in indexes])
+        positions = sorted(index.row() for index in indexes)
+        data = make_track_drag([self._rows[position] for position in positions])
+        data.setData(UPCOMING_DRAG_MIME, json.dumps(positions).encode("utf-8"))
+        return data
+
+    def canDropMimeData(self, data, action, row, column, parent) -> bool:
+        return data.hasFormat(TRACK_DRAG_MIME)
+
+    def dropMimeData(self, data, action, row, column, parent) -> bool:
+        if not self.canDropMimeData(data, action, row, column, parent):
+            return False
+        # Below the playing track (row 0) at the earliest; -1 means the end.
+        offset = max(1, row) if row >= 0 else len(self._rows)
+        if data.hasFormat(UPCOMING_DRAG_MIME):
+            positions = json.loads(bytes(data.data(UPCOMING_DRAG_MIME)).decode("utf-8"))
+            self.songs_moved.emit(positions, offset)
+            return True
+        rows = read_track_drag(data)[0]
+        if not rows:
+            return False
+        self.songs_dropped.emit(rows, offset)
+        return True
 
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._rows)
