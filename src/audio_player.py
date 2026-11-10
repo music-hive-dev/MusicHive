@@ -343,6 +343,7 @@ class AudioPlayer(QObject):
         self._other = _Deck()  # idle, or fading out the previous track
         self._sound = SoundSettings()
         self._level_offset_db = 0.0  # brings tagged songs to the library's own volume
+        self._level_enabled = True  # False plays every song at its own volume
 
         self._visual_format = QAudioFormat()
         self._visual_format.setSampleRate(44100)
@@ -512,9 +513,20 @@ class AudioPlayer(QObject):
     def set_level_offset(self, offset_db: float) -> None:
         """Set how far the current library's volume is above the tags' reference level."""
         self._level_offset_db = offset_db
+        self._apply_track_gains()
+
+    def set_level_enabled(self, enabled: bool) -> None:
+        """Turn volume adjustment on or off; it is heard straight away."""
+        self._level_enabled = enabled
+        self._apply_track_gains()
+
+    def _gain_for(self, track) -> float:
+        return read_track_gain(track, self._level_offset_db) if self._level_enabled else 0.0
+
+    def _apply_track_gains(self) -> None:
         for deck in self._decks():
             if deck.track is not None:
-                deck.set_track_gain(read_track_gain(deck.track, offset_db))
+                deck.set_track_gain(self._gain_for(deck.track))
 
     def set_sound_settings(self, settings: SoundSettings) -> None:
         """Apply crossfade, fade and silence settings, also to the track playing now."""
@@ -571,7 +583,7 @@ class AudioPlayer(QObject):
     def _open(self, track: Path, position_ms: int | None, state: str) -> None:
         deck = self._active
         deck.open(track, position_ms)
-        deck.set_track_gain(read_track_gain(track, self._level_offset_db))
+        deck.set_track_gain(self._gain_for(track))
         self._waiting_for_head = None
         self._timer.start()
         self.track_started.emit(track)  # first, so that the new state goes with the new track

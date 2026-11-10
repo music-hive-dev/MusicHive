@@ -33,7 +33,7 @@ class FilterBar(QObject):
     """
 
     chosen = Signal(str, str)  # kind, value ("" means every song)
-    album_menu_requested = Signal(list, object)  # the album's library rows, screen position
+    group_menu_requested = Signal(list, object)  # the entry's library rows, screen position
 
     def __init__(
         self,
@@ -131,14 +131,13 @@ class FilterBar(QObject):
         return self._cover_for(kind, group, rows[group.rows[0]])
 
     def _on_context_menu(self, pos) -> None:
-        """Right-clicking an album asks for its menu; other entries have none."""
+        """Right-clicking an entry asks for its menu; "All ..." has none."""
         group = self._model.group_at(self._view.indexAt(pos).row())
         if group is None or not group.key or self._signature is None:
             return
-        _owner, kind, rows = self._signature
-        if kind == "album":
-            library_rows = [rows[position] for position in sorted(group.rows)]
-            self.album_menu_requested.emit(library_rows, self._view.viewport().mapToGlobal(pos))
+        _owner, _kind, rows = self._signature
+        library_rows = [rows[position] for position in sorted(group.rows)]
+        self.group_menu_requested.emit(library_rows, self._view.viewport().mapToGlobal(pos))
 
     def _set_visible(self, visible: bool) -> None:
         self._combo.setVisible(visible)

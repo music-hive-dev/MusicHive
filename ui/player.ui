@@ -727,7 +727,7 @@ QMenuBar {
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>5</number>
+       <number>0</number>
       </property>
       <property name="elideMode">
        <enum>Qt::TextElideMode::ElideNone</enum>
@@ -2277,6 +2277,15 @@ QWidget {
     <addaction name="actionPlayPause"/>
     <addaction name="actionPrevious"/>
     <addaction name="actionNext"/>
+    <addaction name="separator"/>
+    <addaction name="actionEqualiser"/>
+    <addaction name="actionStopAfterCurrentSong"/>
+    <addaction name="actionScrobble"/>
+    <addaction name="actionDiscordPresence"/>
+    <addaction name="actionRepeat"/>
+    <addaction name="actionShuffle"/>
+    <addaction name="actionVolumeAdjustment"/>
+    <addaction name="actionCrossfade"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -2288,13 +2297,18 @@ QWidget {
     <property name="title">
      <string>&amp;Edit</string>
     </property>
+    <addaction name="actionCut"/>
+    <addaction name="actionCopy"/>
+    <addaction name="actionPaste"/>
+    <addaction name="separator"/>
+    <addaction name="actionImportSettings"/>
+    <addaction name="actionExportSettings"/>
     <addaction name="actionSettings"/>
    </widget>
    <widget class="QMenu" name="menuTools">
     <property name="title">
      <string>&amp;Tools</string>
     </property>
-    <addaction name="actionDiscordPresence"/>
     <addaction name="actionAudioScrobbleLastFm"/>
     <addaction name="actionAutoTagGenres"/>
     <addaction name="actionOrganiseFiles"/>
@@ -2306,6 +2320,9 @@ QWidget {
      <string>&amp;View</string>
     </property>
     <addaction name="actionMinimizeToTray"/>
+    <addaction name="actionShowUpcoming"/>
+    <addaction name="actionShowLibrary"/>
+    <addaction name="actionShowPlayer"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -2395,7 +2412,7 @@ QDockWidget::title {
           <enum>Qt::TextFormat::RichText</enum>
          </property>
          <property name="textInteractionFlags">
-          <set>Qt::TextInteractionFlag::LinksAccessibleByMouse</set>
+          <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
          </property>
         </widget>
        </item>
@@ -2408,7 +2425,7 @@ QDockWidget::title {
           <enum>Qt::TextFormat::RichText</enum>
          </property>
          <property name="textInteractionFlags">
-          <set>Qt::TextInteractionFlag::LinksAccessibleByMouse</set>
+          <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
          </property>
         </widget>
        </item>
@@ -2421,12 +2438,15 @@ QDockWidget::title {
           <enum>Qt::TextFormat::RichText</enum>
          </property>
          <property name="textInteractionFlags">
-          <set>Qt::TextInteractionFlag::LinksAccessibleByMouse</set>
+          <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QLabel" name="trackInfoFile">
+         <property name="textInteractionFlags">
+          <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+         </property>
          <property name="font">
           <font>
            <family>Inter</family>
@@ -2516,7 +2536,7 @@ QDockWidget::title {
 }</string>
    </property>
    <property name="features">
-    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable</set>
+    <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
    </property>
    <property name="allowedAreas">
     <set>Qt::DockWidgetArea::LeftDockWidgetArea</set>
@@ -2629,13 +2649,6 @@ QDockWidget::title {
          </attribute>
         </widget>
        </item>
-       <item>
-        <widget class="Line" name="line_7">
-         <property name="orientation">
-          <enum>Qt::Orientation::Horizontal</enum>
-         </property>
-        </widget>
-       </item>
       </layout>
      </item>
     </layout>
@@ -2648,13 +2661,13 @@ QDockWidget::title {
    <property name="minimumSize">
     <size>
      <width>1211</width>
-     <height>90</height>
+     <height>80</height>
     </size>
    </property>
    <property name="maximumSize">
     <size>
      <width>524287</width>
-     <height>90</height>
+     <height>80</height>
     </size>
    </property>
    <property name="font">
@@ -2678,10 +2691,7 @@ QDockWidget::float-button {
 }</string>
    </property>
    <property name="features">
-    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable</set>
-   </property>
-   <property name="windowTitle">
-    <string>Player</string>
+    <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
    </property>
    <property name="allowedAreas">
     <set>Qt::DockWidgetArea::BottomDockWidgetArea</set>
@@ -3107,6 +3117,39 @@ QWidget {
     </layout>
    </widget>
   </widget>
+  <action name="actionShowUpcoming">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Upcoming Tracks</string>
+   </property>
+  </action>
+  <action name="actionShowLibrary">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Library</string>
+   </property>
+  </action>
+  <action name="actionShowPlayer">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Player</string>
+   </property>
+  </action>
   <action name="actionImportPlaylist">
    <property name="icon">
     <iconset>
@@ -3267,6 +3310,10 @@ QWidget {
    </property>
   </action>
   <action name="actionAutoTagGenres">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/bot.svg</normaloff>../assets/bot.svg</iconset>
+   </property>
    <property name="text">
     <string>Auto-Tag Genres…</string>
    </property>
@@ -3278,6 +3325,10 @@ QWidget {
    </property>
   </action>
   <action name="actionOrganiseFiles">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/folder-sync.svg</normaloff>../assets/folder-sync.svg</iconset>
+   </property>
    <property name="text">
     <string>Organise Files…</string>
    </property>
@@ -3289,6 +3340,10 @@ QWidget {
    </property>
   </action>
   <action name="actionLevelVolume">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/volume-2.svg</normaloff>../assets/volume-2.svg</iconset>
+   </property>
    <property name="text">
     <string>Level Volume…</string>
    </property>
@@ -3300,6 +3355,10 @@ QWidget {
    </property>
   </action>
   <action name="actionConvertFiles">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/coins-exchange.svg</normaloff>../assets/coins-exchange.svg</iconset>
+   </property>
    <property name="text">
     <string>Convert Files…</string>
    </property>
@@ -3326,6 +3385,9 @@ QWidget {
    <property name="checkable">
     <bool>true</bool>
    </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
    <property name="text">
     <string>Minimize to tray</string>
    </property>
@@ -3350,7 +3412,157 @@ QWidget {
      <normaloff>../assets/radio-tower.svg</normaloff>../assets/radio-tower.svg</iconset>
    </property>
    <property name="text">
-    <string>Last.fm Account</string>
+    <string>Last.fm...</string>
+   </property>
+   <property name="toolTip">
+    <string>Last.fm settings</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionExportSettings">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/folder-input.svg</normaloff>../assets/folder-input.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Export Settings...</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionImportSettings">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/folder-output.svg</normaloff>../assets/folder-output.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Import Settings...</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCut">
+   <property name="shortcut">
+    <string>Ctrl+X</string>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/scissors.svg</normaloff>../assets/scissors.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Cut</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCopy">
+   <property name="shortcut">
+    <string>Ctrl+C</string>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/clipboard-copy.svg</normaloff>../assets/clipboard-copy.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Copy</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionPaste">
+   <property name="shortcut">
+    <string>Ctrl+V</string>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/clipboard-paste.svg</normaloff>../assets/clipboard-paste.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Paste</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionScrobble">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Scrobble</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionEqualiser">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/sliders-vertical.svg</normaloff>../assets/sliders-vertical.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Equaliser</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionRepeat">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Repeat</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionShuffle">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Shuffle</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCrossfade">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Crossfade</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionVolumeAdjustment">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Volume Adjustment</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionStopAfterCurrentSong">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Stop After Current Song</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

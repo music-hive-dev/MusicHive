@@ -209,6 +209,7 @@ class LyricsView(QObject):
         lyrics = parse_lyrics(text)
         self._times = lyrics.times_ms
         self._current = -1
+        self.text = "\n".join(lyrics.texts)  # for copying; empty if there are no lyrics
         lines = lyrics.texts or [NO_LYRICS_TEXT]
         if self._times:
             view.addItem(self._make_gap())

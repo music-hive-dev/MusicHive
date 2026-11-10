@@ -17,6 +17,7 @@ from PySide6.QtCore import (
     QIODevice,
     QItemSelection,
     QItemSelectionModel,
+    QMimeData,
     QModelIndex,
     QObject,
     QRect,
@@ -38,6 +39,7 @@ from PySide6.QtGui import (
     QPalette,
     QPixmap,
     QShortcut,
+    QTextDocumentFragment,
 )
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import (
@@ -113,7 +115,8 @@ from src.device_sync import DeviceSyncPanel
 from src.devices import DeviceEjector, DevicesTab, connected_devices, open_in_dolphin
 from src.equaliser import EqualiserWindow, load_equaliser
 from src.level_volume import LevelVolumeTool
-from src.sound_settings import SoundSettingsTab, load_sound_settings
+from src.settings_transfer import export_settings, import_settings
+from src.sound_settings import CROSSFADE_KEY, SoundSettingsTab, load_sound_settings
 from src.organise_files import FileMove, OrganiseDialog, OrganiseResult
 from src.tag_editor import TagEditorDialog
 from src.tag_writer import SaveResult, TagJob, TagWriter
@@ -215,6 +218,10 @@ MENU_ICONS = {
     "play_next": "list-start",
     "add_to_queue": "list-plus",
     "add_to_playlist": "list-music",
+    "cut": "scissors",
+    "copy": "clipboard-copy",
+    "paste": "clipboard-paste",
+    "select_all": "list-check",
     "edit": "pencil",
     "delete_from_playlist": "x",
     "delete_file": "trash",
@@ -224,7 +231,6 @@ MENU_ICONS = {
     "new_playlist": "plus",
     "edit_playlist": "pencil",
     "play_playlist": "play",
-    "rename_playlist": "pencil",
     "playlist_icon": "library",
     "remove_playlist_icon": "x",
     "delete_playlist": "trash",
@@ -257,6 +263,8 @@ GO_TO_FIELDS = (
 NO_PLAYLIST_TEXT = "No playlist selected"
 M3U8_FILTER = "M3U8 playlist (*.m3u8)"
 M3U_FILTER = "M3U playlist (*.m3u)"
+SETTINGS_FILTER = "MusicHive settings (*.ini)"
+NOTHING_TO_PASTE = "There are no songs from this library on the clipboard"
 
 
 def load_ui(path: Path):
@@ -361,6 +369,29 @@ class CenteredTabIconStyle(QProxyStyle):
             QIcon.Mode.Normal if enabled else QIcon.Mode.Disabled,
             QIcon.State.On if selected else QIcon.State.Off,
         )
+
+
+class DragSelectFilter(QObject):
+    """Lets dragging across a song list select songs.
+
+    A drag that starts on a selected song still moves the selection, as before.
+    A drag that starts anywhere else selects the rows it passes over.
+    """
+
+    def __init__(self, view: QAbstractItemView) -> None:
+        super().__init__(view)
+        self._view = view
+        view.viewport().installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:
+        kind = event.type()
+        if kind == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+            view = self._view
+            index = view.indexAt(event.position().toPoint())
+            view.setDragEnabled(index.isValid() and view.selectionModel().isSelected(index))
+        elif kind == QEvent.Type.MouseButtonRelease and event.button() == Qt.MouseButton.LeftButton:
+            self._view.setDragEnabled(True)
+        return False
 
 
 class VolumeWheelFilter(QObject):
@@ -554,7 +585,8 @@ class MusicHive:
         w.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, w.upcomingDock)
         self.setup_dock_toggles()
 
-        # Right-click menus on the song lists
+        # Right-click menus and drag-selecting on the song lists
+        self._drag_select_filters = []
         for view, source in (
             (w.libraryList, "library"),
             (w.upcomingList, "upcoming"),
@@ -563,6 +595,7 @@ class MusicHive:
             (w.albumSongList, "album"),
             (w.historyList, HISTORY_SOURCE),
         ):
+            self._drag_select_filters.append(DragSelectFilter(view))
             view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             view.customContextMenuRequested.connect(
                 lambda pos, v=view, s=source: self.show_track_menu(v, pos, s)
@@ -708,6 +741,19 @@ class MusicHive:
         self.visualizer = Visualizer(w.nowPlayingVisualizer)
         self.player.audio_buffer_ready.connect(self.visualizer.add_buffer)
         self.lyrics_view = LyricsView(w.nowPlayingLyrics)
+        w.nowPlayingLyrics.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        w.nowPlayingLyrics.customContextMenuRequested.connect(self.show_lyrics_menu)
+        for widget in (
+            w.trackInfoTitle,
+            w.trackInfoArtistAlbumArtist,
+            w.trackInfoAlbumYear,
+            w.trackInfoFile,
+            w.trackInfoCoverImg,
+        ):
+            widget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            widget.customContextMenuRequested.connect(
+                lambda pos, widget=widget: self.show_playing_track_menu(widget, pos)
+            )
         self.rating_stars = StarRating(
             w.trackRatingStars, asset_icon("star"), asset_icon("star_full")
         )
@@ -738,6 +784,8 @@ class MusicHive:
         for label in (w.trackInfoTitle, w.trackInfoArtistAlbumArtist, w.trackInfoAlbumYear):
             label.linkActivated.connect(self.on_track_info_link)
 
+        self.settings_window = None  # created the first time it is opened
+
         # Shuffle and repeat buttons (settings are remembered between sessions)
         w.shuffleButton.setCheckable(True)
         w.repeatButton.setCheckable(True)
@@ -765,7 +813,6 @@ class MusicHive:
         w.actionImportPlaylist.triggered.connect(self.import_playlist)
         w.actionExportPlaylist.triggered.connect(lambda: self.export_playlist())
         w.actionQuit.triggered.connect(lambda _checked=False: self.quit_app())
-        self.settings_window = None  # created the first time it is opened
         w.actionSettings.triggered.connect(lambda _checked=False: self.show_settings())
         self.setup_tray()
         w.actionPlayPause.triggered.connect(self.on_play_pause)
@@ -792,6 +839,7 @@ class MusicHive:
         self.player.set_sound_settings(load_sound_settings(self.settings))
         self.equaliser_window: EqualiserWindow | None = None  # made when first opened
         w.equalizerButton.clicked.connect(lambda _checked=False: self.show_equaliser())
+        self.setup_menu_actions()
         self.update_volume_ui()
         w.volumeSlider.valueChanged.connect(self.on_volume_changed)
         w.muteButton.toggled.connect(self.on_mute_toggled)
@@ -862,14 +910,219 @@ class MusicHive:
         if self.settings_window is None:
             self.settings_window = d = load_dialog(SETTINGS_UI_FILE, self.window)
             self.sound_settings_tab = SoundSettingsTab(
-                d, self.settings, self.player.set_sound_settings
+                d, self.settings, self.on_sound_settings_changed
             )
+            self.connect_settings_tabs(d)
             d.settingsButtonBox.rejected.connect(d.reject)
             # Enter confirms a typed number; it must not press Close as well.
             d.settingsButtonBox.button(QDialogButtonBox.StandardButton.Close).setAutoDefault(False)
         self.settings_window.show()
         self.settings_window.raise_()
         self.settings_window.activateWindow()
+
+    def connect_settings_tabs(self, d) -> None:
+        """Connect the settings window's controls that mirror menu items."""
+        w = self.window
+        for checkbox, action in (
+            (d.playbackShuffle, w.actionShuffle),
+            (d.soundVolumeAdjustment, w.actionVolumeAdjustment),
+            (d.lastFmScrobble, w.actionScrobble),
+            (d.onlineDiscordPresence, w.actionDiscordPresence),
+            (d.generalMinimizeToTray, w.actionMinimizeToTray),
+        ):
+            if not action.isEnabled():  # no Discord application id, or no system tray
+                checkbox.setEnabled(False)
+                checkbox.setToolTip(action.toolTip())
+            checkbox.setChecked(action.isChecked())
+            checkbox.toggled.connect(action.setChecked)
+            action.toggled.connect(checkbox.setChecked)
+
+        d.playbackRepeat.setCurrentIndex(PlayOrder.REPEAT_MODES.index(self.play_order.repeat))
+        d.playbackRepeat.activated.connect(
+            lambda index: self.set_repeat_mode(PlayOrder.REPEAT_MODES[index])
+        )
+        d.soundEqualiserButton.clicked.connect(lambda _checked=False: self.show_equaliser())
+        d.backupImportButton.clicked.connect(lambda _checked=False: self.import_settings_file())
+        d.backupExportButton.clicked.connect(lambda _checked=False: self.export_settings_file())
+
+    def setup_menu_actions(self) -> None:
+        """Connect the Edit and Playback menu items that mirror other controls."""
+        w = self.window
+        w.actionCut.triggered.connect(lambda _checked=False: self.on_clipboard_action("cut"))
+        w.actionCopy.triggered.connect(lambda _checked=False: self.on_clipboard_action("copy"))
+        w.actionPaste.triggered.connect(lambda _checked=False: self.on_clipboard_action("paste"))
+        w.actionExportSettings.triggered.connect(lambda _checked=False: self.export_settings_file())
+        w.actionImportSettings.triggered.connect(lambda _checked=False: self.import_settings_file())
+        w.actionEqualiser.triggered.connect(lambda _checked=False: self.show_equaliser())
+
+        w.actionShuffle.setChecked(w.shuffleButton.isChecked())
+        w.actionShuffle.toggled.connect(w.shuffleButton.setChecked)
+        w.shuffleButton.toggled.connect(w.actionShuffle.setChecked)
+        w.actionRepeat.triggered.connect(lambda _checked=False: self.cycle_repeat())
+        w.actionStopAfterCurrentSong.setEnabled(False)  # until something is playing
+        w.actionStopAfterCurrentSong.triggered.connect(
+            lambda _checked=False: self.toggle_stop_after(0)
+        )
+
+        w.actionCrossfade.setChecked(load_sound_settings(self.settings).crossfade)
+        w.actionCrossfade.toggled.connect(self.on_crossfade_toggled)
+
+        w.actionScrobble.setChecked(self.settings.value("lastfm/scrobbling", True, type=bool))
+        w.actionScrobble.toggled.connect(
+            lambda enabled: self.settings.setValue("lastfm/scrobbling", enabled)
+        )
+
+        adjust_volume = self.settings.value("volumeAdjustment", True, type=bool)
+        w.actionVolumeAdjustment.setChecked(adjust_volume)
+        self.player.set_level_enabled(adjust_volume)
+        w.actionVolumeAdjustment.toggled.connect(self.on_volume_adjustment_toggled)
+
+    def on_sound_settings_changed(self, sound) -> None:
+        self.player.set_sound_settings(sound)
+        self.window.actionCrossfade.setChecked(sound.crossfade)
+
+    def on_crossfade_toggled(self, enabled: bool) -> None:
+        if self.settings_window is not None:
+            self.settings_window.soundCrossfade.setChecked(enabled)  # this saves and applies it
+            return
+        self.settings.setValue(CROSSFADE_KEY, enabled)
+        self.player.set_sound_settings(load_sound_settings(self.settings))
+
+    def on_volume_adjustment_toggled(self, enabled: bool) -> None:
+        self.settings.setValue("volumeAdjustment", enabled)
+        self.player.set_level_enabled(enabled)
+
+    def on_clipboard_action(self, name: str) -> None:
+        """Cut, Copy or Paste: on the text being used, otherwise on songs."""
+        focus = QApplication.focusWidget()
+        text_action = getattr(focus, name, None)
+        if name == "copy" and isinstance(focus, QLabel) and focus.hasSelectedText():
+            self.copy_text(focus.selectedText(), "Text copied")
+        elif callable(text_action):
+            text_action()
+        elif name == "paste":
+            self.paste_songs()
+        else:
+            self.copy_songs(cut=name == "cut")
+
+    def copy_songs(self, cut: bool) -> None:
+        """Edit menu: copy or cut the songs selected in the list being used."""
+        w = self.window
+        if w.upcomingList.hasFocus():
+            offsets = self.selected_upcoming_offsets()
+            if not offsets:
+                self.show_status("Select some songs first")
+            elif cut:
+                self.cut_from_upcoming([offset for offset in offsets if offset > 0])
+            else:
+                self.copy_rows(self.selected_library_rows("upcoming"))
+            return
+        rows = self.selected_song_rows()
+        if not rows:
+            self.show_status("Select some songs first")
+        elif not cut:
+            self.copy_rows(rows)
+        elif (
+            w.playlistSongList.isVisible()
+            and self.shows_normal_playlist()
+            and not self.side_model.is_locked(self.current_playlist)
+        ):
+            self.cut_songs(rows)
+        else:
+            self.show_status("Songs can only be cut from an unlocked normal playlist or Upcoming")
+
+    def paste_songs(self) -> None:
+        """Edit menu: paste into the list being used."""
+        if self.window.upcomingList.hasFocus():
+            self.paste_into("upcoming")
+        elif not self.window.playlistSongList.isVisible() or self.current_playlist is None:
+            self.show_status("Open a playlist to paste songs into")
+        elif not self.shows_normal_playlist():
+            self.show_status("Songs cannot be pasted into an auto playlist")
+        else:
+            self.paste_into("playlist")
+
+    def copy_text(self, text: str, message: str) -> None:
+        QApplication.clipboard().setText(text)
+        self.show_status(message)
+
+    def put_songs_on_clipboard(self, rows: list[int]) -> None:
+        """Put songs on the clipboard as files, so other programs can paste them too."""
+        data = QMimeData()
+        data.setUrls([QUrl.fromLocalFile(str(self.tracks[row])) for row in rows])
+        QApplication.clipboard().setMimeData(data)
+
+    def clipboard_rows(self) -> list[int]:
+        """The library rows of the songs on the clipboard."""
+        data = QApplication.clipboard().mimeData()
+        urls = data.urls() if data is not None and data.hasUrls() else []
+        if not urls:
+            return []
+        row_of = {path: row for row, path in enumerate(self.tracks)}
+        paths = (Path(url.toLocalFile()) for url in urls if url.isLocalFile())
+        return [row_of[path] for path in paths if path in row_of]
+
+    def copy_rows(self, rows: list[int]) -> None:
+        self.put_songs_on_clipboard(rows)
+        self.show_status(f"Copied {self.describe_songs(rows)}")
+
+    def cut_songs(self, rows: list[int]) -> None:
+        """Copy songs and remove them from the playlist on screen."""
+        self.put_songs_on_clipboard(rows)
+        self.remove_from_playlist(rows)
+        self.show_status(f"Cut {self.describe_songs(rows)}")
+
+    def cut_from_upcoming(self, offsets: list[int]) -> None:
+        """Copy these entries of the Upcoming list, and take them out of it."""
+        if not offsets:
+            self.show_status("The playing track cannot be removed")
+            return
+        model = self.queue_model
+        rows = [model.library_row(model.index(offset, 0)) for offset in sorted(offsets)]
+        self.put_songs_on_clipboard(rows)
+        self.remove_from_upcoming(offsets)
+        self.show_status(f"Cut {self.describe_songs(rows)}")
+
+    def paste_into(self, source: str, before: int = -1) -> None:
+        """Add the songs on the clipboard to the Upcoming list or the playlist on screen."""
+        rows = self.clipboard_rows()
+        if not rows:
+            self.show_status(NOTHING_TO_PASTE)
+        elif source == "upcoming":
+            self.queue_tracks(rows, play_next=False)
+        else:
+            self.add_to_playlist(self.current_playlist, rows, before)
+
+    def export_settings_file(self) -> None:
+        start_dir = Path(QStandardPaths.writableLocation(QStandardPaths.HomeLocation))
+        chosen, _filter = QFileDialog.getSaveFileName(
+            self.window, "Export settings", str(start_dir / "musichive-settings.ini"), SETTINGS_FILTER
+        )
+        if not chosen:
+            return
+        file = Path(chosen) if chosen.lower().endswith(".ini") else Path(f"{chosen}.ini")
+        try:
+            export_settings(self.settings, file)
+        except OSError as error:
+            QMessageBox.warning(self.window, "Cannot export settings", str(error))
+            return
+        self.show_status(f"Settings exported to {file.name}")
+
+    def import_settings_file(self) -> None:
+        start_dir = QStandardPaths.writableLocation(QStandardPaths.HomeLocation)
+        chosen, _filter = QFileDialog.getOpenFileName(
+            self.window, "Import settings", start_dir, SETTINGS_FILTER
+        )
+        if not chosen:
+            return
+        try:
+            import_settings(self.settings, Path(chosen))
+        except ValueError as error:
+            QMessageBox.warning(self.window, "Cannot import settings", str(error))
+            return
+        QMessageBox.information(
+            self.window, "Settings imported", "Restart MusicHive to use the imported settings."
+        )
 
     def show_equaliser(self) -> None:
         if self.equaliser_window is None:
@@ -913,14 +1166,19 @@ class MusicHive:
         self.tray.set_enabled(enabled)
 
     def setup_dock_toggles(self) -> None:
-        """Add a View menu item for each dock, and remember which ones are shown."""
+        """Connect the View menu's dock items, and remember which docks are shown."""
         w = self.window
-        for dock in (w.upcomingDock, w.libraryDock, w.controlsWidget):
+        for dock, action in (
+            (w.upcomingDock, w.actionShowUpcoming),
+            (w.libraryDock, w.actionShowLibrary),
+            (w.controlsWidget, w.actionShowPlayer),
+        ):
             dock.setTitleBarWidget(QWidget(dock))  # an empty one: no title bar
-            action = dock.toggleViewAction()
-            w.menuView.addAction(action)
             key = f"dockVisible/{dock.objectName()}"
-            action.setChecked(self.settings.value(key, True, type=bool))
+            visible = self.settings.value(key, True, type=bool)
+            action.setChecked(visible)
+            dock.setVisible(visible)
+            action.toggled.connect(dock.setVisible)
             action.toggled.connect(
                 lambda visible, key=key: self.settings.setValue(key, visible)
             )
@@ -1293,7 +1551,8 @@ class MusicHive:
                 self.library_model.set_last_played(row, played_at)
                 self.refresh_history()
 
-        if entry["artist"] and entry["title"]:  # Last.fm needs both
+        scrobbling = self.window.actionScrobble.isChecked()
+        if scrobbling and entry["artist"] and entry["title"]:  # Last.fm needs both
             self.lastfm.enqueue_scrobble(
                 {
                     "artist": entry["artist"],
@@ -1307,7 +1566,8 @@ class MusicHive:
 
     def send_now_playing(self) -> None:
         if self.listen_entry is not None and self.playback_state == "playing":
-            if self.listen_entry["artist"] and self.listen_entry["title"]:
+            scrobbling = self.window.actionScrobble.isChecked()
+            if scrobbling and self.listen_entry["artist"] and self.listen_entry["title"]:
                 self.lastfm.now_playing(self.listen_entry)
 
     def show_lastfm_dialog(self) -> None:
@@ -1549,6 +1809,7 @@ class MusicHive:
         self.queue_model.set_rows(
             self.play_order.upcoming_rows(), self.play_order.stop_after_offset()
         )
+        self.update_stop_after_action()
         if self.queue_model.rowCount() > 0:
             # The playing track is always the first row of the Upcoming list.
             view.setCurrentIndex(self.queue_model.index(0, 0))
@@ -1557,6 +1818,12 @@ class MusicHive:
             QTimer.singleShot(0, lambda: scroll_bar.setValue(scroll))
         else:
             view.scrollToTop()
+
+    def update_stop_after_action(self) -> None:
+        """Make the Playback menu's item match the playing track's stop marker."""
+        action = self.window.actionStopAfterCurrentSong
+        action.setEnabled(bool(self.play_order.upcoming_rows()))
+        action.setChecked(self.play_order.stop_after_offset() == 0)
 
     def reset_play_order(self) -> None:
         """Nothing is playing: start a fresh play order for the current tracks."""
@@ -1591,14 +1858,150 @@ class MusicHive:
         button.setChecked(mode != "off")
         button.setIcon(self.repeat_icons[mode])
         button.setToolTip(REPEAT_STATUS[mode])
+        self.window.actionRepeat.setChecked(mode != "off")
+        if self.settings_window is not None:
+            self.settings_window.playbackRepeat.setCurrentIndex(PlayOrder.REPEAT_MODES.index(mode))
 
     # ----- right-click menu -----
+
+    def add_menu_item(self, target, label, icon_key, callback, enabled=True, tip=""):
+        """Add one entry to a right-click menu."""
+        action = target.addAction(self.menu_icons.get(icon_key, QIcon()), label)
+        action.setEnabled(enabled)
+        if tip:
+            action.setToolTip(tip)
+        action.triggered.connect(lambda _checked=False: callback())
+        return action
+
+    def add_playlist_submenu(self, menu: QMenu, rows: list[int], several: str = "") -> None:
+        """The "Add to playlist" entry of a right-click menu."""
+        names = self.playlist_store.names() if self.playlist_store else []
+        submenu = menu.addMenu(self.menu_icons["add_to_playlist"], f"Add to playlist{several}")
+        submenu.setToolTipsVisible(True)
+        for name in names:
+            locked = self.side_model.is_locked(name)
+            self.add_menu_item(
+                submenu, name.replace("&", "&&"), None,
+                lambda n=name: self.add_to_playlist(n, rows),
+                enabled=not locked,
+                tip="This playlist is locked" if locked else "",
+            )
+        if names:
+            submenu.addSeparator()
+        self.add_menu_item(
+            submenu, "New playlist…", None,
+            lambda: self.new_playlist(add_rows=rows),
+            enabled=self.playlist_store is not None,
+        )
+
+    def add_go_to_submenu(self, menu: QMenu, row: int, info) -> None:
+        """The "Go to" entry of a right-click menu."""
+        go_menu = menu.addMenu(self.menu_icons["go_to"], "Go to")
+        go_menu.setToolTipsVisible(True)
+        for label, field in GO_TO_FIELDS:
+            has_value = field == "title" or bool(getattr(info, field))
+            self.add_menu_item(
+                go_menu, label, None, lambda f=field: self.go_to(row, f),
+                enabled=has_value,
+                tip="" if has_value else "This track has no such tag (rescan to read new ones)",
+            )
+
+    def show_playing_track_menu(self, widget, pos) -> None:
+        """Right-click menu of the track info panel: about the song playing now."""
+        row = self.current_index
+        info = self.library_model.info(row)
+        if info is None or not 0 <= row < len(self.tracks):
+            return
+        window = self.window
+        menu = QMenu(widget)
+        menu.setToolTipsVisible(True)
+        add = self.add_menu_item
+
+        if widget is window.trackInfoCoverImg:
+            image = self.full_cover
+            add(
+                menu, "Copy image", "copy", lambda: self.copy_image(image),
+                enabled=image is not None,
+                tip="" if image is not None else "This song has no cover",
+            )
+        else:
+            plain = QTextDocumentFragment.fromHtml(widget.text()).toPlainText()
+            text = widget.selectedText() if widget.hasSelectedText() else plain
+            add(menu, "Copy text", "copy", lambda: self.copy_text(text, "Text copied"), enabled=bool(text))
+        add(menu, "Copy song", "copy", lambda: self.copy_rows([row]))
+        menu.addSeparator()
+
+        add(menu, "Play next", "play_next", lambda: self.queue_tracks([row], play_next=True))
+        add(menu, "Add to queue", "add_to_queue", lambda: self.queue_tracks([row], play_next=False))
+        self.add_playlist_submenu(menu, [row])
+        menu.addSeparator()
+
+        scanning = self.scan_task is not None
+        add(
+            menu, "Edit…", "edit", lambda: self.edit_tags([row]),
+            enabled=not scanning,
+            tip="Wait for the scan to finish" if scanning else "",
+        )
+        self.add_go_to_submenu(menu, row, info)
+        menu.addSeparator()
+
+        marked = self.play_order.stop_after_offset() == 0
+        add(
+            menu,
+            "Don't end playback after track" if marked else "End playback after track",
+            "end_after",
+            lambda: self.toggle_stop_after(0),
+        )
+        menu.exec(widget.mapToGlobal(pos))
+
+    def copy_image(self, image: QImage) -> None:
+        QApplication.clipboard().setImage(image)
+        self.show_status("Image copied")
+
+    def show_lyrics_menu(self, pos) -> None:
+        """Right-click menu of the lyrics."""
+        view = self.window.nowPlayingLyrics
+        lyrics = self.lyrics_view.text
+        if not lyrics:
+            return
+        item = view.itemAt(pos)
+        line = item.text().strip() if item is not None else ""
+        menu = QMenu(view)
+        add = self.add_menu_item
+        add(menu, "Copy line", "copy", lambda: self.copy_text(line, "Line copied"), enabled=bool(line))
+        add(menu, "Copy all lyrics", "copy", lambda: self.copy_text(lyrics, "Lyrics copied"))
+        menu.exec(view.viewport().mapToGlobal(pos))
+
+    def shows_normal_playlist(self) -> bool:
+        """True if the playlist on screen is one songs can be added to and removed from."""
+        name = self.current_playlist
+        return name is not None and not self.is_auto_playlist(name)
+
+    def show_empty_list_menu(self, view, pos, source: str) -> None:
+        """Right-click on the empty part of a song list."""
+        menu = QMenu(view)
+        menu.setToolTipsVisible(True)
+        add = self.add_menu_item
+        pasted = bool(self.clipboard_rows())
+        paste_tip = "" if pasted else NOTHING_TO_PASTE
+        if source == "upcoming":
+            add(menu, "Paste", "paste", lambda: self.paste_into("upcoming"), enabled=pasted, tip=paste_tip)
+        elif source == "playlist" and self.shows_normal_playlist():
+            locked = self.side_model.is_locked(self.current_playlist)
+            add(
+                menu, "Paste", "paste", lambda: self.paste_into("playlist"),
+                enabled=pasted and not locked,
+                tip="This playlist is locked" if locked else paste_tip,
+            )
+        add(menu, "Select all", "select_all", view.selectAll, enabled=view.model().rowCount() > 0)
+        menu.exec(view.viewport().mapToGlobal(pos))
 
     def show_track_menu(self, view, pos, source: str) -> None:
         """Right-click menu for a song. `source` is "library", "upcoming", "playlist",
         "artist", "album" or "history"."""
         index = view.indexAt(pos)
         if not index.isValid():
+            self.show_empty_list_menu(view, pos, source)
             return
         context = None  # the songs that follow when this one is played from here
         group = None  # the artist or album it is played from
@@ -1634,18 +2037,10 @@ class MusicHive:
         several = f" ({len(rows)} songs)" if len(rows) > 1 else ""
 
         scanning = self.scan_task is not None
-        playlist_names = self.playlist_store.names() if self.playlist_store else []
         menu = QMenu(view)
         menu.setToolTipsVisible(True)
 
-        def add(target, label, icon_key, callback, enabled=True, tip=""):
-            action = target.addAction(self.menu_icons.get(icon_key, QIcon()), label)
-            action.setEnabled(enabled)
-            if tip:
-                action.setToolTip(tip)
-            action.triggered.connect(lambda _checked=False: callback())
-            return action
-
+        add = self.add_menu_item
         add(menu, "Play now", "play_now", lambda: self.play_now(row, offset, context, group))
         add(
             menu, f"Play next{several}", "play_next",
@@ -1655,26 +2050,37 @@ class MusicHive:
             menu, f"Add to queue{several}", "add_to_queue",
             lambda: self.queue_tracks(rows, play_next=False),
         )
+        self.add_playlist_submenu(menu, rows, several)
+        menu.addSeparator()
 
-        playlist_menu = menu.addMenu(
-            self.menu_icons["add_to_playlist"], f"Add to playlist{several}"
-        )
-        playlist_menu.setToolTipsVisible(True)
-        for name in playlist_names:
-            locked = self.side_model.is_locked(name)
+        # Hidden where it can never apply; greyed out while it temporarily cannot.
+        in_playlist = source == "playlist" and self.shows_normal_playlist()
+        locked = in_playlist and self.side_model.is_locked(self.current_playlist)
+        lock_tip = "This playlist is locked" if locked else ""
+        offsets = self.selected_upcoming_offsets() if source == "upcoming" else []
+        removable = [o for o in (offsets if offset in offsets else [offset]) if o > 0]
+        removable_count = f" ({len(removable)} songs)" if len(removable) > 1 else ""
+        pasted = bool(self.clipboard_rows())
+        paste_tip = "" if pasted else NOTHING_TO_PASTE
+
+        if in_playlist:
+            add(menu, f"Cut{several}", "cut", lambda: self.cut_songs(rows), enabled=not locked, tip=lock_tip)
+        elif source == "upcoming":
             add(
-                playlist_menu, name.replace("&", "&&"), None,
-                lambda n=name: self.add_to_playlist(n, rows),
-                enabled=not locked,
-                tip="This playlist is locked" if locked else "",
+                menu, f"Cut{removable_count}", "cut",
+                lambda: self.cut_from_upcoming(removable),
+                enabled=bool(removable),
+                tip="" if removable else "The playing track cannot be removed",
             )
-        if playlist_names:
-            playlist_menu.addSeparator()
-        add(
-            playlist_menu, "New playlist…", None,
-            lambda: self.new_playlist(add_rows=rows),
-            enabled=self.playlist_store is not None,
-        )
+        add(menu, f"Copy{several}", "copy", lambda: self.copy_rows(rows))
+        if in_playlist:
+            add(
+                menu, "Paste", "paste", lambda: self.paste_into("playlist", before=row),
+                enabled=pasted and not locked, tip=lock_tip or paste_tip,
+            )
+        elif source == "upcoming":
+            add(menu, "Paste", "paste", lambda: self.paste_into("upcoming"), enabled=pasted, tip=paste_tip)
+        select_all = add(menu, "Select all", "select_all", view.selectAll)
         menu.addSeparator()
 
         add(
@@ -1683,13 +2089,29 @@ class MusicHive:
             enabled=not scanning,
             tip="Wait for the scan to finish" if scanning else "",
         )
-        in_playlist = source == "playlist" and not self.is_auto_playlist(self.current_playlist)
-        add(
-            menu, f"Delete from playlist{several}", "delete_from_playlist",
-            lambda: self.remove_from_playlist(rows),
-            enabled=in_playlist,
-            tip="" if in_playlist else "Only available inside a normal playlist",
-        )
+        self.add_go_to_submenu(menu, row, info)
+        menu.addSeparator()
+
+        if source == "upcoming":
+            marked = self.play_order.stop_after_offset() == offset
+            add(
+                menu,
+                "Don't end playback after track" if marked else "End playback after track",
+                "end_after",
+                lambda: self.toggle_stop_after(offset),
+            )
+            add(
+                menu, f"Remove from upcoming{removable_count}", "remove_from_upcoming",
+                lambda: self.remove_from_upcoming(removable),
+                enabled=bool(removable),
+                tip="" if removable else "The playing track cannot be removed",
+            )
+        if in_playlist:
+            add(
+                menu, f"Remove from playlist{several}", "delete_from_playlist",
+                lambda: self.remove_from_playlist(rows),
+                enabled=not locked, tip=lock_tip,
+            )
         add(
             menu, "Delete file", "delete_file", lambda: self.delete_file(row),
             enabled=not scanning and not several,
@@ -1699,40 +2121,10 @@ class MusicHive:
                 else ""
             ),
         )
-        menu.addSeparator()
 
-        go_menu = menu.addMenu(self.menu_icons["go_to"], "Go to")
-        go_menu.setToolTipsVisible(True)
-        for label, field in GO_TO_FIELDS:
-            has_value = field == "title" or bool(getattr(info, field))
-            add(
-                go_menu, label, None, lambda f=field: self.go_to(row, f),
-                enabled=has_value,
-                tip="" if has_value else "This track has no such tag (rescan to read new ones)",
-            )
+        chosen = menu.exec(view.viewport().mapToGlobal(pos))
 
-        if source == "upcoming":
-            menu.addSeparator()
-            offsets = self.selected_upcoming_offsets()
-            removable = [o for o in (offsets if offset in offsets else [offset]) if o > 0]
-            count = f" ({len(removable)} songs)" if len(removable) > 1 else ""
-            add(
-                menu, f"Remove from upcoming{count}", "remove_from_upcoming",
-                lambda: self.remove_from_upcoming(removable),
-                enabled=bool(removable),
-                tip="" if removable else "The playing track cannot be removed",
-            )
-            marked = self.play_order.stop_after_offset() == offset
-            add(
-                menu,
-                "Don't end playback after track" if marked else "End playback after track",
-                "end_after",
-                lambda: self.toggle_stop_after(offset),
-            )
-
-        menu.exec(view.viewport().mapToGlobal(pos))
-
-        if source == "upcoming" and self.queue_model.rowCount() > 0:
+        if source == "upcoming" and self.queue_model.rowCount() > 0 and chosen != select_all:
             # The highlight in the Upcoming list marks the playing track.
             view.setCurrentIndex(self.queue_model.index(0, 0))
 
@@ -2005,18 +2397,37 @@ class MusicHive:
         bar = FilterBar(
             combo, view, button, self.filter_groups, self.filter_cover, self.settings, visible_key
         )
-        bar.album_menu_requested.connect(self.show_album_menu)
+        bar.group_menu_requested.connect(self.show_group_menu)
         return bar
 
     # ----- the tag editor -----
 
-    def show_album_menu(self, rows: list[int], position) -> None:
-        """Right-click menu of an album in a filter list."""
+    def show_group_menu(self, rows: list[int], position) -> None:
+        """Right-click menu of an entry in a filter list (an artist, an album, a genre...)."""
         menu = QMenu(self.window)
-        action = menu.addAction(self.menu_icons["edit"], "Edit…")
-        action.setEnabled(self.scan_task is None)
-        action.triggered.connect(lambda _checked=False: self.edit_tags(rows))
+        menu.setToolTipsVisible(True)
+        add = self.add_menu_item
+        add(menu, "Play now", "play_now", lambda: self.play_rows(rows))
+        add(menu, "Play next", "play_next", lambda: self.queue_tracks(rows, play_next=True))
+        add(menu, "Add to queue", "add_to_queue", lambda: self.queue_tracks(rows, play_next=False))
+        self.add_playlist_submenu(menu, rows)
+        menu.addSeparator()
+        add(menu, "Copy", "copy", lambda: self.copy_rows(rows))
+        menu.addSeparator()
+        scanning = self.scan_task is not None
+        add(
+            menu, "Edit…", "edit", lambda: self.edit_tags(rows),
+            enabled=not scanning,
+            tip="Wait for the scan to finish" if scanning else "",
+        )
         menu.exec(position)
+
+    def play_rows(self, rows: list[int]) -> None:
+        """Start playing these songs, in this order."""
+        self.set_play_source(None)
+        self.source_group = None
+        self.play_order.start_at(rows[0], rows)
+        self.play_index(rows[0])
 
     def track_menu_neighbours(self, source: str, context: list[int] | None) -> list[int]:
         """The songs around one in the list it was right-clicked in, in shown order."""
@@ -2672,6 +3083,7 @@ class MusicHive:
             if kind == PIN:
                 menu.addSeparator()
                 add("Open", "open_folder", lambda: self.open_pinned_folder(value))
+                add("Copy path", "copy", lambda: self.copy_text(value, "Path copied"))
                 add("Unpin", "unpin_folder", lambda: self.unpin_folder(value))
         elif kind == DEVICE:
             add("Synchronise…", "sync_device", lambda: self.show_device_tab(value))
@@ -2686,10 +3098,13 @@ class MusicHive:
 
     def fill_playlist_menu(self, menu: QMenu, add, kind: str | None, value: str | None) -> None:
         """The menu entries for the Playlists section, a folder or a playlist."""
-        store = self.playlist_store
         name = value if kind == PLAYLIST else None
         if name is not None and name != self.current_playlist:
             self.select_playlist(name)
+
+        if name is not None:
+            self.fill_single_playlist_menu(menu, add, name)
+            menu.addSeparator()
 
         folder = value if kind == FOLDER else ""
         add("New playlist…", "new_playlist", lambda: self.new_playlist(folder=folder))
@@ -2700,13 +3115,36 @@ class MusicHive:
             menu.addSeparator()
             add("Rename folder…", "rename_folder", lambda: self.rename_playlist_folder(value))
             add("Delete folder", "delete_folder", lambda: self.delete_playlist_folder(value))
-        if name is None:
-            return
 
+    def fill_single_playlist_menu(self, menu: QMenu, add, name: str) -> None:
+        """The entries about one playlist: playing it, its songs, and managing it."""
+        store = self.playlist_store
+        playlist = store.load(name)
+        rows = self.playlist_rows(name)
+        has_songs = bool(rows)
+        locked = self.side_model.is_locked(name)
+
+        add("Play", "play_playlist", lambda: self.play_playlist(name), enabled=has_songs)
+        add(
+            "Play next", "play_next",
+            lambda: self.queue_tracks(rows, play_next=True), enabled=has_songs,
+        )
+        add(
+            "Add to queue", "add_to_queue",
+            lambda: self.queue_tracks(rows, play_next=False), enabled=has_songs,
+        )
         menu.addSeparator()
-        add("Play", "play_playlist", lambda: self.play_playlist(name))
+
+        add("Copy songs", "copy", lambda: self.copy_rows(rows), enabled=has_songs)
+        if not playlist.is_auto:
+            add(
+                "Paste", "paste",
+                lambda: self.add_to_playlist(name, self.clipboard_rows()),
+                enabled=bool(self.clipboard_rows()) and not locked,
+            )
+        menu.addSeparator()
+
         add("Edit…", "edit_playlist", lambda: self.edit_playlist(name))
-        add("Rename…", "rename_playlist", lambda: self.rename_playlist(name))
         add("Duplicate", "duplicate_playlist", lambda: self.duplicate_playlist(name))
         add("Change icon…", "playlist_icon", self.choose_playlist_icon)
         add(
@@ -2714,27 +3152,24 @@ class MusicHive:
             lambda: self.remove_playlist_icon(name),
             enabled=store.icon_file(name).exists(),
         )
-        if not store.load(name).is_auto:
-            locked = self.side_model.is_locked(name)
+        if not playlist.is_auto:
             add(
                 "Unlock playlist" if locked else "Lock playlist", "lock_playlist",
                 lambda: self.set_playlist_locked(name, not locked),
             )
         add("Export playlist…", "export_playlist", lambda: self.export_playlist(name))
 
-        current_folder = store.load(name).folder
         move_menu = menu.addMenu(self.menu_icons["move_to_folder"], "Move to folder")
         add(
             "No folder", None, lambda: self.move_to_folder(name, ""),
-            enabled=bool(current_folder), target=move_menu,
+            enabled=bool(playlist.folder), target=move_menu,
         )
         for target in store.folders():
             add(
                 target.replace("&", "&&"), None,
                 lambda t=target: self.move_to_folder(name, t),
-                enabled=target != current_folder, target=move_menu,
+                enabled=target != playlist.folder, target=move_menu,
             )
-
         menu.addSeparator()
         add("Delete playlist…", "delete_playlist", lambda: self.delete_playlist(name))
 
@@ -3280,20 +3715,6 @@ class MusicHive:
             self.play_source = new
         if self.saved_last_playlist() == old:
             self.settings.setValue(self.last_playlist_key(self.loaded_library), new)
-
-    def rename_playlist(self, name: str) -> None:
-        store = self.playlist_store
-        if store is None:
-            return
-        new = self.ask_playlist_name("Rename playlist", "New name:", initial=name, ignore=name)
-        if new is None or new == name:
-            return
-        try:
-            self.move_playlist(name, new)
-        except OSError as error:
-            QMessageBox.warning(self.window, "Cannot rename playlist", str(error))
-            return
-        self.refresh_playlist_list(select=new)
 
     def duplicate_playlist(self, name: str) -> None:
         """Make a copy of a playlist, next to it, and show the copy."""
@@ -3984,6 +4405,7 @@ class MusicHive:
 
     def on_track_finished(self) -> None:
         stop_here = self.play_order.take_stop_after()
+        self.update_stop_after_action()
         row = self.play_order.next(ended_naturally=True)
         if row is None:
             self.show_status("Reached the end of the library")

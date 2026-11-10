@@ -16,6 +16,33 @@
   <layout class="QVBoxLayout" name="settingsLayout">
    <item>
     <widget class="QTabWidget" name="settingsTabs">
+     <widget class="QWidget" name="generalTab">
+      <attribute name="title">
+       <string>General</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="generalTabLayout">
+       <item>
+        <widget class="QCheckBox" name="generalMinimizeToTray">
+         <property name="text">
+          <string>Minimize to tray</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="generalTabSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="soundTab">
       <attribute name="title">
        <string>Sound</string>
@@ -102,7 +129,202 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="soundVolumeAdjustment">
+         <property name="text">
+          <string>Adjust the volume of levelled songs</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="soundEqualiserRow">
+         <item>
+          <widget class="QPushButton" name="soundEqualiserButton">
+           <property name="text">
+            <string>Equaliser...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="soundEqualiserRowSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
         <spacer name="soundTabSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="playbackTab">
+      <attribute name="title">
+       <string>Playback</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="playbackTabLayout">
+       <item>
+        <widget class="QCheckBox" name="playbackShuffle">
+         <property name="text">
+          <string>Shuffle</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="playbackRepeatRow">
+         <item>
+          <widget class="QLabel" name="playbackRepeatLabel">
+           <property name="text">
+            <string>Repeat:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="playbackRepeat">
+           <item>
+            <property name="text">
+             <string>Off</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>All tracks</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Current track</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <spacer name="playbackRepeatRowSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="playbackTabSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="onlineTab">
+      <attribute name="title">
+       <string>Online</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="onlineTabLayout">
+       <item>
+        <widget class="QCheckBox" name="lastFmScrobble">
+         <property name="text">
+          <string>Scrobble songs to Last.fm</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="onlineDiscordPresence">
+         <property name="text">
+          <string>Show what I am playing on Discord</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="onlineTabSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="backupTab">
+      <attribute name="title">
+       <string>Backup</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="backupTabLayout">
+       <item>
+        <layout class="QHBoxLayout" name="backupButtonsRow">
+         <item>
+          <widget class="QPushButton" name="backupImportButton">
+           <property name="text">
+            <string>Import Settings...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="backupExportButton">
+           <property name="text">
+            <string>Export Settings...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="backupButtonsRowSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="backupTabSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>
          </property>
