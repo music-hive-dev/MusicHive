@@ -57,6 +57,7 @@ from PySide6.QtWidgets import (
     QInputDialog,
     QStackedWidget,
     QTabWidget,
+    QWidget,
 )
 
 from src import library_db
@@ -83,6 +84,7 @@ from src.side_list import (
 )
 from src.library_scanner import ScanSignals, ScanTask
 from src.play_order import PlayOrder
+from src.discord_cover import DiscordCovers
 from src.discord_rpc import DiscordPresence, make_activity
 from src.elided_label import ElidedLabel
 from src.lastfm import LastFmClient
@@ -140,6 +142,7 @@ ASSETS_DIR = Path(__file__).parent / "assets"
 # The Application ID of your Discord application (public, not a secret).
 # Leave it empty to disable the Discord menu item.
 DISCORD_CLIENT_ID = "1568612126409498656"
+DISCORD_PREUPLOAD_COUNT = 2  # how many of the next tracks get their cover uploaded early
 # Your Last.fm API account (see the setup steps). The secret is not meant to be public.
 def load_secrets() -> dict:
     """Read API secrets from ~/Music/.musichive/secrets (kept out of the code)."""
@@ -332,6 +335,34 @@ class JumpToClickStyle(QProxyStyle):
         return super().styleHint(hint, option, widget, returnData)
 
 
+class CenteredTabIconStyle(QProxyStyle):
+    """Centres the icon of a tab with no text, where Qt would keep it at the left."""
+
+    def drawControl(self, element, option, painter, widget=None):
+        if (
+            element != QStyle.ControlElement.CE_TabBarTabLabel
+            or option.text
+            or option.icon.isNull()
+        ):
+            super().drawControl(element, option, painter, widget)
+            return
+        selected = bool(option.state & QStyle.StateFlag.State_Selected)
+        area = option.rect
+        if not selected:  # styles draw inactive tabs slightly lower
+            shift = self.pixelMetric(QStyle.PixelMetric.PM_TabBarTabShiftVertical, option, widget)
+            area = area.adjusted(0, shift, 0, 0)
+        icon_rect = QRect(0, 0, option.iconSize.width(), option.iconSize.height())
+        icon_rect.moveCenter(area.center())
+        enabled = bool(option.state & QStyle.StateFlag.State_Enabled)
+        option.icon.paint(
+            painter,
+            icon_rect,
+            Qt.AlignmentFlag.AlignCenter,
+            QIcon.Mode.Normal if enabled else QIcon.Mode.Disabled,
+            QIcon.State.On if selected else QIcon.State.Off,
+        )
+
+
 class VolumeWheelFilter(QObject):
     """Changes the volume when the mouse wheel is used on a watched widget.
 
@@ -465,7 +496,9 @@ class MusicHive:
 
         self.discord = DiscordPresence(DISCORD_CLIENT_ID, self.build_discord_activity, w)
         self.discord.status_message.connect(self.show_status)
-        discord_on = bool(DISCORD_CLIENT_ID) and self.settings.value(
+        self.discord_covers = DiscordCovers(self.settings, w)
+        self.discord_covers.uploaded.connect(self.on_discord_cover_uploaded)
+        discord_on =bool(DISCORD_CLIENT_ID) and self.settings.value(
             "discordPresence", False, type=bool
         )
         w.actionDiscordPresence.setCheckable(True)
@@ -519,7 +552,7 @@ class MusicHive:
         w.upcomingList.setDragDropMode(QAbstractItemView.DragDropMode.DragOnly)
         w.upcomingList.doubleClicked.connect(self.play_upcoming_item)
         w.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, w.upcomingDock)
-        w.menuView.addAction(w.upcomingDock.toggleViewAction())
+        self.setup_dock_toggles()
 
         # Right-click menus on the song lists
         for view, source in (
@@ -652,6 +685,8 @@ class MusicHive:
 
         # Holding a dragged song over a tab opens that tab.
         tab_bar = w.podcastsTab.tabBar()
+        self._tab_style = CenteredTabIconStyle()
+        tab_bar.setStyle(self._tab_style)
         tab_bar.setChangeCurrentOnDrag(True)
         tab_bar.setAcceptDrops(True)
 
@@ -877,6 +912,19 @@ class MusicHive:
         self.settings.setValue("minimizeToTray", enabled)
         self.tray.set_enabled(enabled)
 
+    def setup_dock_toggles(self) -> None:
+        """Add a View menu item for each dock, and remember which ones are shown."""
+        w = self.window
+        for dock in (w.upcomingDock, w.libraryDock, w.controlsWidget):
+            dock.setTitleBarWidget(QWidget(dock))  # an empty one: no title bar
+            action = dock.toggleViewAction()
+            w.menuView.addAction(action)
+            key = f"dockVisible/{dock.objectName()}"
+            action.setChecked(self.settings.value(key, True, type=bool))
+            action.toggled.connect(
+                lambda visible, key=key: self.settings.setValue(key, visible)
+            )
+
     def setup_compact_tabs(self) -> None:
         """Tabs show only their icon, and their name (from player.ui) once selected."""
         tabs = self.window.podcastsTab
@@ -919,6 +967,7 @@ class MusicHive:
         self.tag_writer.shutdown()
         self.mpris.shutdown()
         self.discord.shutdown()
+        self.discord_covers.shutdown()
         self.lastfm.shutdown()
         self.player.shutdown()
 
@@ -1306,6 +1355,12 @@ class MusicHive:
         info = self.library_model.info(self.current_index)
         if info is None:
             return None
+        cover_url = ""
+        if self.discord.is_ready:  # nothing is uploaded while Discord isn't running
+            cover_url = self.discord_covers.link_for(
+                self.tracks[self.current_index], info.cover_key
+            )
+            self.preupload_discord_covers()
         return make_activity(
             title=info.title,
             artist=info.artist,
@@ -1314,7 +1369,20 @@ class MusicHive:
             position_ms=self.position_ms,
             duration_ms=self.duration_ms or info.duration_ms or 0,
             paused=self.playback_state == "paused",
+            cover_url=cover_url,
         )
+
+    def preupload_discord_covers(self) -> None:
+        """Upload the next tracks' covers, so they are ready when those tracks start."""
+        for row in self.play_order.upcoming_rows()[1 : 1 + DISCORD_PREUPLOAD_COUNT]:
+            info = self.library_model.info(row)
+            if info is not None:
+                self.discord_covers.link_for(self.tracks[row], info.cover_key)
+
+    def on_discord_cover_uploaded(self, cover_key: str) -> None:
+        info = self.library_model.info(self.current_index)
+        if info is not None and info.cover_key == cover_key:
+            self.discord.request_update()
 
     def on_discord_toggled(self, enabled: bool) -> None:
         self.settings.setValue("discordPresence", enabled)

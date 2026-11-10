@@ -27,7 +27,7 @@ LARGE_IMAGE_KEY = "mh"
 # The badge in the corner of the large image; hovering it shows the file's
 # format. Upload a different image and put its key here to change the badge,
 # or leave it empty to have no badge.
-SMALL_IMAGE_KEY = "mh"
+SMALL_IMAGE_KEY = "file-music"
 
 # What Discord shows in the member list: 0 = "Listening to MusicHive",
 # 1 = the artist, 2 = the title.
@@ -51,8 +51,9 @@ def make_activity(
     position_ms: int,
     duration_ms: int,
     paused: bool,
+    cover_url: str = "",
 ) -> dict:
-    """The presence for a track: title, artist, album and a progress bar."""
+    """The presence for a track: title, artist, album, cover and a progress bar."""
     activity: dict = {"type": ACTIVITY_LISTENING, "details": _field(title)}
 
     if artist:
@@ -68,8 +69,9 @@ def make_activity(
         activity["timestamps"] = timestamps
 
     assets: dict = {}
-    if LARGE_IMAGE_KEY:
-        assets["large_image"] = LARGE_IMAGE_KEY
+    large_image = cover_url or LARGE_IMAGE_KEY
+    if large_image:
+        assets["large_image"] = large_image
         if album:
             assets["large_text"] = _field(album)  # Discord shows this as the third line
     if SMALL_IMAGE_KEY and audio_format:
@@ -174,6 +176,11 @@ class DiscordPresence(QObject):
         if self._timer.isActive() and self._timer.remainingTime() <= wait_ms:
             return  # an update is already coming up at least as soon
         self._timer.start(wait_ms)
+
+    @property
+    def is_ready(self) -> bool:
+        """True while Discord is running and has accepted our connection."""
+        return self._ready
 
     def hold_position(self, held: bool) -> None:
         """Keep re-sending the presence while paused.

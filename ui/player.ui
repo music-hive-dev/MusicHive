@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1302</width>
-    <height>850</height>
+    <height>852</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -727,7 +727,7 @@ QMenuBar {
        <enum>QTabWidget::TabShape::Rounded</enum>
       </property>
       <property name="currentIndex">
-       <number>3</number>
+       <number>5</number>
       </property>
       <property name="elideMode">
        <enum>Qt::TextElideMode::ElideNone</enum>
@@ -749,7 +749,7 @@ QMenuBar {
        </attribute>
        <layout class="QGridLayout" name="nowPlayingLayout">
         <item row="0" column="0">
-         <widget class="QWidget" name="nowPlayingVisualizer">
+         <widget class="QWidget" name="nowPlayingVisualizer" native="true">
           <property name="sizePolicy">
            <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
             <horstretch>0</horstretch>
@@ -760,10 +760,6 @@ QMenuBar {
         </item>
         <item row="0" column="0">
          <widget class="QListWidget" name="nowPlayingLyrics">
-          <property name="styleSheet">
-           <string notr="true">QListWidget { background: transparent; }
-QListWidget::item, QListWidget::item:hover { background: transparent; }</string>
-          </property>
           <property name="font">
            <font>
             <family>Inter</family>
@@ -772,6 +768,10 @@ QListWidget::item, QListWidget::item:hover { background: transparent; }</string>
           </property>
           <property name="focusPolicy">
            <enum>Qt::FocusPolicy::NoFocus</enum>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">QListWidget { background: transparent; }
+QListWidget::item, QListWidget::item:hover { background: transparent; }</string>
           </property>
           <property name="frameShape">
            <enum>QFrame::Shape::NoFrame</enum>
@@ -874,9 +874,6 @@ QListWidget::item, QListWidget::item:hover { background: transparent; }</string>
               </item>
               <item>
                <widget class="QLineEdit" name="lineEdit">
-            <property name="clearButtonEnabled">
-             <bool>true</bool>
-            </property>
                 <property name="maximumSize">
                  <size>
                   <width>256</width>
@@ -897,6 +894,9 @@ QWidget {
                 </property>
                 <property name="placeholderText">
                  <string>Search...</string>
+                </property>
+                <property name="clearButtonEnabled">
+                 <bool>true</bool>
                 </property>
                </widget>
               </item>
@@ -1944,17 +1944,278 @@ QWidget {
            <item>
             <widget class="QWidget" name="syncOptions" native="true">
              <layout class="QHBoxLayout" name="syncColumns">
-              <item><layout class="QGridLayout" name="syncLeftColumn"><item row="0" column="0"><widget class="QLabel" name="syncMusicFolderLabel"><property name="text"><string>Music folder:</string></property></widget></item><item row="0" column="1"><widget class="QLineEdit" name="syncMusicFolder"><property name="text"><string>/Music</string></property></widget></item><item row="1" column="0"><widget class="QLabel" name="syncPlaylistFolderLabel"><property name="text"><string>Playlist folder:</string></property></widget></item><item row="1" column="1"><widget class="QLineEdit" name="syncPlaylistFolder"><property name="text"><string>/Playlists</string></property></widget></item><item row="2" column="0"><widget class="QLabel" name="syncPlaylistsLabel"><property name="text"><string>Playlists:</string></property></widget></item><item row="2" column="1"><widget class="QCheckBox" name="syncAllPlaylists"><property name="text"><string>All playlists</string></property><property name="checked"><bool>true</bool></property></widget></item><item row="3" column="1"><widget class="QListWidget" name="syncPlaylistList"><property name="maximumSize"><size><width>16777215</width><height>120</height></size></property></widget></item></layout></item>
-              <item><layout class="QGridLayout" name="syncRightColumn"><item row="0" column="0"><widget class="QLabel" name="syncFormatLabel"><property name="text"><string>Format:</string></property></widget></item><item row="0" column="1"><widget class="QComboBox" name="syncFormat"><property name="currentIndex"><number>1</number></property><item><property name="text"><string>Keep original format</string></property></item><item><property name="text"><string>MP3</string></property></item><item><property name="text"><string>Ogg Vorbis</string></property></item><item><property name="text"><string>Opus</string></property></item><item><property name="text"><string>FLAC (lossless)</string></property></item></widget></item><item row="1" column="0"><widget class="QLabel" name="syncProfileLabel"><property name="text"><string>Encoding profile:</string></property></widget></item><item row="1" column="1"><widget class="QComboBox" name="syncProfile"><property name="currentIndex"><number>1</number></property><item><property name="text"><string>Small file size</string></property></item><item><property name="text"><string>Standard quality</string></property></item><item><property name="text"><string>High quality</string></property></item><item><property name="text"><string>Max quality</string></property></item></widget></item><item row="2" column="0" colspan="2"><widget class="QCheckBox" name="syncFormatSubfolders"><property name="text"><string>Format the subfolders with a naming template</string></property><property name="checked"><bool>true</bool></property></widget></item><item row="3" column="0" colspan="2"><layout class="QHBoxLayout" name="syncTemplateRow"><item><widget class="QLineEdit" name="syncTemplate"><property name="text"><string>&lt;albumartist&gt;/&lt;album&gt;/&lt;title&gt; - &lt;artist&gt;</string></property></widget></item><item><widget class="QComboBox" name="syncInsertTag"><item><property name="text"><string>Insert tag…</string></property></item><item><property name="text"><string>&lt;title&gt;</string></property></item><item><property name="text"><string>&lt;artist&gt;</string></property></item><item><property name="text"><string>&lt;albumartist&gt;</string></property></item><item><property name="text"><string>&lt;album&gt;</string></property></item><item><property name="text"><string>&lt;trackno&gt;</string></property></item><item><property name="text"><string>&lt;discno&gt;</string></property></item><item><property name="text"><string>&lt;year&gt;</string></property></item><item><property name="text"><string>&lt;genre&gt;</string></property></item></widget></item></layout></item><item row="4" column="0" colspan="2"><widget class="QCheckBox" name="syncSkipMissing"><property name="text"><string>Skip files that are missing tags used in the template</string></property><property name="checked"><bool>true</bool></property></widget></item><item row="5" column="0"><widget class="QCheckBox" name="syncResizeArt"><property name="text"><string>Resize embedded artwork to:</string></property></widget></item><item row="5" column="1"><widget class="QSpinBox" name="syncArtSize"><property name="suffix"><string> px</string></property><property name="minimum"><number>16</number></property><property name="maximum"><number>4000</number></property><property name="value"><number>200</number></property></widget></item></layout></item>
+              <item>
+               <layout class="QGridLayout" name="syncLeftColumn">
+                <item row="0" column="0">
+                 <widget class="QLabel" name="syncMusicFolderLabel">
+                  <property name="text">
+                   <string>Music folder:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1">
+                 <widget class="QLineEdit" name="syncMusicFolder">
+                  <property name="text">
+                   <string>/Music</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="syncPlaylistFolderLabel">
+                  <property name="text">
+                   <string>Playlist folder:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QLineEdit" name="syncPlaylistFolder">
+                  <property name="text">
+                   <string>/Playlists</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="0">
+                 <widget class="QLabel" name="syncPlaylistsLabel">
+                  <property name="text">
+                   <string>Playlists:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="2" column="1">
+                 <widget class="QCheckBox" name="syncAllPlaylists">
+                  <property name="text">
+                   <string>All playlists</string>
+                  </property>
+                  <property name="checked">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="1">
+                 <widget class="QListWidget" name="syncPlaylistList">
+                  <property name="maximumSize">
+                   <size>
+                    <width>16777215</width>
+                    <height>120</height>
+                   </size>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <layout class="QGridLayout" name="syncRightColumn">
+                <item row="0" column="0">
+                 <widget class="QLabel" name="syncFormatLabel">
+                  <property name="text">
+                   <string>Format:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="0" column="1">
+                 <widget class="QComboBox" name="syncFormat">
+                  <property name="currentIndex">
+                   <number>1</number>
+                  </property>
+                  <item>
+                   <property name="text">
+                    <string>Keep original format</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>MP3</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Ogg Vorbis</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Opus</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>FLAC (lossless)</string>
+                   </property>
+                  </item>
+                 </widget>
+                </item>
+                <item row="1" column="0">
+                 <widget class="QLabel" name="syncProfileLabel">
+                  <property name="text">
+                   <string>Encoding profile:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="1" column="1">
+                 <widget class="QComboBox" name="syncProfile">
+                  <property name="currentIndex">
+                   <number>1</number>
+                  </property>
+                  <item>
+                   <property name="text">
+                    <string>Small file size</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Standard quality</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>High quality</string>
+                   </property>
+                  </item>
+                  <item>
+                   <property name="text">
+                    <string>Max quality</string>
+                   </property>
+                  </item>
+                 </widget>
+                </item>
+                <item row="2" column="0" colspan="2">
+                 <widget class="QCheckBox" name="syncFormatSubfolders">
+                  <property name="text">
+                   <string>Format the subfolders with a naming template</string>
+                  </property>
+                  <property name="checked">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item row="3" column="0" colspan="2">
+                 <layout class="QHBoxLayout" name="syncTemplateRow">
+                  <item>
+                   <widget class="QLineEdit" name="syncTemplate">
+                    <property name="text">
+                     <string>&lt;albumartist&gt;/&lt;album&gt;/&lt;title&gt; - &lt;artist&gt;</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QComboBox" name="syncInsertTag">
+                    <item>
+                     <property name="text">
+                      <string>Insert tag…</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&lt;title&gt;</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&lt;artist&gt;</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&lt;albumartist&gt;</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&lt;album&gt;</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&lt;trackno&gt;</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&lt;discno&gt;</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&lt;year&gt;</string>
+                     </property>
+                    </item>
+                    <item>
+                     <property name="text">
+                      <string>&lt;genre&gt;</string>
+                     </property>
+                    </item>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+                <item row="4" column="0" colspan="2">
+                 <widget class="QCheckBox" name="syncSkipMissing">
+                  <property name="text">
+                   <string>Skip files that are missing tags used in the template</string>
+                  </property>
+                  <property name="checked">
+                   <bool>true</bool>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="0">
+                 <widget class="QCheckBox" name="syncResizeArt">
+                  <property name="text">
+                   <string>Resize embedded artwork to:</string>
+                  </property>
+                 </widget>
+                </item>
+                <item row="5" column="1">
+                 <widget class="QSpinBox" name="syncArtSize">
+                  <property name="suffix">
+                   <string> px</string>
+                  </property>
+                  <property name="minimum">
+                   <number>16</number>
+                  </property>
+                  <property name="maximum">
+                   <number>4000</number>
+                  </property>
+                  <property name="value">
+                   <number>200</number>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
+              </item>
              </layout>
             </widget>
            </item>
-           <item><widget class="QProgressBar" name="syncProgress"><property name="visible"><bool>false</bool></property></widget></item>
-           <item><widget class="QLabel" name="syncStatus"><property name="wordWrap"><bool>true</bool></property></widget></item>
+           <item>
+            <widget class="QProgressBar" name="syncProgress">
+             <property name="visible">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QLabel" name="syncStatus">
+             <property name="wordWrap">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
            <item>
             <layout class="QHBoxLayout" name="syncButtonRow">
-             <item><widget class="QPushButton" name="syncButton"><property name="text"><string>Synchronise</string></property></widget></item>
-             <item><widget class="QPushButton" name="syncStopButton"><property name="text"><string>Stop</string></property></widget></item>
+             <item>
+              <widget class="QPushButton" name="syncButton">
+               <property name="text">
+                <string>Synchronise</string>
+               </property>
+              </widget>
+             </item>
+             <item>
+              <widget class="QPushButton" name="syncStopButton">
+               <property name="text">
+                <string>Stop</string>
+               </property>
+              </widget>
+             </item>
             </layout>
            </item>
           </layout>
@@ -2242,7 +2503,7 @@ QWidget {
   <widget class="QDockWidget" name="libraryDock">
    <property name="maximumSize">
     <size>
-     <width>256</width>
+     <width>192</width>
      <height>524285</height>
     </size>
    </property>
@@ -2255,7 +2516,7 @@ QDockWidget::title {
 }</string>
    </property>
    <property name="features">
-    <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
+    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable</set>
    </property>
    <property name="allowedAreas">
     <set>Qt::DockWidgetArea::LeftDockWidgetArea</set>
@@ -2417,7 +2678,10 @@ QDockWidget::float-button {
 }</string>
    </property>
    <property name="features">
-    <set>QDockWidget::DockWidgetFeature::NoDockWidgetFeatures</set>
+    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable</set>
+   </property>
+   <property name="windowTitle">
+    <string>Player</string>
    </property>
    <property name="allowedAreas">
     <set>Qt::DockWidgetArea::BottomDockWidgetArea</set>
