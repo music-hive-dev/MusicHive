@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
 
 from src.auto_playlist import COMPARISONS, LIMIT_ORDERS, LIMIT_UNITS
 from src.lastfm_dialog import load_dialog
+from src.number_field import NumberField
 from src.playlist_models import (
     ClickFilter,
     IconAnimation,
@@ -172,6 +173,7 @@ class AutoPlaylistEditDialog(PlaylistEditDialog):
         self.dialog.autoPlaylistMatchCombo.setCurrentIndex(1 if match_any else 0)  # all, any
         self.dialog.autoPlaylistNoDuplicatesCheck.setChecked(no_duplicates)
         self._limit = limit
+        self._limit_amount = NumberField(self.dialog.autoPlaylistLimitAmount)
         self._show_limit(limit)
         self.dialog.autoPlaylistAddRuleButton.clicked.connect(
             lambda _checked=False: self._add_row()
@@ -217,7 +219,7 @@ class AutoPlaylistEditDialog(PlaylistEditDialog):
             d.autoPlaylistLimitCheck.toggled.connect(widget.setEnabled)
         d.autoPlaylistLimitCheck.setChecked(limit is not None)
         if limit is not None:
-            d.autoPlaylistLimitAmount.setValue(limit["amount"])
+            self._limit_amount.setValue(limit["amount"])
             d.autoPlaylistLimitUnit.setCurrentIndex(LIMIT_UNITS.index(limit["unit"]))
             d.autoPlaylistLimitOrder.setCurrentIndex(LIMIT_ORDERS.index(limit["order"]))
 
@@ -226,7 +228,7 @@ class AutoPlaylistEditDialog(PlaylistEditDialog):
         if not d.autoPlaylistLimitCheck.isChecked():
             return None
         return {
-            "amount": d.autoPlaylistLimitAmount.value(),
+            "amount": self._limit_amount.value(),
             "unit": LIMIT_UNITS[d.autoPlaylistLimitUnit.currentIndex()],
             "order": LIMIT_ORDERS[d.autoPlaylistLimitOrder.currentIndex()],
         }

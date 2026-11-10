@@ -7,7 +7,7 @@ from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QAbstractButton, QComboBox, QListView
 
 from src.library_groups import GroupListModel, TrackGroup, songs_text
-from src.track_list import ASSETS_DIR, TrackDelegate, setup_track_view
+from src.track_list import TrackDelegate, setup_track_view
 
 # The tag each entry of a filter combo box stands for, in the order player.ui lists them.
 FILTER_KINDS = ("album", "album_artist", "artist", "decade", "genre", "year")
@@ -58,7 +58,7 @@ class FilterBar(QObject):
         self._model = GroupListModel(self._cover, self)
         setup_track_view(view, self._model)
         self._delegates = {
-            kind: TrackDelegate(view, ASSETS_DIR / placeholder)
+            kind: TrackDelegate(view, placeholder)
             for kind, placeholder in PLACEHOLDERS.items()
         }
         view.selectionModel().currentChanged.connect(self._on_value_selected)

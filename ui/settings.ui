@@ -115,6 +115,156 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="interfaceTab">
+      <attribute name="title">
+       <string>Interface</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="interfaceTabLayout">
+       <item>
+        <layout class="QHBoxLayout" name="interfaceModeRow">
+         <item>
+          <widget class="QLabel" name="interfaceModeLabel">
+           <property name="text">
+            <string>Mode:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="interfaceMode">
+           <item>
+            <property name="text">
+             <string>Dark</string>
+            </property>
+           </item>
+           <item>
+            <property name="text">
+             <string>Light</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item>
+          <spacer name="interfaceModeRowSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="interfaceHighlightRow">
+         <item>
+          <widget class="QLabel" name="interfaceHighlightLabel">
+           <property name="text">
+            <string>Highlight colour:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="interfaceHighlightSwatch">
+           <property name="minimumSize">
+            <size>
+             <width>24</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>24</width>
+             <height>24</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>The highlight colour</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="interfaceHighlight">
+           <property name="maximumSize">
+            <size>
+             <width>110</width>
+             <height>16777215</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>A colour as #rrggbb, for example #6c53a6. Reset to Default uses the mode's own colour: purple in dark mode, green in light mode.</string>
+           </property>
+           <property name="maxLength">
+            <number>7</number>
+           </property>
+           <property name="placeholderText">
+            <string>#rrggbb</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="interfaceHighlightChoose">
+           <property name="text">
+            <string>Choose...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="interfaceHighlightReset">
+           <property name="text">
+            <string>Reset to Default</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="interfaceHighlightRowSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="interfaceRestartNote">
+         <property name="text">
+          <string>The new look is used the next time MusicHive starts.</string>
+         </property>
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="interfaceTabSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="soundTab">
       <attribute name="title">
        <string>Sound</string>
@@ -137,29 +287,32 @@
           </widget>
          </item>
          <item>
-          <widget class="QDoubleSpinBox" name="soundCrossfadeSeconds">
-           <property name="buttonSymbols">
-            <enum>QAbstractSpinBox::ButtonSymbols::NoButtons</enum>
+          <widget class="QLineEdit" name="soundCrossfadeSeconds">
+           <property name="maximumSize">
+            <size>
+             <width>110</width>
+             <height>16777215</height>
+            </size>
            </property>
-           <property name="keyboardTracking">
-            <bool>false</bool>
+           <property name="toolTip">
+            <string>Type a number, or use the Up and Down keys</string>
            </property>
-           <property name="suffix">
+           <property name="suffix" stdset="0">
             <string> seconds</string>
            </property>
-           <property name="decimals">
+           <property name="decimals" stdset="0">
             <number>1</number>
            </property>
-           <property name="minimum">
+           <property name="minimum" stdset="0">
             <double>0.500000000000000</double>
            </property>
-           <property name="maximum">
+           <property name="maximum" stdset="0">
             <double>30.000000000000000</double>
            </property>
-           <property name="singleStep">
+           <property name="singleStep" stdset="0">
             <double>0.500000000000000</double>
            </property>
-           <property name="value">
+           <property name="value" stdset="0">
             <double>5.000000000000000</double>
            </property>
           </widget>

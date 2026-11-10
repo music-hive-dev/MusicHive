@@ -847,6 +847,12 @@ QScrollArea {
     border: none;
 }
 
+/* What scrolls inside it shows the window behind, not a palette colour */
+QScrollArea &gt; QWidget#qt_scrollarea_viewport,
+QScrollArea &gt; QWidget#qt_scrollarea_viewport &gt; QWidget {
+    background: transparent;
+}
+
 QToolTip {
     background-color: #312d34;
     color: #ffffff;
@@ -2648,17 +2654,26 @@ QWidget {
                  </widget>
                 </item>
                 <item row="5" column="1">
-                 <widget class="QSpinBox" name="syncArtSize">
-                  <property name="suffix">
+                 <widget class="QLineEdit" name="syncArtSize">
+                  <property name="maximumSize">
+                   <size>
+                    <width>90</width>
+                    <height>16777215</height>
+                   </size>
+                  </property>
+                  <property name="toolTip">
+                   <string>Type a number, or use the Up and Down keys</string>
+                  </property>
+                  <property name="suffix" stdset="0">
                    <string> px</string>
                   </property>
-                  <property name="minimum">
+                  <property name="minimum" stdset="0">
                    <number>16</number>
                   </property>
-                  <property name="maximum">
+                  <property name="maximum" stdset="0">
                    <number>4000</number>
                   </property>
-                  <property name="value">
+                  <property name="value" stdset="0">
                    <number>200</number>
                   </property>
                  </widget>

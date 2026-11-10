@@ -31,12 +31,12 @@ from PySide6.QtWidgets import (
     QStyleOptionViewItem,
 )
 
+from src import theme
 from src.formatting import format_time
 from src.track_metadata import TrackInfo
 
-ASSETS_DIR = Path(__file__).resolve().parent.parent / "assets"
-PLACEHOLDER_ICON = ASSETS_DIR / "eighth-notes.svg"  # shown when a track has no cover
-STOP_AFTER_ICON = ASSETS_DIR / "eject.svg"  # marks the track playback will end after
+PLACEHOLDER_ICON = "eighth-notes.svg"  # shown when a track has no cover
+STOP_AFTER_ICON = "eject.svg"  # marks the track playback will end after
 
 _LEFT_ALIGNED = (Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter).value
 
@@ -581,8 +581,9 @@ class SortedTrackModel(QAbstractProxyModel):
         self._inverse = inverse
 
 
-def setup_track_view(view, model, placeholder: Path | None = None) -> None:
-    """Give a list view a model and the cover-and-two-lines row painter."""
+def setup_track_view(view, model, placeholder: str | None = None) -> None:
+    """Give a list view a model and the cover-and-two-lines row painter.
+    `placeholder` is an icon file in assets/."""
     view.setModel(model)
     if placeholder is None:
         view.setItemDelegate(TrackDelegate(view))
@@ -692,11 +693,12 @@ class TrackDelegate(QStyledItemDelegate):
     MARKER_SIZE = 16
 
     def __init__(
-        self, parent: QObject | None = None, placeholder: Path = PLACEHOLDER_ICON
+        self, parent: QObject | None = None, placeholder: str = PLACEHOLDER_ICON
     ) -> None:
         super().__init__(parent)
-        self._placeholder = QIcon(str(placeholder))
-        self._stop_icon = QIcon(str(STOP_AFTER_ICON))
+        # Icons from assets/, in the colours of dark or light mode.
+        self._placeholder = QIcon(str(theme.asset_path(placeholder)))
+        self._stop_icon = QIcon(str(theme.asset_path(STOP_AFTER_ICON)))
 
     def sizeHint(self, option, index) -> QSize:
         return QSize(200, self.COVER_SIZE + 2 * self.PADDING)
@@ -741,8 +743,8 @@ class TrackDelegate(QStyledItemDelegate):
         text_left = cover_rect.right() + 1 + self.TEXT_GAP
         text_width = max(0, rect.right() - pad - text_left + 1)
 
-        color_role = option.palette.ColorRole.HighlightedText if selected else option.palette.ColorRole.Text
-        title_color = option.palette.color(color_role)
+        # From the theme: the view's palette does not reliably carry the stylesheet's colours.
+        title_color = QColor(theme.on_highlight() if selected else theme.colour(theme.TEXT))
         subtitle_color = QColor(title_color)
         subtitle_color.setAlpha(170)
 

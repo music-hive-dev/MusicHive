@@ -3,6 +3,7 @@
 import datetime
 import hashlib
 import html
+import os
 import sqlite3
 import sys
 import time
@@ -11,6 +12,7 @@ import random
 import json
 from dataclasses import dataclass
 
+import shiboken6
 from PySide6.QtCore import (
     QDir,
     QEvent,
@@ -50,6 +52,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSlider,
     QApplication,
+    QColorDialog,
     QComboBox,
     QDialogButtonBox,
     QFileDialog,
@@ -69,7 +72,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src import library_db
+from src import library_db, theme
 from src.artist_info import ArtistInfoService
 from src.audio_player import AudioPlayer
 from src.cover_view import SquareCover
@@ -149,7 +152,6 @@ from src.playlists import Playlist, PlaylistStore
 UI_DIR = Path(__file__).parent / "ui"
 UI_FILE = UI_DIR / "player.ui"
 DEVICE_CHECK_MS = 3000  # how often to look for devices being plugged in or removed
-ASSETS_DIR = Path(__file__).parent / "assets"
 # The Application ID of your Discord application (public, not a secret).
 # Leave it empty to disable the Discord menu item.
 DISCORD_CLIENT_ID = "1568612126409498656"
@@ -281,8 +283,6 @@ SETTINGS_FILTER = "MusicHive settings (*.ini)"
 DAYS_FILE = Path(__file__).parent / "days.json"
 EMOJI_FONT_FILE = Path(__file__).parent / "assets" / "fonts" / "Twemoji.Mozilla.ttf"
 EMOJI_FONTS = ["Twemoji Mozilla", "Segoe UI Emoji", "Noto Emoji"]  # the first with the emoji is used
-# White at 67% over the docks' #222023 (rich text links need a solid colour).
-DIMMED_INFO_COLOR = "#b5b5b6"
 NOTHING_TO_PASTE = "There are no songs from this library on the clipboard"
 
 
@@ -304,18 +304,19 @@ def load_ui(path: Path):
         raise RuntimeError(f"Cannot open UI file {path}: {ui_file.errorString()}")
     try:
         loader = QUiLoader()
-        loader.setWorkingDirectory(QDir(str(path.parent)))
+        loader.setWorkingDirectory(QDir(str(theme.ui_dir(path.parent))))
         window = loader.load(ui_file)
     finally:
         ui_file.close()
     if window is None:
         raise RuntimeError(f"Failed to load {path}: {loader.errorString()}")
+    theme.apply(window)
     return window
 
 
 def asset_icon(name: str) -> QIcon:
     """An icon from the assets folder: asset_icon("play") loads assets/play.svg."""
-    path = ASSETS_DIR / f"{name}.svg"
+    path = theme.asset_path(f"{name}.svg")
     icon = QIcon(str(path))
     if icon.isNull():
         print(f"MusicHive: missing or unreadable icon: {path}", file=sys.stderr)
@@ -481,7 +482,6 @@ class ComboItemDelegate(QStyledItemDelegate):
     """
 
     SEPARATOR_HEIGHT = 9
-    SEPARATOR_COLOR = QColor("#433d47")
 
     @staticmethod
     def is_separator(index) -> bool:
@@ -489,11 +489,16 @@ class ComboItemDelegate(QStyledItemDelegate):
 
     def paint(self, painter, option, index) -> None:
         if not self.is_separator(index):
+            # The text colours come from the theme: the dropdown is its own window,
+            # and its palette does not reliably have the stylesheet's colours.
+            option = QStyleOptionViewItem(option)
+            option.palette.setColor(QPalette.ColorRole.Text, QColor(theme.colour(theme.TEXT)))
+            option.palette.setColor(QPalette.ColorRole.HighlightedText, QColor(theme.on_highlight()))
             super().paint(painter, option, index)
             return
         y = option.rect.center().y()
         painter.save()
-        painter.setPen(self.SEPARATOR_COLOR)
+        painter.setPen(QColor(theme.colour("#433d47")))
         painter.drawLine(option.rect.left() + 8, y, option.rect.right() - 8, y)
         painter.restore()
 
@@ -538,13 +543,30 @@ class AssetIconStyle(QProxyStyle):
             target.view().window().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
             if not isinstance(target.itemDelegate(), ComboItemDelegate):
                 target.setItemDelegate(ComboItemDelegate(target))
+            # The chosen entry's text comes from the palette, which may not have
+            # the stylesheet's colour; so do the list's, in its own window.
+            if not theme.is_default():
+                for widget in (target, target.view()):
+                    palette = widget.palette()
+                    # Not the disabled colours: a disabled dropdown stays dimmed.
+                    for group in (QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive):
+                        for role in (
+                            QPalette.ColorRole.ButtonText,
+                            QPalette.ColorRole.Text,
+                            QPalette.ColorRole.WindowText,
+                        ):
+                            palette.setColor(group, role, QColor(theme.colour(theme.TEXT)))
+                        palette.setColor(
+                            group, QPalette.ColorRole.HighlightedText, QColor(theme.on_highlight())
+                        )
+                    widget.setPalette(palette)
         return super().polish(target)
 
     def standardIcon(self, standardIcon, option=None, widget=None):
         name = self.ICONS.get(standardIcon)
         if name is None:
             return super().standardIcon(standardIcon, option, widget)
-        return QIcon(str(ASSETS_DIR / f"{name}.svg"))
+        return QIcon(str(theme.asset_path(f"{name}.svg")))
 
 
 class JumpToClickStyle(AssetIconStyle):
@@ -1016,6 +1038,7 @@ class MusicHive:
             label.linkActivated.connect(self.on_track_info_link)
 
         self.settings_window = None  # created the first time it is opened
+        self.restart_requested = False  # start again after quitting (a new look)
 
         # Shuffle and repeat buttons (settings are remembered between sessions)
         w.shuffleButton.setCheckable(True)
@@ -1209,11 +1232,86 @@ class MusicHive:
         ):
             button.clicked.connect(lambda _checked=False, a=action: a.trigger())
 
+        self.connect_interface_tab(d)
         self.show_data_folder()
         d.generalDataFolderButton.clicked.connect(lambda _checked=False: self.choose_data_folder())
         d.soundEqualiserButton.clicked.connect(lambda _checked=False: self.show_equaliser())
         d.backupImportButton.clicked.connect(lambda _checked=False: self.import_settings_file())
         d.backupExportButton.clicked.connect(lambda _checked=False: self.export_settings_file())
+
+    def connect_interface_tab(self, d) -> None:
+        """Settings, Interface: dark or light mode and the highlight colour.
+        Both are used from the next start, so the tab says so once they change."""
+        d.interfaceMode.setCurrentIndex(theme.MODES.index(theme.saved_mode(self.settings)))
+        d.interfaceMode.activated.connect(self.set_interface_mode)
+        d.interfaceHighlight.editingFinished.connect(
+            lambda: self.set_highlight_colour(d.interfaceHighlight.text())
+        )
+        d.interfaceHighlightChoose.clicked.connect(lambda _checked=False: self.choose_highlight_colour())
+        d.interfaceHighlightReset.clicked.connect(
+            lambda _checked=False: self.set_highlight_colour(
+                theme.default_highlight(theme.saved_mode(self.settings))
+            )
+        )
+        self.show_interface_settings()
+
+    def show_interface_settings(self) -> None:
+        d = self.settings_window
+        highlight = theme.saved_highlight(self.settings)
+        d.interfaceHighlight.setText(highlight)
+        d.interfaceHighlightSwatch.setStyleSheet(
+            f"background-color: {highlight}; border-radius: 12px;"
+        )
+        d.interfaceHighlightReset.setEnabled(
+            highlight != theme.default_highlight(theme.saved_mode(self.settings))
+        )
+        changed = (
+            theme.saved_mode(self.settings) != theme.active_mode()
+            or highlight != theme.active_highlight()
+        )
+        d.interfaceRestartNote.setVisible(changed)
+
+    def set_interface_mode(self, index: int) -> None:
+        mode = theme.MODES[index]
+        if mode == theme.saved_mode(self.settings):
+            return
+        self.settings.setValue(theme.MODE_KEY, mode)
+        self.show_interface_settings()
+        self.offer_restart()
+
+    def set_highlight_colour(self, text: str) -> None:
+        """Save a typed or chosen highlight colour; anything else is put back."""
+        colour = theme.valid_highlight(text)
+        if colour is None:
+            self.show_status(f"'{text}' is not a colour: type it as #rrggbb")
+        elif colour != theme.saved_highlight(self.settings):
+            theme.save_highlight(self.settings, colour)
+            self.show_interface_settings()
+            self.offer_restart()
+            return
+        self.show_interface_settings()
+
+    def offer_restart(self) -> None:
+        """A new look was chosen: ask whether to restart now to see it."""
+        if not self.settings_window.interfaceRestartNote.isVisible():
+            return  # back to the look in use, so nothing to restart for
+        answer = QMessageBox.question(
+            self.settings_window,
+            "Restart MusicHive",
+            "The new look is used once MusicHive restarts. Restart now?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.Yes,
+        )
+        if answer == QMessageBox.StandardButton.Yes:
+            self.restart_requested = True
+            self.quit_app()
+
+    def choose_highlight_colour(self) -> None:
+        d = self.settings_window
+        current = QColor(theme.saved_highlight(self.settings))
+        chosen = QColorDialog.getColor(current, d, "Highlight colour")
+        if chosen.isValid():
+            self.set_highlight_colour(chosen.name())
 
     def show_data_folder(self) -> None:
         d = self.settings_window
@@ -2033,7 +2131,7 @@ class MusicHive:
         # Rich text, like the other labels here: a selectable plain label loses
         # its stylesheet colour and size once it is clicked.
         w.trackInfoFile.setText(
-            f'<span style="color: {DIMMED_INFO_COLOR}; font-size: 8pt">'
+            f'<span style="color: {theme.dimmed_text_on_panel()}; font-size: 8pt">'
             f"{html.escape(details.audio_format)}</span>"
             if details.audio_format
             else ""
@@ -2177,7 +2275,7 @@ class MusicHive:
         """A link that looks like the label's normal text ("" if there is no text)."""
         if not text:
             return ""
-        color = self.window.trackInfoTitle.palette().color(QPalette.ColorRole.WindowText).name()
+        color = theme.colour(theme.TEXT)  # the label's palette may not have the stylesheet's colour
         style = f"color: {color}; text-decoration: none"
         return f'<a href="{field}" style="{style}">{html.escape(text)}</a>'
 
@@ -4946,26 +5044,60 @@ class MusicHive:
 def main() -> int:
     app = QApplication(sys.argv)
     app.setStyle(AssetIconStyle())
-    QDir.addSearchPath("assets", str(ASSETS_DIR))  # for url(assets:...) in the stylesheets
     # Qt draws nothing with this system's Noto Color Emoji, so use a font it can draw.
     QFontDatabase.addApplicationFont(str(EMOJI_FONT_FILE))
     QFontDatabase.setApplicationEmojiFontFamilies(EMOJI_FONTS)
     app.setApplicationName("MusicHive")
     app.setDesktopFileName("musichive")  # must match musichive.desktop
+    # Dark or light mode and the highlight colour, before any window is loaded.
+    theme.setup(QSettings("MusicHive", "MusicHive"), UI_DIR)
     music_hive = MusicHive()
     # Menus and dialogs only see the application palette, so give them the
-    # selection colours from player.ui instead of the system accent colour.
+    # selection colours from player.ui instead of the system accent colour,
+    # and in light mode all of its colours instead of the system's.
+    window_palette = music_hive.window.palette()
     palette = app.palette()
-    for role in (
+    roles = [
         QPalette.ColorRole.Highlight,
         QPalette.ColorRole.HighlightedText,
         QPalette.ColorRole.Accent,
-    ):
-        palette.setColor(role, music_hive.window.palette().color(role))
+    ]
+    if theme.active_mode() == "light":
+        roles += [
+            QPalette.ColorRole.Window,
+            QPalette.ColorRole.WindowText,
+            QPalette.ColorRole.Base,
+            QPalette.ColorRole.AlternateBase,
+            QPalette.ColorRole.Text,
+            QPalette.ColorRole.Button,
+            QPalette.ColorRole.ButtonText,
+            QPalette.ColorRole.BrightText,
+            QPalette.ColorRole.PlaceholderText,
+            QPalette.ColorRole.Light,
+            QPalette.ColorRole.Midlight,
+            QPalette.ColorRole.Mid,
+            QPalette.ColorRole.Dark,
+        ]
+    for role in roles:
+        for group in (QPalette.ColorGroup.Active, QPalette.ColorGroup.Inactive, QPalette.ColorGroup.Disabled):
+            palette.setColor(group, role, window_palette.color(group, role))
     app.setPalette(palette)
     app.aboutToQuit.connect(music_hive.shutdown)
     music_hive.show()
-    return app.exec()
+    exit_code = app.exec()
+    # Delete the windows while the QApplication still exists. Otherwise Python
+    # may free them after it on exit, which crashes (SIGSEGV).
+    # Only windows without a parent: deleting one also deletes the windows it owns.
+    for window in QApplication.topLevelWidgets():
+        if shiboken6.isValid(window) and window.parent() is None:
+            shiboken6.delete(window)
+    if music_hive.restart_requested:
+        # Start again in this process. Nothing after this runs, so save first.
+        music_hive.settings.sync()
+        sys.stdout.flush()
+        sys.stderr.flush()
+        os.execv(sys.executable, [sys.executable, *sys.argv])
+    return exit_code
 
 
 if __name__ == "__main__":

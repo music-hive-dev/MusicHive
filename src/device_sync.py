@@ -33,6 +33,7 @@ from src.convert_files import (
     make_tasks,
 )
 from src.music_library import SUPPORTED_EXTENSIONS
+from src.number_field import NumberField
 from src.organise_files import sanitise_name, template_problem
 from src.track_metadata import find_folder_cover
 
@@ -189,6 +190,7 @@ class DeviceSyncPanel(QObject):
         self._device_id = ""
         self._playlist_names: list[str] = []
         self._checked_playlists: set[str] = set()
+        self._art_size = NumberField(w.syncArtSize)
         self._defaults = self._read_widgets()  # as set in player.ui
 
         self._running = False
@@ -287,7 +289,7 @@ class DeviceSyncPanel(QObject):
             w.syncTemplate.text(),
             w.syncSkipMissing.isChecked(),
             w.syncResizeArt.isChecked(),
-            w.syncArtSize.value(),
+            self._art_size.value(),
         )
 
     def _apply_options(self, options: SyncOptions) -> None:
@@ -301,7 +303,7 @@ class DeviceSyncPanel(QObject):
         w.syncTemplate.setText(options.template)
         w.syncSkipMissing.setChecked(options.skip_missing)
         w.syncResizeArt.setChecked(options.resize_art)
-        w.syncArtSize.setValue(options.art_size)
+        self._art_size.setValue(options.art_size)
         self._checked_playlists = set(options.playlists)
         self._fill_playlists()
         self._show_options()
@@ -395,7 +397,7 @@ class DeviceSyncPanel(QObject):
             w.syncSkipMissing.isChecked(),
             skip_existing=True,
             for_device=True,
-            cover_side=w.syncArtSize.value() if w.syncResizeArt.isChecked() else 0,
+            cover_side=self._art_size.value() if w.syncResizeArt.isChecked() else 0,
             device_lock=threading.Lock(),
             work_dir=self._work_dir,
         )

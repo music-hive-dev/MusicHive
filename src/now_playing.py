@@ -11,6 +11,7 @@ from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter, QPai
 from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QWidget
 
+from src import theme
 from src.lyrics import parse_lyrics
 
 FFT_SIZE = 1024
@@ -179,7 +180,7 @@ class Visualizer(QObject):
     def _paint(self) -> None:
         widget = self._widget
         width, height = widget.width(), widget.height()
-        accent = widget.palette().color(widget.palette().ColorRole.Highlight)
+        accent = QColor(theme.active_highlight())
         gradient = QLinearGradient(QPointF(0, height), QPointF(0, 0))
         accent.setAlpha(BAR_OPACITY)
         gradient.setColorAt(0.0, accent.darker(130))
@@ -335,7 +336,7 @@ class LyricsView(QObject):
         if current and font.pointSizeF() > 0:
             font.setPointSizeF(font.pointSizeF() + CURRENT_LINE_EXTRA_POINTS)
         item.setFont(font)
-        color = QColor(self._view.palette().color(self._view.palette().ColorRole.Text))
+        color = QColor(theme.colour(theme.TEXT))
         if not current:
             color.setAlpha(DIM_ALPHA)
         item.setForeground(QBrush(color))

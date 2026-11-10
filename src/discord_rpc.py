@@ -252,7 +252,9 @@ class DiscordPresence(QObject):
                 self._write_frame(OP_FRAME, self._command(None))
             socket.flush()
             socket.disconnectFromServer()
-            socket.waitForDisconnected(300)
+            # It may already be closed, if the data was sent at once.
+            if socket.state() != QLocalSocket.LocalSocketState.UnconnectedState:
+                socket.waitForDisconnected(300)
         self._ready = False
         self._buffer.clear()
 

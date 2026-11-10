@@ -9,6 +9,8 @@ from PySide6.QtCore import QDir, QFile, QIODevice
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton, QWidget
 
+from src import theme
+from src.number_field import NumberField
 from src.lastfm import LastFmClient
 
 
@@ -18,12 +20,13 @@ def load_dialog(path: Path, parent: QWidget):
         raise RuntimeError(f"Cannot open {path}: {ui_file.errorString()}")
     try:
         loader = QUiLoader()
-        loader.setWorkingDirectory(QDir(str(path.parent)))
+        loader.setWorkingDirectory(QDir(str(theme.ui_dir(path.parent))))
         dialog = loader.load(ui_file, parent)
     finally:
         ui_file.close()
     if dialog is None:
         raise RuntimeError(f"Failed to load {path}: {loader.errorString()}")
+    theme.apply(dialog)
     return dialog
 
 
@@ -48,8 +51,9 @@ class LastFmDialog:
         d.lastFmRememberCheckBox.toggled.connect(client.set_remember)
         d.lastFmDownloadButton.clicked.connect(self._on_download_clicked)
         d.lastFmImportButton.clicked.connect(self._on_import_clicked)
-        d.lastFmBacklogPerDay.setValue(client.backlog_per_day)
-        d.lastFmBacklogPerDay.valueChanged.connect(client.set_backlog_per_day)
+        self._backlog_per_day = NumberField(d.lastFmBacklogPerDay)
+        self._backlog_per_day.setValue(client.backlog_per_day)
+        self._backlog_per_day.valueChanged.connect(client.set_backlog_per_day)
         # Enter confirms a typed number; it must not press a button as well.
         for button in d.findChildren(QPushButton):
             button.setAutoDefault(False)

@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QDialog
 
+from src.number_field import NumberField
+
 CROSSFADE_KEY = "sound/crossfade"
 CROSSFADE_SECONDS_KEY = "sound/crossfadeSeconds"
 CROSSFADE_ON_SKIP_KEY = "sound/crossfadeOnSkip"
@@ -46,9 +48,10 @@ class SoundSettingsTab:
         self._settings = settings
         self._on_change = on_change
 
+        self._crossfade_seconds = NumberField(d.soundCrossfadeSeconds)
         current = load_sound_settings(settings)
         d.soundCrossfade.setChecked(current.crossfade)
-        d.soundCrossfadeSeconds.setValue(current.crossfade_seconds)
+        self._crossfade_seconds.setValue(current.crossfade_seconds)
         d.soundCrossfadeOnSkip.setChecked(current.crossfade_on_skip)
         d.soundFadeOnPause.setChecked(current.fade_on_pause)
         d.soundSkipSilence.setChecked(current.skip_silence)
@@ -61,7 +64,7 @@ class SoundSettingsTab:
             d.soundSkipSilence,
         ):
             checkbox.toggled.connect(lambda _on: self._changed())
-        d.soundCrossfadeSeconds.valueChanged.connect(lambda _value: self._changed())
+        self._crossfade_seconds.valueChanged.connect(lambda _value: self._changed())
 
     def _show_crossfade_options(self) -> None:
         d = self._dialog
@@ -75,7 +78,7 @@ class SoundSettingsTab:
         self._show_crossfade_options()
         current = SoundSettings(
             d.soundCrossfade.isChecked(),
-            d.soundCrossfadeSeconds.value(),
+            self._crossfade_seconds.value(),
             d.soundCrossfadeOnSkip.isChecked(),
             d.soundFadeOnPause.isChecked(),
             d.soundSkipSilence.isChecked(),

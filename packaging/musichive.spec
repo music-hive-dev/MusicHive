@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.1.1
+Version:        1.2.0
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -71,6 +71,14 @@ EOF
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Nov 10 2026 MusicHive - 1.2.0-1
+- Added an Interface settings tab with dark and light mode
+- The highlight colour can be chosen, with a default for each mode
+- Offers to restart when the look is changed
+- Number boxes are text fields, fixing how they were drawn
+- The Last.fm window fits its contents
+- Fixed a crash and a warning when quitting
+
 * Tue Nov 10 2026 MusicHive - 1.1.1-1
 - Added "Add to end of queue" to the right-click menus
 - Delete removes the selected songs from the Upcoming list
