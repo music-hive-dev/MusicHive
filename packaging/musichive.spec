@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.1
+Version:        1.1.1
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -71,6 +71,11 @@ EOF
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Nov 10 2026 MusicHive - 1.1.1-1
+- Added "Add to end of queue" to the right-click menus
+- Delete removes the selected songs from the Upcoming list
+- Songs can be dragged into the Upcoming list and rearranged within it
+
 * Tue Nov 10 2026 MusicHive - 1.1-1
 - Adjusted a button icon size
 
