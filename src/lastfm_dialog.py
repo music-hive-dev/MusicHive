@@ -5,7 +5,7 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QFile, QIODevice
+from PySide6.QtCore import QDir, QFile, QIODevice
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton, QWidget
 
@@ -18,6 +18,7 @@ def load_dialog(path: Path, parent: QWidget):
         raise RuntimeError(f"Cannot open {path}: {ui_file.errorString()}")
     try:
         loader = QUiLoader()
+        loader.setWorkingDirectory(QDir(str(path.parent)))
         dialog = loader.load(ui_file, parent)
     finally:
         ui_file.close()

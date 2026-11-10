@@ -11,6 +11,7 @@ import json
 from dataclasses import dataclass
 
 from PySide6.QtCore import (
+    QDir,
     QEvent,
     QFile,
     QIODevice,
@@ -132,7 +133,8 @@ from src.playlist_dialog import AutoPlaylistEditDialog, PlaylistDetails, Playlis
 from src.playlists import Playlist, PlaylistStore
 
 
-UI_FILE = Path(__file__).parent / "player.ui"
+UI_DIR = Path(__file__).parent / "ui"
+UI_FILE = UI_DIR / "player.ui"
 DEVICE_CHECK_MS = 3000  # how often to look for devices being plugged in or removed
 ASSETS_DIR = Path(__file__).parent / "assets"
 # The Application ID of your Discord application (public, not a secret).
@@ -150,19 +152,19 @@ def load_secrets() -> dict:
 _SECRETS = load_secrets()
 LASTFM_API_KEY = _SECRETS.get("lastfm_api_key", "")
 LASTFM_API_SECRET = _SECRETS.get("lastfm_api_secret", "")
-LASTFM_UI_FILE = Path(__file__).parent / "lastfm.ui"
-PLAYLIST_EDIT_UI_FILE = Path(__file__).parent / "playlist_edit.ui"
-AUTO_PLAYLIST_EDIT_UI_FILE = Path(__file__).parent / "auto_playlist_edit.ui"
-AUTO_PLAYLIST_RULE_UI_FILE = Path(__file__).parent / "auto_playlist_rule.ui"
-COLUMNS_EDIT_UI_FILE = Path(__file__).parent / "columns_edit.ui"
-TAG_EDIT_UI_FILE = Path(__file__).parent / "tag_edit.ui"
-SETTINGS_UI_FILE = Path(__file__).parent / "settings.ui"
-AUTO_TAG_UI_FILE = Path(__file__).parent / "auto_tag_genres.ui"
-ORGANISE_UI_FILE = Path(__file__).parent / "organise_files.ui"
-EQUALISER_UI_FILE = Path(__file__).parent / "equaliser.ui"
-LEVEL_VOLUME_UI_FILE = Path(__file__).parent / "level_volume.ui"
-CONVERT_UI_FILE = Path(__file__).parent / "convert_files.ui"
-COVER_WINDOW_UI_FILE = Path(__file__).parent / "cover_window.ui"
+LASTFM_UI_FILE = UI_DIR / "lastfm.ui"
+PLAYLIST_EDIT_UI_FILE = UI_DIR / "playlist_edit.ui"
+AUTO_PLAYLIST_EDIT_UI_FILE = UI_DIR / "auto_playlist_edit.ui"
+AUTO_PLAYLIST_RULE_UI_FILE = UI_DIR / "auto_playlist_rule.ui"
+COLUMNS_EDIT_UI_FILE = UI_DIR / "columns_edit.ui"
+TAG_EDIT_UI_FILE = UI_DIR / "tag_edit.ui"
+SETTINGS_UI_FILE = UI_DIR / "settings.ui"
+AUTO_TAG_UI_FILE = UI_DIR / "auto_tag_genres.ui"
+ORGANISE_UI_FILE = UI_DIR / "organise_files.ui"
+EQUALISER_UI_FILE = UI_DIR / "equaliser.ui"
+LEVEL_VOLUME_UI_FILE = UI_DIR / "level_volume.ui"
+CONVERT_UI_FILE = UI_DIR / "convert_files.ui"
+COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
 
 # How long after a track starts before Last.fm is told what is playing.
 NOW_PLAYING_DELAY_MS = 3000
@@ -261,6 +263,7 @@ def load_ui(path: Path):
         raise RuntimeError(f"Cannot open UI file {path}: {ui_file.errorString()}")
     try:
         loader = QUiLoader()
+        loader.setWorkingDirectory(QDir(str(path.parent)))
         window = loader.load(ui_file)
     finally:
         ui_file.close()

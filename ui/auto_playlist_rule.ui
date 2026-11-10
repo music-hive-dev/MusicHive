@@ -82,7 +82,7 @@
      </property>
      <property name="icon">
       <iconset>
-       <normaloff>assets/minus.svg</normaloff>assets/minus.svg</iconset>
+       <normaloff>../assets/minus.svg</normaloff>../assets/minus.svg</iconset>
      </property>
     </widget>
    </item>

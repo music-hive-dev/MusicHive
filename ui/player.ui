@@ -561,7 +561,7 @@
   </property>
   <property name="windowIcon">
    <iconset>
-    <normaloff>musichive_colour.svg</normaloff>musichive_colour.svg</iconset>
+    <normaloff>../musichive_colour.svg</normaloff>../musichive_colour.svg</iconset>
   </property>
   <property name="windowOpacity">
    <double>1.000000000000000</double>
@@ -741,7 +741,7 @@ QMenuBar {
        </property>
        <attribute name="icon">
         <iconset>
-         <normalon>assets/audio-lines.svg</normalon>
+         <normalon>../assets/audio-lines.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -795,7 +795,7 @@ QListWidget::item, QListWidget::item:hover { background: transparent; }</string>
       <widget class="QWidget" name="songsTab">
        <attribute name="icon">
         <iconset>
-         <normalon>assets/eighth-notes.svg</normalon>
+         <normalon>../assets/eighth-notes.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -907,7 +907,7 @@ QWidget {
                 </property>
                 <property name="icon">
                  <iconset>
-                  <normalon>assets/search.svg</normalon>
+                  <normalon>../assets/search.svg</normalon>
                  </iconset>
                 </property>
                </widget>
@@ -922,7 +922,7 @@ QWidget {
                 </property>
                 <property name="icon">
                  <iconset>
-                  <normaloff>assets/columns-3-cog.svg</normaloff>assets/columns-3-cog.svg</iconset>
+                  <normaloff>../assets/columns-3-cog.svg</normaloff>../assets/columns-3-cog.svg</iconset>
                 </property>
                </widget>
               </item>
@@ -936,7 +936,7 @@ QWidget {
                 </property>
                 <property name="icon">
                  <iconset>
-                  <normaloff>assets/funnel.svg</normaloff>assets/funnel.svg</iconset>
+                  <normaloff>../assets/funnel.svg</normaloff>../assets/funnel.svg</iconset>
                 </property>
                 <property name="checkable">
                  <bool>true</bool>
@@ -976,7 +976,7 @@ QWidget {
       <widget class="QWidget" name="playlistsTab">
        <attribute name="icon">
         <iconset>
-         <normalon>assets/list-music.svg</normalon>
+         <normalon>../assets/list-music.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -1082,7 +1082,7 @@ QWidget {
                  <string/>
                 </property>
                 <property name="pixmap">
-                 <pixmap>assets/list-music.svg</pixmap>
+                 <pixmap>../assets/list-music.svg</pixmap>
                 </property>
                 <property name="scaledContents">
                  <bool>true</bool>
@@ -1192,7 +1192,7 @@ QWidget {
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normalon>assets/pencil.svg</normalon>
+                    <normalon>../assets/pencil.svg</normalon>
                    </iconset>
                   </property>
                  </widget>
@@ -1210,7 +1210,7 @@ QWidget {
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normaloff>assets/lock.svg</normaloff>assets/lock.svg</iconset>
+                    <normaloff>../assets/lock.svg</normaloff>../assets/lock.svg</iconset>
                   </property>
                   <property name="checkable">
                    <bool>true</bool>
@@ -1233,7 +1233,7 @@ QWidget {
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normaloff>assets/columns-3-cog.svg</normaloff>assets/columns-3-cog.svg</iconset>
+                    <normaloff>../assets/columns-3-cog.svg</normaloff>../assets/columns-3-cog.svg</iconset>
                   </property>
                  </widget>
                 </item>
@@ -1253,7 +1253,7 @@ QWidget {
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normaloff>assets/funnel.svg</normaloff>assets/funnel.svg</iconset>
+                    <normaloff>../assets/funnel.svg</normaloff>../assets/funnel.svg</iconset>
                   </property>
                   <property name="checkable">
                    <bool>true</bool>
@@ -1283,7 +1283,7 @@ QWidget {
       <widget class="QWidget" name="artistsTab">
        <attribute name="icon">
         <iconset>
-         <normalon>assets/user.svg</normalon>
+         <normalon>../assets/user.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -1368,7 +1368,7 @@ QWidget {
                  <string/>
                 </property>
                 <property name="pixmap">
-                 <pixmap>assets/user.svg</pixmap>
+                 <pixmap>../assets/user.svg</pixmap>
                 </property>
                 <property name="scaledContents">
                  <bool>true</bool>
@@ -1477,7 +1477,7 @@ QWidget {
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normaloff>assets/columns-3-cog.svg</normaloff>assets/columns-3-cog.svg</iconset>
+                    <normaloff>../assets/columns-3-cog.svg</normaloff>../assets/columns-3-cog.svg</iconset>
                   </property>
                  </widget>
                 </item>
@@ -1497,7 +1497,7 @@ QWidget {
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normaloff>assets/funnel.svg</normaloff>assets/funnel.svg</iconset>
+                    <normaloff>../assets/funnel.svg</normaloff>../assets/funnel.svg</iconset>
                   </property>
                   <property name="checkable">
                    <bool>true</bool>
@@ -1527,7 +1527,7 @@ QWidget {
       <widget class="QWidget" name="albumsTab">
        <attribute name="icon">
         <iconset>
-         <normalon>assets/disc.svg</normalon>
+         <normalon>../assets/disc.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -1612,7 +1612,7 @@ QWidget {
                  <string/>
                 </property>
                 <property name="pixmap">
-                 <pixmap>assets/disc.svg</pixmap>
+                 <pixmap>../assets/disc.svg</pixmap>
                 </property>
                 <property name="scaledContents">
                  <bool>true</bool>
@@ -1706,7 +1706,7 @@ QWidget {
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normaloff>assets/columns-3-cog.svg</normaloff>assets/columns-3-cog.svg</iconset>
+                    <normaloff>../assets/columns-3-cog.svg</normaloff>../assets/columns-3-cog.svg</iconset>
                   </property>
                  </widget>
                 </item>
@@ -1726,7 +1726,7 @@ QWidget {
                   </property>
                   <property name="icon">
                    <iconset>
-                    <normaloff>assets/funnel.svg</normaloff>assets/funnel.svg</iconset>
+                    <normaloff>../assets/funnel.svg</normaloff>../assets/funnel.svg</iconset>
                   </property>
                   <property name="checkable">
                    <bool>true</bool>
@@ -1756,7 +1756,7 @@ QWidget {
       <widget class="QWidget" name="historyTab">
        <attribute name="icon">
         <iconset>
-         <normalon>assets/clock.svg</normalon>
+         <normalon>../assets/clock.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -1778,7 +1778,7 @@ QWidget {
        </property>
        <attribute name="icon">
         <iconset>
-         <normalon>assets/radio.svg</normalon>
+         <normalon>../assets/radio.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -1788,7 +1788,7 @@ QWidget {
       <widget class="QWidget" name="tab">
        <attribute name="icon">
         <iconset>
-         <normalon>assets/mic.svg</normalon>
+         <normalon>../assets/mic.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -1798,7 +1798,7 @@ QWidget {
       <widget class="QWidget" name="devicesTab">
        <attribute name="icon">
         <iconset>
-         <normalon>assets/external_device.svg</normalon>
+         <normalon>../assets/external_device.svg</normalon>
         </iconset>
        </attribute>
        <attribute name="title">
@@ -2224,7 +2224,7 @@ QWidget {
           <string/>
          </property>
          <property name="pixmap">
-          <pixmap>assets/eighth-notes.svg</pixmap>
+          <pixmap>../assets/eighth-notes.svg</pixmap>
          </property>
          <property name="scaledContents">
           <bool>true</bool>
@@ -2318,7 +2318,7 @@ QDockWidget::title {
              </property>
              <property name="icon">
               <iconset>
-               <normaloff>assets/plus.svg</normaloff>assets/plus.svg</iconset>
+               <normaloff>../assets/plus.svg</normaloff>../assets/plus.svg</iconset>
              </property>
             </widget>
            </item>
@@ -2332,7 +2332,7 @@ QDockWidget::title {
              </property>
              <property name="icon">
               <iconset>
-               <normaloff>assets/refresh-cw.svg</normaloff>assets/refresh-cw.svg</iconset>
+               <normaloff>../assets/refresh-cw.svg</normaloff>../assets/refresh-cw.svg</iconset>
              </property>
             </widget>
            </item>
@@ -2453,7 +2453,7 @@ QDockWidget::float-button {
            </property>
            <property name="icon">
             <iconset>
-             <normaloff>assets/skip-back.svg</normaloff>assets/skip-back.svg</iconset>
+             <normaloff>../assets/skip-back.svg</normaloff>../assets/skip-back.svg</iconset>
            </property>
           </widget>
          </item>
@@ -2476,7 +2476,7 @@ QDockWidget::float-button {
            </property>
            <property name="icon">
             <iconset>
-             <normaloff>assets/play.svg</normaloff>assets/play.svg</iconset>
+             <normaloff>../assets/play.svg</normaloff>../assets/play.svg</iconset>
            </property>
           </widget>
          </item>
@@ -2499,7 +2499,7 @@ QDockWidget::float-button {
            </property>
            <property name="icon">
             <iconset>
-             <normaloff>assets/skip-forward.svg</normaloff>assets/skip-forward.svg</iconset>
+             <normaloff>../assets/skip-forward.svg</normaloff>../assets/skip-forward.svg</iconset>
            </property>
           </widget>
          </item>
@@ -2689,7 +2689,7 @@ QWidget {
              </property>
              <property name="icon">
               <iconset>
-               <normaloff>assets/volume-2.svg</normaloff>assets/volume-2.svg</iconset>
+               <normaloff>../assets/volume-2.svg</normaloff>../assets/volume-2.svg</iconset>
              </property>
              <property name="shortcut">
               <string>M</string>
@@ -2752,7 +2752,7 @@ QWidget {
              </property>
              <property name="icon">
               <iconset>
-               <normaloff>assets/repeat.svg</normaloff>assets/repeat.svg</iconset>
+               <normaloff>../assets/repeat.svg</normaloff>../assets/repeat.svg</iconset>
              </property>
             </widget>
            </item>
@@ -2772,7 +2772,7 @@ QWidget {
              </property>
              <property name="icon">
               <iconset>
-               <normaloff>assets/shuffle.svg</normaloff>assets/shuffle.svg</iconset>
+               <normaloff>../assets/shuffle.svg</normaloff>../assets/shuffle.svg</iconset>
              </property>
             </widget>
            </item>
@@ -2792,7 +2792,7 @@ QWidget {
              </property>
              <property name="icon">
               <iconset>
-               <normaloff>assets/sliders-vertical.svg</normaloff>assets/sliders-vertical.svg</iconset>
+               <normaloff>../assets/sliders-vertical.svg</normaloff>../assets/sliders-vertical.svg</iconset>
              </property>
             </widget>
            </item>
@@ -2846,7 +2846,7 @@ QWidget {
   <action name="actionImportPlaylist">
    <property name="icon">
     <iconset>
-     <normaloff>assets/list-plus.svg</normaloff>assets/list-plus.svg</iconset>
+     <normaloff>../assets/list-plus.svg</normaloff>../assets/list-plus.svg</iconset>
    </property>
    <property name="text">
     <string>Import playlist…</string>
@@ -2855,7 +2855,7 @@ QWidget {
   <action name="actionExportPlaylist">
    <property name="icon">
     <iconset>
-     <normaloff>assets/list-check.svg</normaloff>assets/list-check.svg</iconset>
+     <normaloff>../assets/list-check.svg</normaloff>../assets/list-check.svg</iconset>
    </property>
    <property name="text">
     <string>Export playlist…</string>
@@ -2864,7 +2864,7 @@ QWidget {
   <action name="actionAddLibrary">
    <property name="icon">
     <iconset>
-     <normaloff>assets/plus.svg</normaloff>assets/plus.svg</iconset>
+     <normaloff>../assets/plus.svg</normaloff>../assets/plus.svg</iconset>
    </property>
    <property name="text">
     <string>Add Library...</string>
@@ -2882,7 +2882,7 @@ QWidget {
   <action name="actionRescanLibrary">
    <property name="icon">
     <iconset>
-     <normaloff>assets/refresh-cw.svg</normaloff>assets/refresh-cw.svg</iconset>
+     <normaloff>../assets/refresh-cw.svg</normaloff>../assets/refresh-cw.svg</iconset>
    </property>
    <property name="text">
     <string>Rescan Libary</string>
@@ -2900,7 +2900,7 @@ QWidget {
   <action name="actionRemoveLibrary">
    <property name="icon">
     <iconset>
-     <normaloff>assets/minus.svg</normaloff>assets/minus.svg</iconset>
+     <normaloff>../assets/minus.svg</normaloff>../assets/minus.svg</iconset>
    </property>
    <property name="text">
     <string>Remove Library...</string>
@@ -2915,7 +2915,7 @@ QWidget {
   <action name="actionQuit">
    <property name="icon">
     <iconset>
-     <normaloff>assets/door-open.svg</normaloff>assets/door-open.svg</iconset>
+     <normaloff>../assets/door-open.svg</normaloff>../assets/door-open.svg</iconset>
    </property>
    <property name="text">
     <string>Quit</string>
@@ -2933,7 +2933,7 @@ QWidget {
   <action name="actionPlayPause">
    <property name="icon">
     <iconset>
-     <normaloff>assets/play.svg</normaloff>assets/play.svg</iconset>
+     <normaloff>../assets/play.svg</normaloff>../assets/play.svg</iconset>
    </property>
    <property name="text">
     <string>Play/Pause</string>
@@ -2951,7 +2951,7 @@ QWidget {
   <action name="actionPrevious">
    <property name="icon">
     <iconset>
-     <normaloff>assets/skip-back.svg</normaloff>assets/skip-back.svg</iconset>
+     <normaloff>../assets/skip-back.svg</normaloff>../assets/skip-back.svg</iconset>
    </property>
    <property name="text">
     <string>Previous</string>
@@ -2969,7 +2969,7 @@ QWidget {
   <action name="actionNext">
    <property name="icon">
     <iconset>
-     <normaloff>assets/skip-forward.svg</normaloff>assets/skip-forward.svg</iconset>
+     <normaloff>../assets/skip-forward.svg</normaloff>../assets/skip-forward.svg</iconset>
    </property>
    <property name="text">
     <string>Next</string>
@@ -2987,7 +2987,7 @@ QWidget {
   <action name="actionAbout">
    <property name="icon">
     <iconset>
-     <normaloff>assets/info.svg</normaloff>assets/info.svg</iconset>
+     <normaloff>../assets/info.svg</normaloff>../assets/info.svg</iconset>
    </property>
    <property name="text">
     <string>About MusicHive</string>
@@ -3049,7 +3049,7 @@ QWidget {
   <action name="actionSettings">
    <property name="icon">
     <iconset>
-     <normaloff>assets/settings.svg</normaloff>assets/settings.svg</iconset>
+     <normaloff>../assets/settings.svg</normaloff>../assets/settings.svg</iconset>
    </property>
    <property name="text">
     <string>Settings…</string>
@@ -3083,7 +3083,7 @@ QWidget {
   <action name="actionAudioScrobbleLastFm">
    <property name="icon">
     <iconset>
-     <normaloff>assets/radio-tower.svg</normaloff>assets/radio-tower.svg</iconset>
+     <normaloff>../assets/radio-tower.svg</normaloff>../assets/radio-tower.svg</iconset>
    </property>
    <property name="text">
     <string>Last.fm Account</string>
