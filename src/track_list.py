@@ -252,6 +252,8 @@ class TrackListModel(QAbstractTableModel):
     SubtitleRole = Qt.ItemDataRole.UserRole + 2
     CoverRole = Qt.ItemDataRole.UserRole + 3
     StopAfterRole = Qt.ItemDataRole.UserRole + 4  # only the Upcoming list uses it
+    ArtistRole = Qt.ItemDataRole.UserRole + 5
+    DurationRole = Qt.ItemDataRole.UserRole + 6
 
     columns_changed = Signal()
 
@@ -398,6 +400,10 @@ class TrackListModel(QAbstractTableModel):
             return info.title
         if role == self.SubtitleRole:
             return info.subtitle
+        if role == self.ArtistRole:
+            return info.artist
+        if role == self.DurationRole:
+            return format_time(info.duration_ms) if info.duration_ms else ""
         if role == self.CoverRole:
             return self._cover_image(info.cover_key)
         if role == Qt.ItemDataRole.ToolTipRole:
@@ -633,6 +639,8 @@ class QueueModel(QAbstractListModel):
             return index.row() == self._stop_after
         if role == Qt.ItemDataRole.DisplayRole:
             role = TrackListModel.TitleRole
+        elif role == TrackListModel.SubtitleRole:
+            role = TrackListModel.ArtistRole  # the second line here is only the artist
         return self._library.data(self._library.index(library_row, 0), role)
 
     def _on_library_reset(self) -> None:
@@ -643,8 +651,8 @@ class QueueModel(QAbstractListModel):
 class TrackDelegate(QStyledItemDelegate):
     """Paints a row as: [cover] Title / Artist – Album (Year)."""
 
-    COVER_SIZE = 48
-    PADDING = 6
+    COVER_SIZE = 45
+    PADDING = 3
     TEXT_GAP = 10
     MARKER_SIZE = 16
 
@@ -682,26 +690,15 @@ class TrackDelegate(QStyledItemDelegate):
         if isinstance(cover, QImage):
             painter.drawImage(cover_rect, cover)
         elif not self._placeholder.isNull():
-            self._placeholder.paint(painter, cover_rect)
+            self._placeholder.paint(
+                painter, cover_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop
+            )
         else:
             painter.fillRect(cover_rect, option.palette.mid())
 
-        # "Playback ends after this track" marker, at the right edge
-        right_pad = pad
-        if stop_after:
-            marker_rect = QRect(
-                rect.right() - pad - self.MARKER_SIZE + 1,
-                rect.center().y() - self.MARKER_SIZE // 2,
-                self.MARKER_SIZE,
-                self.MARKER_SIZE,
-            )
-            self._stop_icon.paint(painter, marker_rect)
-            right_pad = pad + self.MARKER_SIZE + self.TEXT_GAP
-
         # Text to the right of the cover
         text_left = cover_rect.right() + 1 + self.TEXT_GAP
-        text_width = max(0, rect.right() - right_pad - text_left + 1)
-        half = self.COVER_SIZE // 2
+        text_width = max(0, rect.right() - pad - text_left + 1)
 
         color_role = option.palette.ColorRole.HighlightedText if selected else option.palette.ColorRole.Text
         title_color = option.palette.color(color_role)
@@ -713,24 +710,57 @@ class TrackDelegate(QStyledItemDelegate):
 
         title_font = QFont(option.font)
         title_font.setBold(True)
-        title_text = QFontMetrics(title_font).elidedText(
-            title, Qt.TextElideMode.ElideRight, text_width
-        )
+        title_metrics = QFontMetrics(title_font)
+        title_height = title_metrics.height()
+        # The marker needs the second line, even on a row with no text for it.
+        two_lines = bool(subtitle) or stop_after
+
+        # The duration sits at the right end of the title line; the title gives way to it.
+        title_width = text_width
+        duration = index.data(TrackListModel.DurationRole) or ""
+        if duration:
+            duration_width = QFontMetrics(option.font).horizontalAdvance(duration)
+            title_width = max(0, text_width - duration_width - self.TEXT_GAP)
+            line_height = title_height if two_lines else self.COVER_SIZE
+            painter.setFont(option.font)
+            painter.setPen(subtitle_color)
+            painter.drawText(
+                QRect(text_left, cover_rect.top(), text_width, line_height),
+                Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter,
+                duration,
+            )
+
+        # "Playback ends after this track" marker, under the duration
+        subtitle_width = text_width
+        if stop_after:
+            subtitle_width = max(0, text_width - self.MARKER_SIZE - self.TEXT_GAP)
+            marker_rect = QRect(
+                text_left + text_width - self.MARKER_SIZE,
+                cover_rect.top() + title_height,
+                self.MARKER_SIZE,
+                self.MARKER_SIZE,
+            )
+            self._stop_icon.paint(painter, marker_rect)
+
+        title_text = title_metrics.elidedText(title, Qt.TextElideMode.ElideRight, title_width)
 
         painter.setFont(title_font)
         painter.setPen(title_color)
-        if subtitle:
-            title_rect = QRect(text_left, cover_rect.top(), text_width, half)
+        if two_lines:
+            title_rect = QRect(text_left, cover_rect.top(), text_width, title_height)
             painter.drawText(
                 title_rect,
                 Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignBottom,
                 title_text,
             )
             subtitle_text = QFontMetrics(option.font).elidedText(
-                subtitle, Qt.TextElideMode.ElideRight, text_width
+                subtitle, Qt.TextElideMode.ElideRight, subtitle_width
             )
             subtitle_rect = QRect(
-                text_left, cover_rect.top() + half, text_width, self.COVER_SIZE - half
+                text_left,
+                cover_rect.top() + title_height,
+                text_width,
+                self.COVER_SIZE - title_height,
             )
             painter.setFont(option.font)
             painter.setPen(subtitle_color)
