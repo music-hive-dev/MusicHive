@@ -127,6 +127,7 @@ from src.sound_settings import CROSSFADE_KEY, SoundSettingsTab, load_sound_setti
 from src.organise_files import FileMove, OrganiseDialog, OrganiseResult
 from src.tag_editor import TagEditorDialog
 from src.tag_writer import SaveResult, TagJob, TagWriter
+from src.mini_player import MiniPlayer
 from src.now_playing import LyricsView, Visualizer
 from src.star_rating import StarRating
 from src.tray import TrayMinimizer
@@ -181,6 +182,7 @@ LEVEL_VOLUME_UI_FILE = UI_DIR / "level_volume.ui"
 CONVERT_UI_FILE = UI_DIR / "convert_files.ui"
 COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
 ABOUT_UI_FILE = UI_DIR / "about.ui"
+MINI_PLAYER_UI_FILE = UI_DIR / "mini_player.ui"
 
 # How long after a track starts before Last.fm is told what is playing.
 NOW_PLAYING_DELAY_MS = 3000
@@ -772,10 +774,13 @@ class MusicHive:
             "high": asset_icon("volume-2"),
         }
 
+        self.mini_player = MiniPlayer(load_ui(MINI_PLAYER_UI_FILE), w.styleSheet(), self.settings)
+
         # Left-click on a slider bar jumps to that position (instead of nudging).
         self._slider_style = JumpToClickStyle()
         w.progressSlider.setStyle(self._slider_style)
         w.volumeSlider.setStyle(self._slider_style)
+        self.mini_player.slider.setStyle(self._slider_style)
 
         # Library table: the model holds the tracks (row n is library row n),
         # and the sorted model on top decides the order they are shown in.
@@ -1059,6 +1064,7 @@ class MusicHive:
         self._volume_wheel = VolumeWheelFilter(w.volumeSlider)
         w.volumeSlider.installEventFilter(self._volume_wheel)
         w.muteButton.installEventFilter(self._volume_wheel)
+        self.setup_mini_player()
 
         # Player -> UI
         self.player.track_started.connect(self.on_track_started)
@@ -1112,7 +1118,15 @@ class MusicHive:
         self.mpris.start()
 
     def show(self) -> None:
-        self.window.show()
+        # Only hidden if there is a tray icon to bring the window back with.
+        stays_hidden = (
+            self.settings.value("startMinimized", False, type=bool)
+            and self.window.actionMinimizeToTray.isChecked()
+            and TrayMinimizer.is_available()
+        )
+        if not stays_hidden:
+            self.window.show()
+        self.window.actionMiniPlayer.setChecked(self.settings.value("miniPlayer", False, type=bool))
         greeting = todays_greeting()
         if greeting:
             self.show_status(greeting)
@@ -1125,8 +1139,9 @@ class MusicHive:
 
     @staticmethod
     def quit_app() -> None:
-        """End the program. Closing the window may only hide it to the tray."""
-        QApplication.quit()
+        """End the program, also if the window would rather hide itself to the tray."""
+        # Not quit(), which gives up when a window refuses to close.
+        QApplication.exit()
 
     def show_settings(self) -> None:
         if self.settings_window is None:
@@ -1147,6 +1162,7 @@ class MusicHive:
         w = self.window
         for checkbox, action in (
             (d.playbackShuffle, w.actionShuffle),
+            (d.playbackMiniPlayer, w.actionMiniPlayer),
             (d.soundVolumeAdjustment, w.actionVolumeAdjustment),
             (d.lastFmScrobble, w.actionScrobble),
             (d.onlineDiscordPresence, w.actionDiscordPresence),
@@ -1166,6 +1182,12 @@ class MusicHive:
         d.playbackRepeat.activated.connect(
             lambda index: self.set_repeat_mode(PlayOrder.REPEAT_MODES[index])
         )
+        d.generalStartMinimized.setChecked(self.settings.value("startMinimized", False, type=bool))
+        d.generalStartMinimized.toggled.connect(
+            lambda enabled: self.settings.setValue("startMinimized", enabled)
+        )
+        d.generalStartMinimized.setEnabled(w.actionMinimizeToTray.isChecked())
+        w.actionMinimizeToTray.toggled.connect(d.generalStartMinimized.setEnabled)
         for button, action in (
             (d.librariesAddButton, w.actionAddLibrary),
             (d.librariesRescanButton, w.actionRescanLibrary),
@@ -1411,6 +1433,14 @@ class MusicHive:
         ):
             action = menu.addAction(asset_icon(icon), label)
             action.triggered.connect(lambda _checked=False, c=callback: c())
+        # A plain item, not the checkable action: the desktop draws this menu and
+        # would leave an empty space for the checkbox.
+        mini_item = QAction(asset_icon("picture-in-picture-2"), "Open Mini Player", menu)
+        mini_item.triggered.connect(lambda _checked=False: w.actionMiniPlayer.toggle())
+        w.actionMiniPlayer.toggled.connect(
+            lambda shown: mini_item.setText("Close Mini Player" if shown else "Open Mini Player")
+        )
+        menu.insertAction(action, mini_item)  # above Quit, the last item
         folder = Path(__file__).parent
         self.tray = TrayMinimizer(
             w,
@@ -1427,6 +1457,58 @@ class MusicHive:
         action.setChecked(self.settings.value("minimizeToTray", False, type=bool))
         action.toggled.connect(self.on_minimize_to_tray_toggled)
         self.tray.set_enabled(action.isChecked())
+
+    def setup_mini_player(self) -> None:
+        """Connect the mini player's controls to the same actions as the main window's."""
+        w = self.window
+        mini = self.mini_player
+        controls = mini.window
+        controls.miniPreviousButton.clicked.connect(lambda _checked=False: self.play_previous())
+        controls.miniPlayButton.clicked.connect(lambda _checked=False: self.on_play_pause())
+        controls.miniNextButton.clicked.connect(lambda _checked=False: self.play_next())
+        controls.miniMuteButton.clicked.connect(lambda _checked=False: w.muteButton.toggle())
+        controls.miniMuteButton.installEventFilter(self._volume_wheel)
+        mini.follow(w.progressSlider)
+        mini.slider.sliderReleased.connect(lambda: self.on_slider_released(mini.slider))
+        mini.slider.actionTriggered.connect(
+            lambda action: self.on_slider_action(action, mini.slider)
+        )
+        controls.customContextMenuRequested.connect(self.show_mini_player_menu)
+        # 13: the panel's 14px corners, less its outline.
+        self.mini_visualizer = Visualizer(controls.miniPlayerContents, corner_radius=13)
+        self.player.audio_buffer_ready.connect(self.mini_visualizer.add_buffer)
+        self.mini_visualizer.set_enabled(
+            self.settings.value("miniPlayerVisualizer", True, type=bool)
+        )
+        mini.connect_action(w.actionMiniPlayer)
+        w.actionMiniPlayer.toggled.connect(lambda on: self.settings.setValue("miniPlayer", on))
+        self.update_volume_ui()
+
+    def show_mini_player_menu(self, position) -> None:
+        """Right-click menu of the mini player."""
+        w = self.window
+        controls = self.mini_player.window
+        menu = QMenu(controls)
+        close = menu.addAction(asset_icon("x"), "Close Mini Player")
+        close.triggered.connect(lambda _checked=False: w.actionMiniPlayer.setChecked(False))
+        big_player = menu.addAction(asset_icon("library"), "Open Big Player")
+        big_player.triggered.connect(lambda _checked=False: self.raise_window())
+        menu.addSeparator()
+        # With the same icons as the main window's buttons, which show the current state.
+        shuffle = menu.addAction(w.shuffleButton.icon(), "Shuffle")
+        shuffle.triggered.connect(lambda _checked=False: w.shuffleButton.toggle())
+        repeat = menu.addAction(w.repeatButton.icon(), "Repeat")
+        repeat.triggered.connect(lambda _checked=False: self.cycle_repeat())
+        shown = self.mini_visualizer.enabled
+        visualiser = menu.addAction(
+            asset_icon("audio-lines" if shown else "audio-lines-off"), "Visualiser"
+        )
+        visualiser.triggered.connect(lambda _checked=False: self.set_mini_visualizer(not shown))
+        menu.exec(controls.mapToGlobal(position))
+
+    def set_mini_visualizer(self, enabled: bool) -> None:
+        self.mini_visualizer.set_enabled(enabled)
+        self.settings.setValue("miniPlayerVisualizer", enabled)
 
     def on_minimize_to_tray_toggled(self, enabled: bool) -> None:
         self.settings.setValue("minimizeToTray", enabled)
@@ -1538,6 +1620,7 @@ class MusicHive:
             key = "silent" if volume == 0 else "low" if volume <= 50 else "high"
             w.muteButton.setToolTip(f"Volume: {volume}% – click to mute")
         w.muteButton.setIcon(self.volume_icons[key])
+        self.mini_player.show_volume(w.muteButton.icon(), w.muteButton.toolTip())
 
     # ----- MPRIS (desktop widgets) -----
 
@@ -1616,6 +1699,7 @@ class MusicHive:
         a track is loaded."""
         parts = ["MusicHive"] + [part for part in (title, artist) if part]
         self.window.setWindowTitle(" – ".join(parts))
+        self.mini_player.show_track(title, artist)
 
     # ----- the library table -----
 
@@ -4706,11 +4790,11 @@ class MusicHive:
         """While dragging, only update the time label; seek on release."""
         self.window.currentTimeLabel.setText(format_time(value))
 
-    def on_slider_released(self) -> None:
-        self.player.seek(self.window.progressSlider.value())
+    def on_slider_released(self, slider: QSlider | None = None) -> None:
+        self.player.seek((slider or self.window.progressSlider).value())
         self.discord.request_update()
 
-    def on_slider_action(self, action: int) -> None:
+    def on_slider_action(self, action: int, slider: QSlider | None = None) -> None:
         """Handle keyboard and wheel changes (arrows, PageUp/Down, Home/End).
 
         Slider-move actions come from clicks and drags; those are handled
@@ -4718,7 +4802,7 @@ class MusicHive:
         """
         if action == QAbstractSlider.SliderAction.SliderMove.value:
             return
-        slider = self.window.progressSlider
+        slider = slider or self.window.progressSlider
         if not slider.isSliderDown():
             self.player.seek(slider.sliderPosition())
             self.discord.request_update()
@@ -4775,6 +4859,7 @@ class MusicHive:
                 self.position_ms = 0
                 w.progressSlider.setValue(0)
                 w.currentTimeLabel.setText(format_time(0))
+        self.mini_player.show_playing(w.playButton.icon(), w.playButton.toolTip())
 
         # Discord only shows a track once playback has really started.
         if state == "playing":

@@ -29,6 +29,16 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="generalStartMinimized">
+         <property name="toolTip">
+          <string>Needs Minimize to tray, because the tray icon is how you open the window.</string>
+         </property>
+         <property name="text">
+          <string>Start minimized to tray</string>
+         </property>
+        </widget>
+       </item>
+       <item>
         <widget class="QCheckBox" name="generalShowUpcoming">
          <property name="text">
           <string>Show Upcoming Songs</string>
@@ -248,6 +258,13 @@
         <widget class="QCheckBox" name="playbackShuffle">
          <property name="text">
           <string>Shuffle</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="playbackMiniPlayer">
+         <property name="text">
+          <string>Mini Player</string>
          </property>
         </widget>
        </item>

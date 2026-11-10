@@ -2771,6 +2771,7 @@ QWidget {
     <addaction name="actionShuffle"/>
     <addaction name="actionVolumeAdjustment"/>
     <addaction name="actionCrossfade"/>
+    <addaction name="actionMiniPlayer"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -3916,6 +3917,17 @@ QWidget {
    </property>
    <property name="text">
     <string>Settings…</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionMiniPlayer">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Mini Player</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

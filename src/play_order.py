@@ -69,11 +69,15 @@ class PlayOrder:
         self._stop_after = None
 
     def set_shuffle(self, enabled: bool) -> None:
-        """Turn shuffle on or off, keeping the playing track and the queue."""
+        """Turn shuffle on or off, keeping the playing track.
+
+        The queue still comes right after it. Turning shuffle on mixes the
+        queue too; turning it off leaves the queue in its current order.
+        """
         self.shuffle = enabled
         current = self.current_row
         if current >= 0:
-            self._rebuild(first=current, context=self._context)
+            self._rebuild(first=current, context=self._context, shuffle_queue=enabled)
 
     def set_repeat(self, mode: str) -> None:
         if mode in self.REPEAT_MODES:
@@ -273,7 +277,7 @@ class PlayOrder:
         self._next_uid += 1
         return entry
 
-    def _rebuild(self, first: int, context: list[int]) -> None:
+    def _rebuild(self, first: int, context: list[int], shuffle_queue: bool = False) -> None:
         """Make `first` the playing track and order the library around it.
 
         `context` is the library rows in the order the table shows them.
@@ -282,6 +286,8 @@ class PlayOrder:
         queued: list[Entry] = []
         if self._position >= 0:
             queued = [e for e in self._entries[self._position + 1 :] if e.queued]
+            if shuffle_queue:
+                random.shuffle(queued)
 
         context = list(context)
         if first not in context:

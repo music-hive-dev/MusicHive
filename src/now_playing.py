@@ -7,7 +7,7 @@ from array import array
 from collections import deque
 
 from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QRectF, QSize, Qt, QTimer
-from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter
+from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter, QPainterPath
 from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QWidget
 
@@ -43,9 +43,11 @@ SCROLL_HOLD_MS = 5000  # after scrolling, the lyrics wait this long before follo
 class Visualizer(QObject):
     """Draws a live spectrum in a plain QWidget. It only works while it is visible."""
 
-    def __init__(self, widget: QWidget) -> None:
+    def __init__(self, widget: QWidget, corner_radius: int = 0) -> None:
         super().__init__(widget)
         self._widget = widget
+        self._corner_radius = corner_radius  # for a widget with rounded corners
+        self.enabled = True
         self._samples: deque[float] = deque(maxlen=FFT_SIZE)
         self._levels = [0.0] * BAR_COUNT
         self._last_audio = 0.0
@@ -66,6 +68,16 @@ class Visualizer(QObject):
         self._timer.setInterval(FRAME_MS)
         self._timer.timeout.connect(self._next_frame)
         widget.installEventFilter(self)
+
+    def set_enabled(self, enabled: bool) -> None:
+        """Switch the bars on or off. While off, this does no work at all."""
+        self.enabled = enabled
+        if not enabled:
+            self._timer.stop()
+            self._levels = [0.0] * BAR_COUNT
+            self._widget.update()
+        elif self._widget.isVisible():
+            self._timer.start()
 
     def add_buffer(self, buffer: QAudioBuffer) -> None:
         """New sound from the player."""
@@ -91,7 +103,8 @@ class Visualizer(QObject):
     def eventFilter(self, watched, event) -> bool:
         kind = event.type()
         if kind == QEvent.Type.Show:
-            self._timer.start()
+            if self.enabled:
+                self._timer.start()
         elif kind == QEvent.Type.Hide:
             self._timer.stop()
             self._levels = [0.0] * BAR_COUNT
@@ -173,6 +186,15 @@ class Visualizer(QObject):
         gradient.setColorAt(1.0, accent.lighter(140))
         brush = QBrush(gradient)
         painter = QPainter(widget)
+        if self._corner_radius:  # inside the widget's 1px outline and rounded corners
+            inside = QPainterPath()
+            inside.addRoundedRect(
+                QRectF(widget.rect()).adjusted(1, 1, -1, -1),
+                self._corner_radius,
+                self._corner_radius,
+            )
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setClipPath(inside)
         bar_width = width / BAR_COUNT
         for bar, level in enumerate(self._levels):
             bar_height = level * height
