@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.2.0
+Version:        1.2.1
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -71,6 +71,9 @@ EOF
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Nov 10 2026 MusicHive - 1.2.1-1
+- The About window shows the version and a fuller description
+
 * Tue Nov 10 2026 MusicHive - 1.2.0-1
 - Added an Interface settings tab with dark and light mode
 - The highlight colour can be chosen, with a default for each mode
