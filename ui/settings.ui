@@ -29,6 +29,68 @@
         </widget>
        </item>
        <item>
+        <widget class="QCheckBox" name="generalShowUpcoming">
+         <property name="text">
+          <string>Show Upcoming Tracks</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="generalShowLibrary">
+         <property name="text">
+          <string>Show Library</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="generalShowPlayer">
+         <property name="text">
+          <string>Show Player</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="generalDataFolderRow">
+         <item>
+          <widget class="QLabel" name="generalDataFolderTitle">
+           <property name="text">
+            <string>Data folder:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="generalDataFolder">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+             <horstretch>1</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
+           </property>
+           <property name="textInteractionFlags">
+            <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="generalDataFolderButton">
+           <property name="text">
+            <string>Move...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <widget class="QLabel" name="generalDataFolderPending">
+         <property name="wordWrap">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
         <spacer name="generalTabSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>
@@ -247,6 +309,73 @@
        </item>
       </layout>
      </widget>
+     <widget class="QWidget" name="librariesTab">
+      <attribute name="title">
+       <string>Libraries</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="librariesTabLayout">
+       <item>
+        <layout class="QHBoxLayout" name="librariesButtonsRow">
+         <item>
+          <widget class="QPushButton" name="librariesAddButton">
+           <property name="text">
+            <string>Add Library...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="librariesRescanButton">
+           <property name="text">
+            <string>Rescan Library</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="librariesRemoveButton">
+           <property name="text">
+            <string>Remove Library...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="librariesButtonsRowSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <spacer name="librariesTabSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Vertical</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>40</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </widget>
      <widget class="QWidget" name="onlineTab">
       <attribute name="title">
        <string>Online</string>
@@ -265,6 +394,33 @@
           <string>Show what I am playing on Discord</string>
          </property>
         </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="onlineLastFmRow">
+         <item>
+          <widget class="QPushButton" name="onlineLastFmButton">
+           <property name="text">
+            <string>Last.fm Account...</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="onlineLastFmRowSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
        </item>
        <item>
         <spacer name="onlineTabSpacer">

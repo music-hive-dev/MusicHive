@@ -157,6 +157,8 @@ def load_secrets() -> dict:
         return data if isinstance(data, dict) else {}
     except (OSError, ValueError):
         return {}
+# Before anything below opens a file in the data folder.
+DATA_MOVE_RESULT = library_db.finish_data_move()
 _SECRETS = load_secrets()
 LASTFM_API_KEY = _SECRETS.get("lastfm_api_key", "")
 LASTFM_API_SECRET = _SECRETS.get("lastfm_api_secret", "")
@@ -225,6 +227,7 @@ MENU_ICONS = {
     "copy": "clipboard-copy",
     "paste": "clipboard-paste",
     "select_all": "list-check",
+    "save_image": "save",
     "edit": "pencil",
     "delete_from_playlist": "x",
     "delete_file": "trash",
@@ -753,6 +756,7 @@ class MusicHive:
         # Track info panel (filled whenever a track starts playing)
         self.cover_view = SquareCover(w.trackInfoCoverImg, asset_icon("eighth-notes"))
         self.full_cover: QImage | None = None  # the playing track's cover, at full size
+        self.full_cover_data: bytes | None = None  # the same cover, as stored in the file
         self.cover_window = None  # created the first time a cover is opened
         self._cover_click = ClickFilter(w.trackInfoCoverImg)
         self._cover_click.clicked.connect(self.show_full_cover)
@@ -921,6 +925,12 @@ class MusicHive:
         greeting = todays_greeting()
         if greeting:
             self.show_status(greeting)
+        if DATA_MOVE_RESULT is not None:
+            moved, message = DATA_MOVE_RESULT
+            if moved:
+                self.show_status(message)
+            else:
+                QMessageBox.warning(self.window, "Data folder", message)
 
     @staticmethod
     def quit_app() -> None:
@@ -950,6 +960,9 @@ class MusicHive:
             (d.lastFmScrobble, w.actionScrobble),
             (d.onlineDiscordPresence, w.actionDiscordPresence),
             (d.generalMinimizeToTray, w.actionMinimizeToTray),
+            (d.generalShowUpcoming, w.actionShowUpcoming),
+            (d.generalShowLibrary, w.actionShowLibrary),
+            (d.generalShowPlayer, w.actionShowPlayer),
         ):
             if not action.isEnabled():  # no Discord application id, or no system tray
                 checkbox.setEnabled(False)
@@ -962,9 +975,51 @@ class MusicHive:
         d.playbackRepeat.activated.connect(
             lambda index: self.set_repeat_mode(PlayOrder.REPEAT_MODES[index])
         )
+        for button, action in (
+            (d.librariesAddButton, w.actionAddLibrary),
+            (d.librariesRescanButton, w.actionRescanLibrary),
+            (d.librariesRemoveButton, w.actionRemoveLibrary),
+            (d.onlineLastFmButton, w.actionAudioScrobbleLastFm),
+        ):
+            button.clicked.connect(lambda _checked=False, a=action: a.trigger())
+
+        self.show_data_folder()
+        d.generalDataFolderButton.clicked.connect(lambda _checked=False: self.choose_data_folder())
         d.soundEqualiserButton.clicked.connect(lambda _checked=False: self.show_equaliser())
         d.backupImportButton.clicked.connect(lambda _checked=False: self.import_settings_file())
         d.backupExportButton.clicked.connect(lambda _checked=False: self.export_settings_file())
+
+    def show_data_folder(self) -> None:
+        d = self.settings_window
+        d.generalDataFolder.setText(str(library_db.data_dir()))
+        pending = library_db.pending_data_move()
+        d.generalDataFolderPending.setText(
+            f"It will move to {pending} the next time MusicHive starts." if pending else ""
+        )
+
+    def choose_data_folder(self) -> None:
+        """Settings: pick a new data folder. The move happens at the next start."""
+        d = self.settings_window
+        chosen = QFileDialog.getExistingDirectory(d, "Choose an empty folder for MusicHive's data")
+        if not chosen:
+            return
+        target = Path(chosen)
+        if target == library_db.data_dir():
+            library_db.request_data_move(target)  # cancels a move that was waiting
+            self.show_data_folder()
+            return
+        problem = library_db.check_new_data_folder(target)
+        if problem is not None:
+            QMessageBox.warning(d, "Data folder", problem)
+            return
+        library_db.request_data_move(target)
+        self.show_data_folder()
+        QMessageBox.information(
+            d,
+            "Data folder",
+            f"Everything in the data folder will be moved to:\n{target}\n\n"
+            "This happens the next time MusicHive starts, so please restart it.",
+        )
 
     def setup_menu_actions(self) -> None:
         """Connect the Edit and Playback menu items that mirror other controls."""
@@ -1690,6 +1745,7 @@ class MusicHive:
         self.update_window_title(details.title, details.artist)
         cover = QImage.fromData(details.cover) if details.cover else None
         self.full_cover = cover if cover is not None and not cover.isNull() else None
+        self.full_cover_data = details.cover if self.full_cover is not None else None
         self.mpris_art_url = cover_file_url(details.cover) if details.cover else ""
         self.lyrics_view.set_lyrics(details.lyrics)
         self.lyrics_view.set_position(self.position_ms)
@@ -1756,7 +1812,12 @@ class MusicHive:
             return
         if self.cover_window is None:
             self.cover_window = load_dialog(COVER_WINDOW_UI_FILE, self.window)
+            label = self.cover_window.coverWindowImage
+            label.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+            label.customContextMenuRequested.connect(self.show_cover_window_menu)
         window = self.cover_window
+        # What the window keeps showing, even after the song changes.
+        self.shown_cover = (image, self.full_cover_data, self.cover_file_name())
         title = self.window.currentTrackLabel.text()
         window.setWindowTitle(f"{title} – {image.width()} × {image.height()}")
 
@@ -1775,6 +1836,46 @@ class MusicHive:
         window.show()
         window.raise_()
         window.activateWindow()
+
+    def cover_file_name(self) -> str:
+        """A file name, without extension, for the playing track's cover."""
+        info = self.library_model.info(self.current_index)
+        name = (info.album or info.title) if info is not None else ""
+        return name.replace("/", "-") or "cover"
+
+    def show_cover_window_menu(self, pos) -> None:
+        """Right-click menu of the large cover window."""
+        image, data, name = self.shown_cover
+        label = self.cover_window.coverWindowImage
+        menu = QMenu(label)
+        add = self.add_menu_item
+        add(menu, "Save image…", "save_image", lambda: self.save_cover(data, name))
+        add(menu, "Copy image", "copy", lambda: self.copy_image(image))
+        menu.exec(label.mapToGlobal(pos))
+
+    def save_cover(self, data: bytes, name: str) -> None:
+        """Save a cover exactly as it is stored, so it loses no quality."""
+        if data.startswith(b"\x89PNG"):
+            extension, kind = "png", "PNG image"
+        elif data[:4] == b"RIFF" and data[8:12] == b"WEBP":
+            extension, kind = "webp", "WebP image"
+        else:
+            extension, kind = "jpg", "JPEG image"
+        start_dir = Path(QStandardPaths.writableLocation(QStandardPaths.PicturesLocation))
+        chosen, _filter = QFileDialog.getSaveFileName(
+            self.window, "Save image", str(start_dir / f"{name}.{extension}"), f"{kind} (*.{extension})"
+        )
+        if not chosen:
+            return
+        file = Path(chosen)
+        if file.suffix.lower().lstrip(".") != extension:
+            file = file.with_name(f"{file.name}.{extension}")
+        try:
+            file.write_bytes(data)
+        except OSError as error:
+            QMessageBox.warning(self.window, "Cannot save image", str(error))
+            return
+        self.show_status(f"Image saved as {file.name}")
 
     def track_info_link(self, text: str, field: str) -> str:
         """A link that looks like the label's normal text ("" if there is no text)."""
@@ -1798,6 +1899,7 @@ class MusicHive:
         ):
             label.clear()
         self.full_cover = None
+        self.full_cover_data = None
         self.mpris_art_url = ""
         self.lyrics_view.set_lyrics("")
         self.rating_stars.set_rating(0, enabled=False)
@@ -1941,6 +2043,13 @@ class MusicHive:
                 menu, "Copy image", "copy", lambda: self.copy_image(image),
                 enabled=image is not None,
                 tip="" if image is not None else "This song has no cover",
+            )
+            data = self.full_cover_data
+            name = self.cover_file_name()
+            add(
+                menu, "Save image…", "save_image", lambda: self.save_cover(data, name),
+                enabled=data is not None,
+                tip="" if data is not None else "This song has no cover",
             )
         else:
             plain = QTextDocumentFragment.fromHtml(widget.text()).toPlainText()

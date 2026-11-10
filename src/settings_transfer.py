@@ -6,8 +6,9 @@ from PySide6.QtCore import QSettings
 
 MARKER_KEY = "musicHiveSettingsExport"  # tells our files apart from any other .ini file
 
-# Left out of the file: the Last.fm login, and links that only matter for a few days.
-PRIVATE_KEYS = ("lastfm/username", "lastfm/sessionKey")
+# Left out of the file: the Last.fm login, this computer's data folder,
+# and links that only matter for a few days.
+PRIVATE_KEYS = ("lastfm/username", "lastfm/sessionKey", "dataFolder", "dataFolderPending")
 PRIVATE_PREFIXES = ("discordCoverLinks",)
 
 

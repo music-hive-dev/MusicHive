@@ -16,11 +16,15 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
+from PySide6.QtCore import QSettings
+
 from src.track_metadata import TrackInfo
 
 SCHEMA_VERSION = 8
 DB_NAME = "musichive.db"
 DATA_DIR_NAME = ".musichive"
+DATA_FOLDER_KEY = "dataFolder"  # empty means the default folder inside Music
+PENDING_DATA_FOLDER_KEY = "dataFolderPending"
 
 # Every text tag of every track, one row per tag (see track_metadata.read_all_tags).
 _TRACK_TAGS_TABLE = """
@@ -160,9 +164,88 @@ def music_dir() -> Path:
         pass
     return home / "Music"
 
+def _settings() -> QSettings:
+    return QSettings("MusicHive", "MusicHive")
+
+
 def data_dir() -> Path:
-    """The hidden folder where MusicHive keeps its per-library data."""
-    return music_dir() / DATA_DIR_NAME
+    """The folder where MusicHive keeps its data: hidden in Music unless moved."""
+    chosen = _settings().value(DATA_FOLDER_KEY, "", type=str)
+    return Path(chosen) if chosen else music_dir() / DATA_DIR_NAME
+
+
+def pending_data_move() -> str:
+    """The folder the data will be moved to at the next start, or ""."""
+    return _settings().value(PENDING_DATA_FOLDER_KEY, "", type=str)
+
+
+def check_new_data_folder(target: Path) -> str | None:
+    """Why the data cannot be moved to `target`, or None if it can."""
+    source = data_dir()
+    if target == source or source in target.parents or target in source.parents:
+        return "The new folder cannot be inside the current data folder, or contain it."
+    if target.exists():
+        if not target.is_dir() or not os.access(target, os.W_OK):
+            return "MusicHive cannot write to that folder."
+        if any(target.iterdir()):
+            return "Please choose an empty folder."
+    return None
+
+
+def request_data_move(target: Path) -> None:
+    """Move the data to `target` at the next start (the current folder cancels a move)."""
+    if target == data_dir():
+        _settings().remove(PENDING_DATA_FOLDER_KEY)
+    else:
+        _settings().setValue(PENDING_DATA_FOLDER_KEY, str(target))
+
+
+def _file_sizes(folder: Path) -> dict[str, int]:
+    return {
+        str(file.relative_to(folder)): file.lstat().st_size
+        for file in folder.rglob("*")
+        if not file.is_dir() or file.is_symlink()
+    }
+
+
+def _empty_folder(folder: Path) -> None:
+    """Remove what a failed copy left behind."""
+    for entry in folder.iterdir() if folder.is_dir() else ():
+        if entry.is_dir() and not entry.is_symlink():
+            shutil.rmtree(entry, ignore_errors=True)
+        else:
+            entry.unlink(missing_ok=True)
+
+
+def finish_data_move() -> tuple[bool, str] | None:
+    """Carry out a requested move. Run this before anything opens the data folder.
+
+    The old folder is only deleted once the copy is complete and in use.
+    Returns None if no move was requested, otherwise (succeeded, message).
+    """
+    pending = pending_data_move()
+    if not pending:
+        return None
+    settings = _settings()
+    settings.remove(PENDING_DATA_FOLDER_KEY)  # one attempt: a failure must not repeat every start
+    target = Path(pending)
+    source = data_dir()
+    problem = check_new_data_folder(target)
+    if problem is not None:
+        return False, f"The data folder was not moved. {problem}"
+    try:
+        target.mkdir(parents=True, exist_ok=True)
+        if source.is_dir():
+            shutil.copytree(source, target, symlinks=True, dirs_exist_ok=True)
+            if _file_sizes(source) != _file_sizes(target):
+                raise OSError("the copy is incomplete")
+    except OSError as error:
+        _empty_folder(target)
+        return False, f"The data folder was not moved, and nothing was lost.\n\n{error}"
+    settings.setValue(DATA_FOLDER_KEY, str(target))
+    settings.sync()
+    shutil.rmtree(source, ignore_errors=True)
+    return True, f"Data folder moved to {target}"
 
 
 def old_libraries_dir() -> Path:
