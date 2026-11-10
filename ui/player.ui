@@ -3293,6 +3293,12 @@ QDockWidget::float-button {
             <iconset>
              <normaloff>../assets/play.svg</normaloff>../assets/play.svg</iconset>
            </property>
+           <property name="iconSize">
+            <size>
+             <width>22</width>
+             <height>22</height>
+            </size>
+           </property>
           </widget>
          </item>
          <item>
