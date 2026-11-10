@@ -11,7 +11,7 @@
    class="lucide lucide-smartphone preview-icon"
    version="1.1"
    id="svg1"
-   sodipodi:docname="ipod.svg"
+   sodipodi:docname="external_device.svg"
    inkscape:version="1.4.4 (dcaf3e7d9e, 2026-05-05)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
    xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
@@ -29,9 +29,9 @@
      inkscape:pagecheckerboard="true"
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
-     inkscape:zoom="12.09375"
-     inkscape:cx="-31.379845"
-     inkscape:cy="-2.6873385"
+     inkscape:zoom="17.103145"
+     inkscape:cx="-9.2673013"
+     inkscape:cy="12.833897"
      inkscape:window-width="2560"
      inkscape:window-height="1370"
      inkscape:window-x="0"
@@ -62,9 +62,6 @@
      ry="2"
      id="rect1"
      style="stroke:#ffffff;stroke-opacity:1" />
-  <path
-     d="M 11.99,15 H 12"
-     id="path1" />
   <circle
      style="fill:none;stroke:#ffffff;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;stroke-opacity:1"
      id="path2"

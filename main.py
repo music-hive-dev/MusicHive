@@ -354,6 +354,38 @@ def setup_library_table(view, model) -> None:
     view.sortByColumn(-1, Qt.SortOrder.AscendingOrder)  # start in library order
 
 
+class AssetIconStyle(QProxyStyle):
+    """Replaces the icons Qt takes from the system theme with the app's own.
+
+    These appear on dialog buttons, in message boxes and in the search box.
+    """
+
+    ICONS = {
+        QStyle.StandardPixmap.SP_DialogOkButton: "check",
+        QStyle.StandardPixmap.SP_DialogYesButton: "check",
+        QStyle.StandardPixmap.SP_DialogApplyButton: "check",
+        QStyle.StandardPixmap.SP_DialogCancelButton: "x",
+        QStyle.StandardPixmap.SP_DialogNoButton: "x",
+        QStyle.StandardPixmap.SP_DialogCloseButton: "x",
+        QStyle.StandardPixmap.SP_DialogDiscardButton: "trash",
+        QStyle.StandardPixmap.SP_DialogResetButton: "rotate-ccw",
+        QStyle.StandardPixmap.SP_DialogOpenButton: "folder",
+        QStyle.StandardPixmap.SP_DialogSaveButton: "save",
+        QStyle.StandardPixmap.SP_DialogHelpButton: "circle-question-mark",
+        QStyle.StandardPixmap.SP_MessageBoxInformation: "info",
+        QStyle.StandardPixmap.SP_MessageBoxWarning: "triangle-alert",
+        QStyle.StandardPixmap.SP_MessageBoxCritical: "circle-x",
+        QStyle.StandardPixmap.SP_MessageBoxQuestion: "circle-question-mark",
+        QStyle.StandardPixmap.SP_LineEditClearButton: "x",
+    }
+
+    def standardIcon(self, standardIcon, option=None, widget=None):
+        name = self.ICONS.get(standardIcon)
+        if name is None:
+            return super().standardIcon(standardIcon, option, widget)
+        return QIcon(str(ASSETS_DIR / f"{name}.svg"))
+
+
 class JumpToClickStyle(QProxyStyle):
     """Makes a left click on a slider's groove jump straight to that position."""
 
@@ -4617,6 +4649,8 @@ class MusicHive:
 
 def main() -> int:
     app = QApplication(sys.argv)
+    app.setStyle(AssetIconStyle())
+    QDir.addSearchPath("assets", str(ASSETS_DIR))  # for url(assets:...) in the stylesheets
     # Qt draws nothing with this system's Noto Color Emoji, so use a font it can draw.
     QFontDatabase.addApplicationFont(str(EMOJI_FONT_FILE))
     QFontDatabase.setApplicationEmojiFontFamilies(EMOJI_FONTS)

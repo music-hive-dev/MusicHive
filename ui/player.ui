@@ -705,6 +705,99 @@ QMenuBar {
     font-family: &quot;Inter&quot;;
     font-size: 13px;
     font-weight: 500;
+}
+
+/* ----- Small controls ----- */
+QComboBox::down-arrow {
+    image: url(assets:chevron-down.svg);
+    width: 12px;
+    height: 12px;
+}
+
+QSpinBox::up-arrow, QDoubleSpinBox::up-arrow {
+    image: url(assets:chevron-up.svg);
+    width: 10px;
+    height: 10px;
+}
+
+QSpinBox::down-arrow, QDoubleSpinBox::down-arrow {
+    image: url(assets:chevron-down.svg);
+    width: 10px;
+    height: 10px;
+}
+
+QCheckBox::indicator {
+    width: 16px;
+    height: 16px;
+}
+
+QCheckBox::indicator:unchecked {
+    image: url(assets:square.svg);
+}
+
+QCheckBox::indicator:checked {
+    image: url(assets:square-check-big.svg);
+}
+
+QHeaderView::up-arrow {
+    image: url(assets:chevron-up.svg);
+    width: 10px;
+    height: 10px;
+}
+
+QHeaderView::down-arrow {
+    image: url(assets:chevron-down.svg);
+    width: 10px;
+    height: 10px;
+}
+
+QTabBar QToolButton::left-arrow {
+    image: url(assets:chevron-left.svg);
+}
+
+QTabBar QToolButton::right-arrow {
+    image: url(assets:chevron-right.svg);
+}
+
+/* ----- Scrollbars ----- */
+QScrollBar:vertical {
+    background-color: #222023;
+    width: 10px;
+    margin: 0;
+}
+
+QScrollBar:horizontal {
+    background-color: #222023;
+    height: 10px;
+    margin: 0;
+}
+
+QScrollBar::handle {
+    background-color: #433d47;
+    border-radius: 5px;
+}
+
+QScrollBar::handle:vertical {
+    min-height: 24px;
+}
+
+QScrollBar::handle:horizontal {
+    min-width: 24px;
+}
+
+QScrollBar::handle:hover {
+    background-color: #6c53a6;
+}
+
+QScrollBar::add-line, QScrollBar::sub-line {
+    width: 0;
+    height: 0;
+    border: none;
+    background: none;
+}
+
+QScrollBar::add-page, QScrollBar::sub-page {
+    background: none;
 }</string>
   </property>
   <widget class="QWidget" name="centralwidget">
