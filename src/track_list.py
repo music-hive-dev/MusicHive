@@ -17,11 +17,12 @@ from PySide6.QtCore import (
     QModelIndex,
     QObject,
     QRect,
+    QRectF,
     QSize,
     Qt,
     Signal,
 )
-from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QImage, QPainter
+from PySide6.QtGui import QColor, QFont, QFontMetrics, QIcon, QImage, QPainter, QPainterPath
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QApplication,
@@ -653,6 +654,7 @@ class TrackDelegate(QStyledItemDelegate):
 
     COVER_SIZE = 45
     PADDING = 3
+    COVER_RADIUS = 7  # the row's 10px corners, less the padding around the cover
     TEXT_GAP = 10
     MARKER_SIZE = 16
 
@@ -688,7 +690,13 @@ class TrackDelegate(QStyledItemDelegate):
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
         if isinstance(cover, QImage):
+            rounded = QPainterPath()
+            rounded.addRoundedRect(QRectF(cover_rect), self.COVER_RADIUS, self.COVER_RADIUS)
+            painter.save()
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setClipPath(rounded, Qt.ClipOperation.IntersectClip)
             painter.drawImage(cover_rect, cover)
+            painter.restore()
         elif not self._placeholder.isNull():
             self._placeholder.paint(
                 painter, cover_rect, Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop

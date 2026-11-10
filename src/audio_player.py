@@ -720,7 +720,7 @@ class AudioPlayer(QObject):
             elif kind == Gst.MessageType.ERROR:
                 if active:
                     error, _details = message.parse_error()
-                    name = deck.track.name if deck.track else "track"
+                    name = deck.track.name if deck.track else "song"
                     self._halt_active()
                     self.error_occurred.emit(f"Cannot play {name}: {error.message}")
                 else:

@@ -103,7 +103,7 @@ class ScanTask(QRunnable):
             if total == 0 and library.track_count > 0:
                 raise RuntimeError(
                     "No audio files were found, although this library had "
-                    f"{library.track_count} tracks before. The drive may be "
+                    f"{library.track_count} songs before. The drive may be "
                     "disconnected, so the saved library was kept unchanged."
                 )
             signals.progress.emit(library.id, 0, total)

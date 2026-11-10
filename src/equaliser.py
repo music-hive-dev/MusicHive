@@ -48,7 +48,7 @@ class EqSettings:
     band_count: int = BAND_COUNTS[0]
     gains: list[float] | None = None  # dB of each band
     preamp: float = 0.0  # dB
-    balance: int = 0  # from -BALANCE_STEPS (left) to BALANCE_STEPS (right)
+    balance: float = 0.0  # from -BALANCE_STEPS (left) to BALANCE_STEPS (right)
     preset: str = DEFAULT_PRESET  # the preset these values came from; "" if changed since
 
     def __post_init__(self) -> None:
@@ -78,7 +78,7 @@ def resample_gains(gains: list[float], old_count: int, new_count: int) -> list[f
     return result
 
 
-def _built_in_preset(name: str, band_count: int, balance: int) -> EqSettings:
+def _built_in_preset(name: str, band_count: int, balance: float) -> EqSettings:
     gains = resample_gains(list(PRESETS[name]), BAND_COUNTS[0], band_count)
     # Turning the level down by the biggest boost keeps the loudest band from distorting.
     return EqSettings(band_count, gains, -max(0, max(gains)), balance, name)
@@ -96,7 +96,7 @@ def _parse(data: object) -> EqSettings | None:
         band_count = int(data["band_count"])
         gains = [_clamp_db(gain) for gain in data["gains"]]
         preamp = _clamp_db(data["preamp"])
-        balance = min(max(int(data["balance"]), -BALANCE_STEPS), BALANCE_STEPS)
+        balance = min(max(float(data["balance"]), -BALANCE_STEPS), BALANCE_STEPS)
         preset = str(data.get("preset", ""))
     except (KeyError, TypeError, ValueError):
         return None
@@ -129,18 +129,45 @@ def _frequency_text(frequency: int) -> str:
     return f"{frequency / 1000:g}k" if frequency >= 1000 else str(frequency)
 
 
-def _balance_text(balance: int) -> str:
-    if not balance:
-        return "Centre"
-    side = "R" if balance > 0 else "L"
-    return f"{side} {abs(balance) * 100 // BALANCE_STEPS}%"
+def _balance_text(balance: float) -> str:
+    """Left is negative and right is positive: "-50%", "0%", "+25%"."""
+    percent = round(balance * 100 / BALANCE_STEPS)
+    return f"{percent:+d}%" if percent else "0%"
+
+
+def _typed_balance(text: str, current: float) -> float:
+    """The balance typed in a field, like "-50%" or "+25", or `current` if it is no number."""
+    try:
+        percent = float(text.replace("%", "").replace(",", ".").strip())
+    except ValueError:
+        return current
+    if not math.isfinite(percent):
+        return current
+    return round(max(-100, min(100, percent))) * BALANCE_STEPS / 100
 
 
 def _set_quietly(widget, value: float) -> None:
-    """Show a value on a slider or number field without that counting as a change."""
+    """Show a value on a slider without that counting as a change."""
     widget.blockSignals(True)
     widget.setValue(value)
     widget.blockSignals(False)
+
+
+def _show_gain(field, gain: float, suffix: str = "") -> None:
+    """Show a gain in a number field, for example "-1.5"."""
+    field.setText(f"{gain:.1f}{suffix}")
+
+
+def _typed_gain(field, current: float) -> float:
+    """The gain typed in a field, kept within limits, or `current` if it is no number."""
+    text = field.text().lower().replace("db", "").replace(",", ".").strip()
+    try:
+        gain = float(text)
+    except ValueError:
+        return current
+    if not math.isfinite(gain):
+        return current
+    return round(max(-MAX_GAIN_DB, min(MAX_GAIN_DB, gain)), 1)
 
 
 class EqualiserWindow:
@@ -168,10 +195,11 @@ class EqualiserWindow:
 
         for band, (slider, value) in enumerate(zip(self._sliders, self._values)):
             slider.valueChanged.connect(lambda gain, b=band: self._on_band_moved(b, gain))
-            value.valueChanged.connect(lambda gain, b=band: self._on_band_typed(b, gain))
+            value.editingFinished.connect(lambda b=band: self._on_band_edited(b))
         d.eqPreamp.valueChanged.connect(self._on_preamp_moved)
-        d.eqPreampValue.valueChanged.connect(self._on_preamp_typed)
+        d.eqPreampValue.editingFinished.connect(self._on_preamp_edited)
         d.eqBalance.valueChanged.connect(self._on_balance_moved)
+        d.eqBalanceValue.editingFinished.connect(self._on_balance_edited)
         d.eqBandMode.activated.connect(self._on_band_mode_chosen)
         d.eqPreset.activated.connect(self._on_preset_chosen)
         d.eqSavePreset.clicked.connect(lambda _checked=False: self._save_preset())
@@ -218,11 +246,11 @@ class EqualiserWindow:
                 widget.setVisible(shown)
             if shown:
                 _set_quietly(slider, round(current.gains[band]))
-                _set_quietly(value, current.gains[band])
+                _show_gain(value, current.gains[band])
                 frequency.setText(_frequency_text(frequencies[band]))
         _set_quietly(d.eqPreamp, round(current.preamp))
-        _set_quietly(d.eqPreampValue, current.preamp)
-        _set_quietly(d.eqBalance, current.balance)
+        _show_gain(d.eqPreampValue, current.preamp, " dB")
+        _set_quietly(d.eqBalance, round(current.balance))
         d.eqBalanceValue.setText(_balance_text(current.balance))
         self._show_preset_name()
 
@@ -239,8 +267,15 @@ class EqualiserWindow:
 
     def _on_band_moved(self, band: int, gain: int) -> None:
         self._current.gains[band] = float(gain)
-        _set_quietly(self._values[band], gain)
+        _show_gain(self._values[band], gain)
         self._changed_by_hand()
+
+    def _on_band_edited(self, band: int) -> None:
+        field, current = self._values[band], self._current.gains[band]
+        gain = _typed_gain(field, current)
+        _show_gain(field, gain)  # also puts back what was there after a bad entry
+        if gain != current:
+            self._on_band_typed(band, gain)
 
     def _on_band_typed(self, band: int, gain: float) -> None:
         self._current.gains[band] = gain
@@ -249,8 +284,15 @@ class EqualiserWindow:
 
     def _on_preamp_moved(self, gain: int) -> None:
         self._current.preamp = float(gain)
-        _set_quietly(self.dialog.eqPreampValue, gain)
+        _show_gain(self.dialog.eqPreampValue, gain, " dB")
         self._changed_by_hand()
+
+    def _on_preamp_edited(self) -> None:
+        field, current = self.dialog.eqPreampValue, self._current.preamp
+        gain = _typed_gain(field, current)
+        _show_gain(field, gain, " dB")
+        if gain != current:
+            self._on_preamp_typed(gain)
 
     def _on_preamp_typed(self, gain: float) -> None:
         self._current.preamp = gain
@@ -261,6 +303,15 @@ class EqualiserWindow:
         self._current.balance = balance
         self.dialog.eqBalanceValue.setText(_balance_text(balance))
         self._changed_by_hand()
+
+    def _on_balance_edited(self) -> None:
+        d = self.dialog
+        balance = _typed_balance(d.eqBalanceValue.text(), self._current.balance)
+        d.eqBalanceValue.setText(_balance_text(balance))  # tidies up what was typed
+        if balance != self._current.balance:
+            self._current.balance = balance
+            _set_quietly(d.eqBalance, round(balance))  # the slider only has 5% steps
+            self._changed_by_hand()
 
     def _on_band_mode_chosen(self, index: int) -> None:
         current = self._current

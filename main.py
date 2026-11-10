@@ -23,6 +23,7 @@ from PySide6.QtCore import (
     QObject,
     QRect,
     QSettings,
+    QSize,
     QStandardPaths,
     Qt,
     QThreadPool,
@@ -31,6 +32,7 @@ from PySide6.QtCore import (
 )
 from PySide6.QtGui import (
     QAction,
+    QColor,
     QCursor,
     QDesktopServices,
     QFontDatabase,
@@ -48,6 +50,7 @@ from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSlider,
     QApplication,
+    QComboBox,
     QDialogButtonBox,
     QFileDialog,
     QHeaderView,
@@ -57,6 +60,8 @@ from PySide6.QtWidgets import (
     QProxyStyle,
     QSlider,
     QStyle,
+    QStyledItemDelegate,
+    QStyleOptionViewItem,
     QToolTip,
     QInputDialog,
     QStackedWidget,
@@ -213,8 +218,8 @@ VOLUME_TOOLTIP_DRIFT = 2
 
 REPEAT_STATUS = {
     "off": "Repeat off",
-    "all": "Repeat all tracks",
-    "one": "Repeat current track",
+    "all": "Repeat all songs",
+    "one": "Repeat current song",
 }
 
 # Icon (a file name in assets/, without ".svg") for each context menu entry.
@@ -273,6 +278,8 @@ SETTINGS_FILTER = "MusicHive settings (*.ini)"
 DAYS_FILE = Path(__file__).parent / "days.json"
 EMOJI_FONT_FILE = Path(__file__).parent / "assets" / "fonts" / "Twemoji.Mozilla.ttf"
 EMOJI_FONTS = ["Twemoji Mozilla", "Segoe UI Emoji", "Noto Emoji"]  # the first with the emoji is used
+# White at 67% over the docks' #222023 (rich text links need a solid colour).
+DIMMED_INFO_COLOR = "#b5b5b6"
 NOTHING_TO_PASTE = "There are no songs from this library on the clipboard"
 
 
@@ -328,6 +335,86 @@ def small_asset_icon(name: str, scale: float) -> QIcon:
     return QIcon(pixmap)
 
 
+class FitColumnsToWidth(QObject):
+    """Keeps a table's columns exactly as wide as the table, so it never scrolls sideways.
+
+    Resizing the table scales every column. Dragging a column's edge makes the
+    columns to its right give way or grow.
+    """
+
+    def __init__(self, view) -> None:
+        super().__init__(view)
+        self._view = view
+        self._header = header = view.horizontalHeader()
+        self._adjusting = False  # True while the widths are being changed from here
+        self._fit_pending = False
+        view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        view.viewport().installEventFilter(self)
+        header.sectionResized.connect(self._on_section_resized)
+        header.sectionCountChanged.connect(lambda _old, _new: self._schedule_fit())
+
+    def eventFilter(self, watched, event) -> bool:
+        if event.type() in (QEvent.Type.Resize, QEvent.Type.Show):
+            self._schedule_fit()
+        return False
+
+    def _schedule_fit(self) -> None:
+        # Later, so that several changes in a row (a whole new layout) fit only once.
+        if not self._fit_pending:
+            self._fit_pending = True
+            QTimer.singleShot(0, self._fit)
+
+    def _fit(self) -> None:
+        self._fit_pending = False
+        if self._view.isVisible():  # a hidden table has no real width yet
+            self._scale(self._shown_sections(), self._view.viewport().width())
+
+    def _shown_sections(self) -> list[int]:
+        """The visible columns, from left to right."""
+        header = self._header
+        sections = (header.logicalIndex(position) for position in range(header.count()))
+        return [section for section in sections if not header.isSectionHidden(section)]
+
+    def _scale(self, sections: list[int], space: int) -> None:
+        """Make these columns fill `space`, keeping their proportions."""
+        header = self._header
+        total = sum(header.sectionSize(section) for section in sections)
+        if not sections or total <= 0 or total == space:
+            return
+        minimum = header.minimumSectionSize()
+        widths = {
+            section: max(minimum, round(header.sectionSize(section) * space / total))
+            for section in sections[:-1]
+        }
+        widths[sections[-1]] = max(minimum, space - sum(widths.values()))
+        self._adjusting = True
+        for section, width in widths.items():
+            header.resizeSection(section, width)
+        self._adjusting = False
+
+    def _on_section_resized(self, section: int, _old: int, new: int) -> None:
+        if self._adjusting:
+            return
+        dragging = QApplication.mouseButtons() & Qt.MouseButton.LeftButton
+        sections = self._shown_sections()
+        if not dragging or not self._view.isVisible() or section not in sections:
+            self._schedule_fit()
+            return
+        header = self._header
+        position = sections.index(section)
+        after = sections[position + 1 :]
+        space = self._view.viewport().width() - sum(
+            header.sectionSize(other) for other in sections[:position]
+        )
+        minimum = header.minimumSectionSize()
+        width = max(minimum, min(new, space - minimum * len(after))) if after else space
+        if width != new:
+            self._adjusting = True
+            header.resizeSection(section, width)
+            self._adjusting = False
+        self._scale(after, space - width)
+
+
 def setup_library_table(view, model) -> None:
     """Give the library table its model, look and column widths."""
     view.setModel(model)
@@ -337,6 +424,7 @@ def setup_library_table(view, model) -> None:
     view.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
     view.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerPixel)
     view.setAlternatingRowColors(True)
+    view.setItemDelegate(RoundedRowDelegate(view))
     view.setShowGrid(False)
     view.setWordWrap(False)
     view.setTextElideMode(Qt.TextElideMode.ElideRight)
@@ -352,6 +440,64 @@ def setup_library_table(view, model) -> None:
     # Click a column title to sort by it; click it again to reverse the order.
     view.setSortingEnabled(True)
     view.sortByColumn(-1, Qt.SortOrder.AscendingOrder)  # start in library order
+    view.fit_columns = FitColumnsToWidth(view)
+
+
+class RoundedRowDelegate(QStyledItemDelegate):
+    """Tells each table cell where it is in its row, for the stylesheet's rounded row ends."""
+
+    Position = QStyleOptionViewItem.ViewItemPosition
+
+    def __init__(self, view) -> None:
+        super().__init__(view)
+        self._header = view.horizontalHeader()
+
+    def _only_hidden(self, visual_columns) -> bool:
+        header = self._header
+        return all(header.isSectionHidden(header.logicalIndex(c)) for c in visual_columns)
+
+    def initStyleOption(self, option, index) -> None:
+        super().initStyleOption(option, index)
+        visual = self._header.visualIndex(index.column())
+        first = self._only_hidden(range(visual))
+        last = self._only_hidden(range(visual + 1, self._header.count()))
+        if first and last:
+            option.viewItemPosition = self.Position.OnlyOne
+        elif first:
+            option.viewItemPosition = self.Position.Beginning
+        elif last:
+            option.viewItemPosition = self.Position.End
+        else:
+            option.viewItemPosition = self.Position.Middle
+
+
+class ComboItemDelegate(QStyledItemDelegate):
+    """Draws a dropdown's rows with the stylesheet's ::item rules, which Qt's own ignores.
+
+    Qt's delegate also draws the separator lines, so that is done here too.
+    """
+
+    SEPARATOR_HEIGHT = 9
+    SEPARATOR_COLOR = QColor("#433d47")
+
+    @staticmethod
+    def is_separator(index) -> bool:
+        return index.data(Qt.ItemDataRole.AccessibleDescriptionRole) == "separator"
+
+    def paint(self, painter, option, index) -> None:
+        if not self.is_separator(index):
+            super().paint(painter, option, index)
+            return
+        y = option.rect.center().y()
+        painter.save()
+        painter.setPen(self.SEPARATOR_COLOR)
+        painter.drawLine(option.rect.left() + 8, y, option.rect.right() - 8, y)
+        painter.restore()
+
+    def sizeHint(self, option, index) -> QSize:
+        if self.is_separator(index):
+            return QSize(0, self.SEPARATOR_HEIGHT)
+        return super().sizeHint(option, index)
 
 
 class AssetIconStyle(QProxyStyle):
@@ -379,6 +525,18 @@ class AssetIconStyle(QProxyStyle):
         QStyle.StandardPixmap.SP_LineEditClearButton: "x",
     }
 
+    def polish(self, target):
+        if isinstance(target, QMenu) or (isinstance(target, QLabel) and target.inherits("QTipLabel")):
+            # The corners outside a rounded edge must show what is behind it.
+            target.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+        elif isinstance(target, QComboBox):
+            # Done here because Qt creates the list's window before polishing it,
+            # and a window can only be made see-through before it is created.
+            target.view().window().setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+            if not isinstance(target.itemDelegate(), ComboItemDelegate):
+                target.setItemDelegate(ComboItemDelegate(target))
+        return super().polish(target)
+
     def standardIcon(self, standardIcon, option=None, widget=None):
         name = self.ICONS.get(standardIcon)
         if name is None:
@@ -386,7 +544,7 @@ class AssetIconStyle(QProxyStyle):
         return QIcon(str(ASSETS_DIR / f"{name}.svg"))
 
 
-class JumpToClickStyle(QProxyStyle):
+class JumpToClickStyle(AssetIconStyle):
     """Makes a left click on a slider's groove jump straight to that position."""
 
     def styleHint(self, hint, option=None, widget=None, returnData=None):
@@ -395,7 +553,7 @@ class JumpToClickStyle(QProxyStyle):
         return super().styleHint(hint, option, widget, returnData)
 
 
-class CenteredTabIconStyle(QProxyStyle):
+class CenteredTabIconStyle(AssetIconStyle):
     """Centres the icon of a tab with no text, where Qt would keep it at the left."""
 
     def drawControl(self, element, option, painter, widget=None):
@@ -789,6 +947,7 @@ class MusicHive:
         self.cover_view = SquareCover(w.trackInfoCoverImg, asset_icon("eighth-notes"))
         self.full_cover: QImage | None = None  # the playing track's cover, at full size
         self.full_cover_data: bytes | None = None  # the same cover, as stored in the file
+        self.track_audio_format = ""  # for example "FLAC 44.1 kHz @ 906k Stereo"
         self.cover_window = None  # created the first time a cover is opened
         self._cover_click = ClickFilter(w.trackInfoCoverImg)
         self._cover_click.clicked.connect(self.show_full_cover)
@@ -1183,7 +1342,7 @@ class MusicHive:
     def cut_from_upcoming(self, offsets: list[int]) -> None:
         """Copy these entries of the Upcoming list, and take them out of it."""
         if not offsets:
-            self.show_status("The playing track cannot be removed")
+            self.show_status("The playing song cannot be removed")
             return
         model = self.queue_model
         rows = [model.library_row(model.index(offset, 0)) for offset in sorted(offsets)]
@@ -1730,7 +1889,7 @@ class MusicHive:
             title=info.title,
             artist=info.artist,
             album=info.album_line,
-            audio_format=self.window.trackInfoFile.text(),
+            audio_format=self.track_audio_format,
             position_ms=self.position_ms,
             duration_ms=self.duration_ms or info.duration_ms or 0,
             paused=self.playback_state == "paused",
@@ -1773,7 +1932,15 @@ class MusicHive:
         w.trackInfoAlbumYear.setText(
             f"{album} ({year})" if album and year else album or (f"({year})" if year else "")
         )
-        w.trackInfoFile.setText(details.audio_format)
+        self.track_audio_format = details.audio_format
+        # Rich text, like the other labels here: a selectable plain label loses
+        # its stylesheet colour and size once it is clicked.
+        w.trackInfoFile.setText(
+            f'<span style="color: {DIMMED_INFO_COLOR}; font-size: 8pt">'
+            f"{html.escape(details.audio_format)}</span>"
+            if details.audio_format
+            else ""
+        )
         self.update_window_title(details.title, details.artist)
         cover = QImage.fromData(details.cover) if details.cover else None
         self.full_cover = cover if cover is not None and not cover.isNull() else None
@@ -1932,6 +2099,7 @@ class MusicHive:
             label.clear()
         self.full_cover = None
         self.full_cover_data = None
+        self.track_audio_format = ""
         self.mpris_art_url = ""
         self.lyrics_view.set_lyrics("")
         self.rating_stars.set_rating(0, enabled=False)
@@ -2055,7 +2223,7 @@ class MusicHive:
             self.add_menu_item(
                 go_menu, label, None, lambda f=field: self.go_to(row, f),
                 enabled=has_value,
-                tip="" if has_value else "This track has no such tag (rescan to read new ones)",
+                tip="" if has_value else "This song has no such tag (rescan to read new ones)",
             )
 
     def show_playing_track_menu(self, widget, pos) -> None:
@@ -2065,7 +2233,7 @@ class MusicHive:
         if info is None or not 0 <= row < len(self.tracks):
             return
         window = self.window
-        menu = QMenu(widget)
+        menu = QMenu(window)  # not the label: its stylesheet would make the menu see-through
         menu.setToolTipsVisible(True)
         add = self.add_menu_item
 
@@ -2107,7 +2275,7 @@ class MusicHive:
         marked = self.play_order.stop_after_offset() == 0
         add(
             menu,
-            "Don't end playback after track" if marked else "End playback after track",
+            "Don't end playback after song" if marked else "End playback after song",
             "end_after",
             lambda: self.toggle_stop_after(0),
         )
@@ -2229,7 +2397,7 @@ class MusicHive:
                 menu, f"Cut{removable_count}", "cut",
                 lambda: self.cut_from_upcoming(removable),
                 enabled=bool(removable),
-                tip="" if removable else "The playing track cannot be removed",
+                tip="" if removable else "The playing song cannot be removed",
             )
         add(menu, f"Copy{several}", "copy", lambda: self.copy_rows(rows))
         if in_playlist:
@@ -2255,7 +2423,7 @@ class MusicHive:
             marked = self.play_order.stop_after_offset() == offset
             add(
                 menu,
-                "Don't end playback after track" if marked else "End playback after track",
+                "Don't end playback after song" if marked else "End playback after song",
                 "end_after",
                 lambda: self.toggle_stop_after(offset),
             )
@@ -2263,7 +2431,7 @@ class MusicHive:
                 menu, f"Remove from upcoming{removable_count}", "remove_from_upcoming",
                 lambda: self.remove_from_upcoming(removable),
                 enabled=bool(removable),
-                tip="" if removable else "The playing track cannot be removed",
+                tip="" if removable else "The playing song cannot be removed",
             )
         if in_playlist:
             add(
@@ -2347,9 +2515,9 @@ class MusicHive:
         enabled = self.play_order.toggle_stop_after(offset)
         self.refresh_upcoming(keep_scroll=True)
         if enabled:
-            self.show_status("Playback will end after that track")
+            self.show_status("Playback will end after that song")
         else:
-            self.show_status("Playback will no longer end after that track")
+            self.show_status("Playback will no longer end after that song")
 
     def go_to(self, row: int, field: str) -> None:
         """Open the tab for a song's `field`, with that value picked in its filter bar.
@@ -2951,10 +3119,12 @@ class MusicHive:
             shown = group.rows  # sorted by album and track; positions are library rows here
         page.kind, page.current = kind, group
         page.tracks.set_rows(shown)
+        stats = self.describe_playlist(shown)
         if page.source == "artist":
-            self.window.artistsTabStats.setText(self.describe_playlist(shown))
+            self.window.artistsTabStats.setText(stats)
             self.show_artist_header(page)
         else:
+            self.window.albumsTabStats.setText(stats)
             self.show_album_header(page)
 
     # ----- the filter bars -----
@@ -4395,7 +4565,7 @@ class MusicHive:
 
     def describe(self, info: LibraryInfo, track_count: int) -> str:
         scanned = info.scanned_at.replace("T", " ") if info.scanned_at else "never"
-        return f"{info.name}: {track_count} tracks · last scanned {scanned}"
+        return f"{info.name}: {track_count} songs · last scanned {scanned}"
 
     def update_controls(self) -> None:
         """Enable or disable the library controls to match the current state."""
@@ -4429,7 +4599,7 @@ class MusicHive:
 
     def on_scan_progress(self, library_id: str, done: int, total: int) -> None:
         name = self.scan_library.name if self.scan_library else "library"
-        self.show_status(f"Scanning '{name}': {done} of {total} tracks")
+        self.show_status(f"Scanning '{name}': {done} of {total} songs")
 
     def on_scan_finished(self, library_id: str, count: int) -> None:
         name = self.scan_library.name if self.scan_library else "library"
@@ -4442,7 +4612,7 @@ class MusicHive:
             self.reload_current_library()
 
         if count:
-            self.show_status(f"Scan complete: {count} tracks in '{name}'")
+            self.show_status(f"Scan complete: {count} songs in '{name}'")
         else:
             self.show_status(f"Scan complete: no supported audio files in '{name}'")
 
@@ -4511,7 +4681,7 @@ class MusicHive:
             return
         row = self.play_order.next()
         if row is None:
-            self.show_status("This is the last track")
+            self.show_status("This is the last song")
         else:
             self.play_index(row)
 
@@ -4574,7 +4744,7 @@ class MusicHive:
         if row is None:
             self.show_status("Reached the end of the library")
         elif stop_here:
-            # "End playback after track": the next track waits, paused.
+            # "End playback after song": the next track waits, paused.
             self.load_track_paused(row)
         else:
             self.play_index(row)

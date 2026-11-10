@@ -31,7 +31,7 @@
        <item>
         <widget class="QCheckBox" name="generalShowUpcoming">
          <property name="text">
-          <string>Show Upcoming Tracks</string>
+          <string>Show Upcoming Songs</string>
          </property>
         </widget>
        </item>
@@ -269,12 +269,12 @@
            </item>
            <item>
             <property name="text">
-             <string>All tracks</string>
+             <string>All songs</string>
             </property>
            </item>
            <item>
             <property name="text">
-             <string>Current track</string>
+             <string>Current song</string>
             </property>
            </item>
           </widget>

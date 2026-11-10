@@ -6,7 +6,7 @@ import time
 from array import array
 from collections import deque
 
-from PySide6.QtCore import QEvent, QObject, QPointF, QRectF, QSize, Qt, QTimer
+from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QRectF, QSize, Qt, QTimer
 from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter
 from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat
 from PySide6.QtWidgets import QListWidget, QListWidgetItem, QWidget
@@ -36,6 +36,8 @@ NO_LYRICS_TEXT = "No lyrics for this song"
 INSTRUMENTAL_LINE = "♪"
 DIM_ALPHA = 120
 CURRENT_LINE_EXTRA_POINTS = 20
+WHEEL_NOTCH = 120  # what one click of a mouse wheel reports
+SCROLL_HOLD_MS = 5000  # after scrolling, the lyrics wait this long before following the song
 
 
 class Visualizer(QObject):
@@ -193,18 +195,49 @@ class LyricsView(QObject):
         self._view = view
         self._times: list[int] = []
         self._current = -1
+        self._leftover_wheel = 0  # touchpads report fractions of a notch
+        self._scroll_hold = QTimer(self)
+        self._scroll_hold.setSingleShot(True)
+        self._scroll_hold.setInterval(SCROLL_HOLD_MS)
+        self._scroll_hold.timeout.connect(self._scroll_to_current)
         self.set_lyrics("")
         view.installEventFilter(self)
+        view.viewport().installEventFilter(self)  # wheel events arrive there
 
     def eventFilter(self, watched, event) -> bool:
+        if event.type() == QEvent.Type.Wheel:
+            self._leftover_wheel += event.angleDelta().y()
+            notches = int(self._leftover_wheel / WHEEL_NOTCH)
+            self._leftover_wheel -= notches * WHEEL_NOTCH
+            if notches:
+                self._scroll_lines(-notches)  # a positive angle means scrolling up
+            event.accept()
+            return True
         if event.type() in (QEvent.Type.Show, QEvent.Type.Resize):
             # Wait for the view to get its final size, or the centring is off.
             QTimer.singleShot(0, self._recentre)
         return False
 
+    def _scroll_lines(self, lines: int) -> None:
+        """Move this many lyric lines down (or up, if negative)."""
+        view = self._view
+        area = view.viewport().rect()
+        if self._times:  # the line being read is in the middle, between the two gap rows
+            anchor = view.indexAt(area.center()).row()
+            first, last = 1, view.count() - 2
+            hint = QListWidget.ScrollHint.PositionAtCenter
+        else:
+            anchor = view.indexAt(QPoint(area.center().x(), 0)).row()
+            first, last = 0, view.count() - 1
+            hint = QListWidget.ScrollHint.PositionAtTop
+        row = max(first, min(last, max(anchor, first) + lines))
+        view.scrollToItem(view.item(row), hint)
+        self._scroll_hold.start()
+
     def set_lyrics(self, text: str) -> None:
         """Show these lyrics (see lyrics.py). Empty text says there are none."""
         view = self._view
+        self._scroll_hold.stop()  # a new song starts following at once
         view.clear()
         lyrics = parse_lyrics(text)
         self._times = lyrics.times_ms
@@ -238,7 +271,7 @@ class LyricsView(QObject):
         if line >= 0:
             self._style_line(line, True)
             self._scroll_to_current()
-        else:
+        elif not self._scroll_hold.isActive():
             self._view.scrollToTop()
 
     @staticmethod
@@ -264,7 +297,7 @@ class LyricsView(QObject):
 
     def _scroll_to_current(self) -> None:
         view = self._view
-        if not self._times or not view.isVisible():
+        if not self._times or not view.isVisible() or self._scroll_hold.isActive():
             return
         # The current line is taller than the others; centre it at its new size.
         view.doItemsLayout()

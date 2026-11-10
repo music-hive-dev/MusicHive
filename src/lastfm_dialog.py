@@ -177,11 +177,11 @@ class LastFmDialog:
             label.setText(
                 f"Done. Updated {updated} songs in {libraries} "
                 f"librar{'y' if libraries == 1 else 'ies'} "
-                f"({len(counts)} tracks on Last.fm)."
+                f"({len(counts)} songs on Last.fm)."
             )
         else:
             label.setText(
-                f"Done, but no songs matched the {len(counts)} tracks on Last.fm."
+                f"Done, but no songs matched the {len(counts)} songs on Last.fm."
             )
 
     def _on_counts_failed(self, message: str) -> None:

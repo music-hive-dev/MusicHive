@@ -97,7 +97,7 @@ class _UploadTask(QRunnable):
         try:
             _info, cover = read_track_info(self._path)
             if not cover:
-                raise ValueError("the track no longer has a cover")
+                raise ValueError("the song no longer has a cover")
             address = _upload(_as_png(cover))
             self._signals.finished.emit(self._cover_key, address, "")
         except Exception as error:  # never let a thread die silently
