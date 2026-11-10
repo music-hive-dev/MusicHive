@@ -399,6 +399,14 @@ def _read_lrc(path: Path) -> str | None:
         return data.decode("latin-1")
 
 
+def can_read_audio(path: Path) -> bool:
+    """Whether a file really is a song, unlike an empty or damaged one."""
+    try:
+        return MutagenFile(str(path)) is not None
+    except Exception:
+        return False
+
+
 def read_editable_file(path: Path) -> EditableFile:
     """Read a file for the tag editor. A file that can't be read comes back empty."""
     result = EditableFile(lrc_text=_read_lrc(path))

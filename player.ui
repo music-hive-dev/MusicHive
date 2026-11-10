@@ -1795,6 +1795,186 @@ QWidget {
         <string>Podcasts</string>
        </attribute>
       </widget>
+      <widget class="QWidget" name="devicesTab">
+       <attribute name="icon">
+        <iconset>
+         <normalon>assets/external_device.svg</normalon>
+        </iconset>
+       </attribute>
+       <attribute name="title">
+        <string>Devices</string>
+       </attribute>
+       <layout class="QVBoxLayout" name="devicesTabLayout">
+        <item>
+         <widget class="QComboBox" name="deviceCombo">
+          <property name="placeholderText">
+           <string>No devices connected</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="deviceInfoPanel" native="true">
+          <layout class="QGridLayout" name="deviceInfoForm" columnstretch="0,1,0,1">
+           <item row="0" column="0">
+            <widget class="QLabel" name="deviceInfoNameLabel">
+             <property name="text">
+              <string>Name:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QLabel" name="deviceInfoName"/>
+           </item>
+           <item row="0" column="2">
+            <widget class="QLabel" name="deviceInfoBatteryLabel">
+             <property name="text">
+              <string>Battery:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="3">
+            <widget class="QLabel" name="deviceInfoBattery"/>
+           </item>
+           <item row="1" column="0">
+            <widget class="QLabel" name="deviceInfoModelLabel">
+             <property name="text">
+              <string>Model:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QLabel" name="deviceInfoModel"/>
+           </item>
+           <item row="1" column="2">
+            <widget class="QLabel" name="deviceInfoCapacityLabel">
+             <property name="text">
+              <string>Capacity:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="3">
+            <widget class="QLabel" name="deviceInfoCapacity"/>
+           </item>
+           <item row="2" column="0">
+            <widget class="QLabel" name="deviceInfoFirmwareLabel">
+             <property name="text">
+              <string>Firmware:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="1">
+            <widget class="QLabel" name="deviceInfoFirmware"/>
+           </item>
+           <item row="2" column="2">
+            <widget class="QLabel" name="deviceInfoFreeLabel">
+             <property name="text">
+              <string>Free space:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="2" column="3">
+            <widget class="QLabel" name="deviceInfoFree"/>
+           </item>
+           <item row="3" column="0">
+            <widget class="QLabel" name="deviceInfoSerialLabel">
+             <property name="text">
+              <string>Serial number:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="1">
+            <widget class="QLabel" name="deviceInfoSerial"/>
+           </item>
+           <item row="3" column="2">
+            <widget class="QLabel" name="deviceInfoSpaceLabel">
+             <property name="text">
+              <string>Used:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="3" column="3">
+            <widget class="QProgressBar" name="deviceSpaceBar"/>
+           </item>
+           <item row="4" column="0">
+            <widget class="QLabel" name="deviceInfoConnectionLabel">
+             <property name="text">
+              <string>Connection:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="1">
+            <widget class="QLabel" name="deviceInfoConnection"/>
+           </item>
+           <item row="4" column="2">
+            <widget class="QLabel" name="deviceInfoFileSystemLabel">
+             <property name="text">
+              <string>File system:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="4" column="3">
+            <widget class="QLabel" name="deviceInfoFileSystem"/>
+           </item>
+           <item row="5" column="0">
+            <widget class="QLabel" name="deviceInfoStorageLabel">
+             <property name="text">
+              <string>Storage:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="1">
+            <widget class="QLabel" name="deviceInfoStorage"/>
+           </item>
+           <item row="5" column="2">
+            <widget class="QLabel" name="deviceInfoLocationLabel">
+             <property name="text">
+              <string>Location:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="3">
+            <widget class="QLabel" name="deviceInfoLocation"/>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QWidget" name="syncPanel" native="true">
+          <layout class="QVBoxLayout" name="syncPanelLayout">
+           <item>
+            <widget class="QWidget" name="syncOptions" native="true">
+             <layout class="QHBoxLayout" name="syncColumns">
+              <item><layout class="QGridLayout" name="syncLeftColumn"><item row="0" column="0"><widget class="QLabel" name="syncMusicFolderLabel"><property name="text"><string>Music folder:</string></property></widget></item><item row="0" column="1"><widget class="QLineEdit" name="syncMusicFolder"><property name="text"><string>/Music</string></property></widget></item><item row="1" column="0"><widget class="QLabel" name="syncPlaylistFolderLabel"><property name="text"><string>Playlist folder:</string></property></widget></item><item row="1" column="1"><widget class="QLineEdit" name="syncPlaylistFolder"><property name="text"><string>/Playlists</string></property></widget></item><item row="2" column="0"><widget class="QLabel" name="syncPlaylistsLabel"><property name="text"><string>Playlists:</string></property></widget></item><item row="2" column="1"><widget class="QCheckBox" name="syncAllPlaylists"><property name="text"><string>All playlists</string></property><property name="checked"><bool>true</bool></property></widget></item><item row="3" column="1"><widget class="QListWidget" name="syncPlaylistList"><property name="maximumSize"><size><width>16777215</width><height>120</height></size></property></widget></item></layout></item>
+              <item><layout class="QGridLayout" name="syncRightColumn"><item row="0" column="0"><widget class="QLabel" name="syncFormatLabel"><property name="text"><string>Format:</string></property></widget></item><item row="0" column="1"><widget class="QComboBox" name="syncFormat"><property name="currentIndex"><number>1</number></property><item><property name="text"><string>Keep original format</string></property></item><item><property name="text"><string>MP3</string></property></item><item><property name="text"><string>Ogg Vorbis</string></property></item><item><property name="text"><string>Opus</string></property></item><item><property name="text"><string>FLAC (lossless)</string></property></item></widget></item><item row="1" column="0"><widget class="QLabel" name="syncProfileLabel"><property name="text"><string>Encoding profile:</string></property></widget></item><item row="1" column="1"><widget class="QComboBox" name="syncProfile"><property name="currentIndex"><number>1</number></property><item><property name="text"><string>Small file size</string></property></item><item><property name="text"><string>Standard quality</string></property></item><item><property name="text"><string>High quality</string></property></item><item><property name="text"><string>Max quality</string></property></item></widget></item><item row="2" column="0" colspan="2"><widget class="QCheckBox" name="syncFormatSubfolders"><property name="text"><string>Format the subfolders with a naming template</string></property><property name="checked"><bool>true</bool></property></widget></item><item row="3" column="0" colspan="2"><layout class="QHBoxLayout" name="syncTemplateRow"><item><widget class="QLineEdit" name="syncTemplate"><property name="text"><string>&lt;albumartist&gt;/&lt;album&gt;/&lt;title&gt; - &lt;artist&gt;</string></property></widget></item><item><widget class="QComboBox" name="syncInsertTag"><item><property name="text"><string>Insert tag…</string></property></item><item><property name="text"><string>&lt;title&gt;</string></property></item><item><property name="text"><string>&lt;artist&gt;</string></property></item><item><property name="text"><string>&lt;albumartist&gt;</string></property></item><item><property name="text"><string>&lt;album&gt;</string></property></item><item><property name="text"><string>&lt;trackno&gt;</string></property></item><item><property name="text"><string>&lt;discno&gt;</string></property></item><item><property name="text"><string>&lt;year&gt;</string></property></item><item><property name="text"><string>&lt;genre&gt;</string></property></item></widget></item></layout></item><item row="4" column="0" colspan="2"><widget class="QCheckBox" name="syncSkipMissing"><property name="text"><string>Skip files that are missing tags used in the template</string></property><property name="checked"><bool>true</bool></property></widget></item><item row="5" column="0"><widget class="QCheckBox" name="syncResizeArt"><property name="text"><string>Resize embedded artwork to:</string></property></widget></item><item row="5" column="1"><widget class="QSpinBox" name="syncArtSize"><property name="suffix"><string> px</string></property><property name="minimum"><number>16</number></property><property name="maximum"><number>4000</number></property><property name="value"><number>200</number></property></widget></item></layout></item>
+             </layout>
+            </widget>
+           </item>
+           <item><widget class="QProgressBar" name="syncProgress"><property name="visible"><bool>false</bool></property></widget></item>
+           <item><widget class="QLabel" name="syncStatus"><property name="wordWrap"><bool>true</bool></property></widget></item>
+           <item>
+            <layout class="QHBoxLayout" name="syncButtonRow">
+             <item><widget class="QPushButton" name="syncButton"><property name="text"><string>Synchronise</string></property></widget></item>
+             <item><widget class="QPushButton" name="syncStopButton"><property name="text"><string>Stop</string></property></widget></item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
+        </item>
+        <item>
+         <spacer name="devicesTabSpacer">
+          <property name="orientation">
+           <enum>Qt::Orientation::Vertical</enum>
+          </property>
+          <property name="sizeHint" stdset="0">
+           <size>
+            <width>20</width>
+            <height>40</height>
+           </size>
+          </property>
+         </spacer>
+        </item>
+       </layout>
+      </widget>
      </widget>
     </item>
    </layout>
@@ -1858,6 +2038,7 @@ QWidget {
     <addaction name="actionAutoTagGenres"/>
     <addaction name="actionOrganiseFiles"/>
     <addaction name="actionLevelVolume"/>
+    <addaction name="actionConvertFiles"/>
    </widget>
    <widget class="QMenu" name="menuView">
     <property name="title">
@@ -2849,6 +3030,17 @@ QWidget {
    </property>
    <property name="toolTip">
     <string>Measure the songs of this library so that they all play at the same volume</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionConvertFiles">
+   <property name="text">
+    <string>Convert Files…</string>
+   </property>
+   <property name="toolTip">
+    <string>Make copies of songs in another format</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

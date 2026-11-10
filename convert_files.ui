@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>convertDialog</class>
+ <widget class="QDialog" name="convertDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>640</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Convert Files</string>
+  </property>
+  <layout class="QVBoxLayout" name="convertLayout">
+   <item>
+    <layout class="QFormLayout" name="convertForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="convertScopeLabel">
+       <property name="text">
+        <string>Songs:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="convertScope">
+       <item><property name="text"><string>Entire library</string></property></item>
+       <item><property name="text"><string>Selected songs</string></property></item>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="convertFormatLabel">
+       <property name="text">
+        <string>Format:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="convertFormat">
+       <item><property name="text"><string>MP3</string></property></item>
+       <item><property name="text"><string>Ogg Vorbis</string></property></item>
+       <item><property name="text"><string>Opus</string></property></item>
+       <item><property name="text"><string>FLAC (lossless)</string></property></item>
+      </widget>
+     </item>
+     <item row="2" column="0">
+      <widget class="QLabel" name="convertProfileLabel">
+       <property name="text">
+        <string>Encoding profile:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="1">
+      <widget class="QComboBox" name="convertProfile">
+       <property name="currentIndex">
+        <number>1</number>
+       </property>
+       <item><property name="text"><string>Small file size</string></property></item>
+       <item><property name="text"><string>Standard quality</string></property></item>
+       <item><property name="text"><string>High quality</string></property></item>
+       <item><property name="text"><string>Max quality</string></property></item>
+      </widget>
+     </item>
+     <item row="3" column="0">
+      <widget class="QLabel" name="convertFolderLabel">
+       <property name="text">
+        <string>Export to:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="1">
+      <layout class="QHBoxLayout" name="convertFolderRow">
+       <item>
+        <widget class="QLineEdit" name="convertFolder">
+         <property name="placeholderText">
+          <string>Choose a folder</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QPushButton" name="convertBrowseButton">
+         <property name="text">
+          <string>Browse…</string>
+         </property>
+         <property name="autoDefault">
+          <bool>false</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="convertFormatSubfolders">
+     <property name="text">
+      <string>Format the subfolders with a naming template (otherwise the library's folders are kept)</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="convertTemplateRow">
+     <item>
+      <widget class="QLineEdit" name="convertTemplate">
+       <property name="text">
+        <string>&lt;albumartist&gt;/&lt;album&gt;/&lt;trackno&gt; - &lt;title&gt; - &lt;artist&gt;</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QComboBox" name="convertInsertTag">
+       <property name="toolTip">
+        <string>Insert a tag at the cursor</string>
+       </property>
+       <item><property name="text"><string>Insert tag…</string></property></item>
+       <item><property name="text"><string>&lt;title&gt;</string></property></item>
+       <item><property name="text"><string>&lt;artist&gt;</string></property></item>
+       <item><property name="text"><string>&lt;albumartist&gt;</string></property></item>
+       <item><property name="text"><string>&lt;album&gt;</string></property></item>
+       <item><property name="text"><string>&lt;trackno&gt;</string></property></item>
+       <item><property name="text"><string>&lt;discno&gt;</string></property></item>
+       <item><property name="text"><string>&lt;year&gt;</string></property></item>
+       <item><property name="text"><string>&lt;genre&gt;</string></property></item>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="convertSkipMissing">
+     <property name="text">
+      <string>Skip files that are missing tags used in the template</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="convertSkipExisting">
+     <property name="text">
+      <string>Skip files that were already converted, and only bring their tags up to date</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="convertSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>10</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QProgressBar" name="convertProgress">
+     <property name="visible">
+      <bool>false</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="convertStatus">
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="convertButtonRow">
+     <item>
+      <widget class="QPushButton" name="convertStartButton">
+       <property name="text">
+        <string>Convert</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="convertStopButton">
+       <property name="text">
+        <string>Stop</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDialogButtonBox" name="convertButtonBox">
+       <property name="standardButtons">
+        <set>QDialogButtonBox::StandardButton::Close</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

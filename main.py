@@ -105,7 +105,9 @@ from src.online_search import (
     OnlineSearch,
     ask_auto_tag_count,
 )
-from src.devices import DeviceEjector, connected_devices, open_in_dolphin
+from src.convert_files import ConvertFilesTool, ConvertSong
+from src.device_sync import DeviceSyncPanel
+from src.devices import DeviceEjector, DevicesTab, connected_devices, open_in_dolphin
 from src.equaliser import EqualiserWindow, load_equaliser
 from src.level_volume import LevelVolumeTool
 from src.sound_settings import SoundSettingsTab, load_sound_settings
@@ -159,6 +161,7 @@ AUTO_TAG_UI_FILE = Path(__file__).parent / "auto_tag_genres.ui"
 ORGANISE_UI_FILE = Path(__file__).parent / "organise_files.ui"
 EQUALISER_UI_FILE = Path(__file__).parent / "equaliser.ui"
 LEVEL_VOLUME_UI_FILE = Path(__file__).parent / "level_volume.ui"
+CONVERT_UI_FILE = Path(__file__).parent / "convert_files.ui"
 COVER_WINDOW_UI_FILE = Path(__file__).parent / "cover_window.ui"
 
 # How long after a track starts before Last.fm is told what is playing.
@@ -682,6 +685,8 @@ class MusicHive:
         w.actionOrganiseFiles.triggered.connect(lambda _checked=False: self.on_organise_clicked())
         self.level_tool: LevelVolumeTool | None = None  # made when first opened
         w.actionLevelVolume.triggered.connect(lambda _checked=False: self.show_level_volume())
+        self.convert_tool: ConvertFilesTool | None = None  # made when first opened
+        w.actionConvertFiles.triggered.connect(lambda _checked=False: self.show_convert_files())
         self.tag_writer = TagWriter(w)
         self.tag_writer.rating_failed.connect(self.on_rating_write_failed)
         self.tag_writer.tags_saved.connect(self.on_tags_saved)
@@ -784,11 +789,15 @@ class MusicHive:
         else:  # a label
             self._icon_click = ClickFilter(icon_widget)
             self._icon_click.clicked.connect(self.choose_playlist_icon)
+        self.device_sync = DeviceSyncPanel(
+            w, self.settings, self.device_sync_source, self.show_status
+        )
         self.refresh_playlist_list()
         self.refresh_filter_bars()
         self.devices: list[tuple[str, str]] = []
         self.device_ejector = DeviceEjector(w)
         self.device_ejector.finished.connect(self.on_device_ejected)
+        self.devices_tab = DevicesTab(w, self.device_sync.set_device)
         self.refresh_devices()
         self.device_timer = QTimer(w)
         self.device_timer.setInterval(DEVICE_CHECK_MS)
@@ -901,6 +910,9 @@ class MusicHive:
         self.online_search.shutdown()
         if self.level_tool is not None:
             self.level_tool.shutdown()
+        if self.convert_tool is not None:
+            self.convert_tool.shutdown()
+        self.device_sync.shutdown()
         self.tag_writer.shutdown()
         self.mpris.shutdown()
         self.discord.shutdown()
@@ -2044,6 +2056,12 @@ class MusicHive:
         if self.level_tool is not None and self.level_tool.is_running:
             self.show_status("Wait for the volume levelling to finish")
             return
+        if self.convert_tool is not None and self.convert_tool.is_running:
+            self.show_status("Wait for the conversion to finish")
+            return
+        if self.device_sync.is_running:
+            self.show_status("Wait for the synchronisation to finish")
+            return
         try:
             titled = set(library_db.load_tag_values(library.db_path, ["title"]))
         except sqlite3.Error as error:
@@ -2061,6 +2079,46 @@ class MusicHive:
             self.apply_file_moves,
         ).run()
         self.show_organise_result(result)
+
+    def library_songs(self) -> list[ConvertSong] | None:
+        """Every song of the open library, for sending elsewhere. None if there is no library."""
+        library = self.loaded_library
+        if library is None:
+            self.show_status("Open a library first")
+            return None
+        try:
+            titled = set(library_db.load_tag_values(library.db_path, ["title"]))
+        except sqlite3.Error as error:
+            self.show_status(f"Cannot read library '{library.name}': {error}")
+            return None
+        songs = []
+        for row, path in enumerate(self.tracks):
+            rel_path = self.relative_path(path)
+            songs.append(
+                ConvertSong(path, rel_path, self.library_model.info(row), rel_path in titled)
+            )
+        return songs
+
+    def device_sync_source(self) -> tuple[list[ConvertSong], dict[str, list[Path]]] | None:
+        """The open library's songs, and the song files of each of its playlists."""
+        songs = self.library_songs()
+        if songs is None:
+            return None
+        names = self.playlist_store.names() if self.playlist_store is not None else []
+        return songs, {
+            name: [self.tracks[row] for row in self.playlist_rows(name)] for name in names
+        }
+
+    def show_convert_files(self) -> None:
+        songs = self.library_songs()
+        if songs is None:
+            return
+        selected_rows = list(dict.fromkeys(self.selected_song_rows()))
+        if self.convert_tool is None:
+            self.convert_tool = ConvertFilesTool(
+                CONVERT_UI_FILE, self.window, self.settings, self.show_status
+            )
+        self.convert_tool.show(songs, [songs[row] for row in selected_rows])
 
     def show_level_volume(self) -> None:
         library = self.loaded_library
@@ -2483,6 +2541,13 @@ class MusicHive:
             self.devices = devices
             self.side_model.set_devices(devices)
             self.apply_side_expansion()
+            self.devices_tab.set_devices(devices)
+        elif self.window.devicesTab.isVisible() and not self.device_sync.is_running:
+            self.devices_tab.refresh_levels()  # a sync must not be interrupted by these checks
+
+    def show_device_tab(self, folder: str) -> None:
+        self.window.podcastsTab.setCurrentWidget(self.window.devicesTab)
+        self.devices_tab.select(folder)
 
     def device_name(self, folder: str) -> str:
         return next((name for name, path in self.devices if path == folder), folder)
@@ -2492,6 +2557,9 @@ class MusicHive:
             self.show_status("Could not start Dolphin")
 
     def safely_remove_device(self, folder: str) -> None:
+        if self.device_sync.is_running:
+            self.show_status("Wait for the synchronisation to finish")
+            return
         self.show_status(f"Safely removing {self.device_name(folder)}…")
         self.device_ejector.eject(self.device_name(folder), folder)
 
@@ -2535,7 +2603,7 @@ class MusicHive:
                 add("Open", "open_folder", lambda: self.open_pinned_folder(value))
                 add("Unpin", "unpin_folder", lambda: self.unpin_folder(value))
         elif kind == DEVICE:
-            add("Synchronise", "sync_device", lambda: None, enabled=False)  # coming soon
+            add("Synchronise…", "sync_device", lambda: self.show_device_tab(value))
             add("Open in Dolphin", "open_device", lambda: self.open_device(value))
             add("Safely Remove", "remove_device", lambda: self.safely_remove_device(value))
         elif kind == SECTION and value == DEVICES_SECTION:
@@ -2804,6 +2872,7 @@ class MusicHive:
         for name in names:
             playlist = store.load(name)
             entries.append((name, playlist.folder, playlist.read_only, playlist.is_auto))
+        self.device_sync.set_playlists(names)
         folders = store.folders() if store is not None else []
         self.side_model.rebuild(folders, entries, self.pinned_folders)
         self.apply_side_expansion()

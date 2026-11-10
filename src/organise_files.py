@@ -86,7 +86,9 @@ def template_problem(template: str) -> str | None:
     return None
 
 
-def _tag_values(info: TrackInfo, has_title: bool) -> dict[str, str]:
+def tag_values(info: TrackInfo, has_title: bool) -> dict[str, str]:
+    """What each template tag stands for in this song ("" if the song does not have it)."""
+
     def number(value: int | None) -> str:
         return "" if value is None else str(value)
 
@@ -103,6 +105,28 @@ def _tag_values(info: TrackInfo, has_title: bool) -> dict[str, str]:
     }
 
 
+def template_parts(template: str) -> list[str]:
+    """A template's folder levels and file name, in order."""
+    return [part for part in template.strip().split("/") if part.strip()]
+
+
+def template_tags(template: str) -> list[str]:
+    """The tags a template uses, each once."""
+    return list(dict.fromkeys(name.lower() for name in _TAG.findall(template)))
+
+
+def render_stem(parts: list[str], values: dict[str, str], title_fallback: str) -> str:
+    """A song's relative path under a template, without its extension."""
+
+    def fill_in(match: re.Match) -> str:
+        name = match[1].lower()
+        if values[name].strip():
+            return values[name]
+        return title_fallback if name == "title" else UNKNOWN_VALUE
+
+    return "/".join(sanitise_name(_TAG.sub(fill_in, part)) for part in parts)
+
+
 def make_plan(
     template: str,
     root: Path,
@@ -116,26 +140,20 @@ def make_plan(
     Every destination is free when this runs, so the moves can never depend on
     each other. Songs that would land on the same name get " (2)" and so on.
     """
-    parts = [part for part in template.strip().split("/") if part.strip()]
-    used = list(dict.fromkeys(name.lower() for name in _TAG.findall(template)))
+    parts = template_parts(template)
+    used = template_tags(template)
     taken = set(rel_paths)
     rows: list[FileMove] = []
     unchanged = 0
 
     for row, (old, info) in enumerate(zip(rel_paths, infos)):
-        values = _tag_values(info, old in titled)
+        values = tag_values(info, old in titled)
         missing = tuple(name for name in used if not values[name].strip())
         if missing and skip_missing:
             rows.append(FileMove(row, old, "", missing))
             continue
 
-        def fill_in(match: re.Match) -> str:
-            name = match[1].lower()
-            if values[name].strip():
-                return values[name]
-            return info.title if name == "title" else UNKNOWN_VALUE
-
-        stem = "/".join(sanitise_name(_TAG.sub(fill_in, part)) for part in parts)
+        stem = render_stem(parts, values, info.title)
         extension = Path(old).suffix
         new = stem + extension
         number = 2
