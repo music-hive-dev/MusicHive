@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>aboutDialog</class>
+ <widget class="QDialog" name="aboutDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>460</width>
+    <height>400</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>About MusicHive</string>
+  </property>
+  <layout class="QVBoxLayout" name="aboutLayout">
+   <item>
+    <widget class="QLabel" name="aboutText">
+     <property name="text">
+      <string>&lt;h2&gt;MusicHive&lt;/h2&gt;
+&lt;p&gt;A simple local music player.&lt;/p&gt;
+&lt;h3&gt;Libraries&lt;/h3&gt;
+&lt;p&gt;
+&lt;a href=&quot;https://www.qt.io/qt-for-python&quot;&gt;PySide6 (Qt for Python)&lt;/a&gt;, LGPL-3.0&lt;br&gt;
+&lt;a href=&quot;https://gstreamer.freedesktop.org&quot;&gt;GStreamer&lt;/a&gt;, LGPL-2.1&lt;br&gt;
+&lt;a href=&quot;https://pygobject.gnome.org&quot;&gt;PyGObject&lt;/a&gt;, LGPL-2.1&lt;br&gt;
+&lt;a href=&quot;https://github.com/quodlibet/mutagen&quot;&gt;Mutagen&lt;/a&gt;, GPL-2.0-or-later
+&lt;/p&gt;
+&lt;h3&gt;Artwork&lt;/h3&gt;
+&lt;p&gt;
+Icons by &lt;a href=&quot;https://lucide.dev&quot;&gt;Lucide&lt;/a&gt;, ISC License. Some are derived from Feather, MIT License.&lt;br&gt;
+Emoji by &lt;a href=&quot;https://github.com/twitter/twemoji&quot;&gt;Twemoji&lt;/a&gt;, &lt;a href=&quot;https://creativecommons.org/licenses/by/4.0/&quot;&gt;CC BY 4.0&lt;/a&gt;, in the &lt;a href=&quot;https://github.com/mozilla/twemoji-colr&quot;&gt;Twemoji Mozilla&lt;/a&gt; font.
+&lt;/p&gt;</string>
+     </property>
+     <property name="textFormat">
+      <enum>Qt::TextFormat::RichText</enum>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignTop</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+     <property name="openExternalLinks">
+      <bool>true</bool>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="aboutButtonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

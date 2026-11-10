@@ -1,5 +1,6 @@
 """MusicHive: application startup and UI wiring."""
 
+import datetime
 import hashlib
 import html
 import sqlite3
@@ -32,6 +33,7 @@ from PySide6.QtGui import (
     QAction,
     QCursor,
     QDesktopServices,
+    QFontDatabase,
     QIcon,
     QImage,
     QKeySequence,
@@ -171,6 +173,7 @@ EQUALISER_UI_FILE = UI_DIR / "equaliser.ui"
 LEVEL_VOLUME_UI_FILE = UI_DIR / "level_volume.ui"
 CONVERT_UI_FILE = UI_DIR / "convert_files.ui"
 COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
+ABOUT_UI_FILE = UI_DIR / "about.ui"
 
 # How long after a track starts before Last.fm is told what is playing.
 NOW_PLAYING_DELAY_MS = 3000
@@ -264,7 +267,21 @@ NO_PLAYLIST_TEXT = "No playlist selected"
 M3U8_FILTER = "M3U8 playlist (*.m3u8)"
 M3U_FILTER = "M3U playlist (*.m3u)"
 SETTINGS_FILTER = "MusicHive settings (*.ini)"
+DAYS_FILE = Path(__file__).parent / "days.json"
+EMOJI_FONT_FILE = Path(__file__).parent / "assets" / "fonts" / "Twemoji.Mozilla.ttf"
+EMOJI_FONTS = ["Twemoji Mozilla", "Segoe UI Emoji", "Noto Emoji"]  # the first with the emoji is used
 NOTHING_TO_PASTE = "There are no songs from this library on the clipboard"
+
+
+def todays_greeting() -> str:
+    """ "Happy ...!" if today is listed in days.json, otherwise ""."""
+    try:
+        days = json.loads(DAYS_FILE.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return ""
+    today = datetime.date.today().strftime("%m-%d")
+    names = [day["name"] for day in days if day["date"] == today]
+    return f"Happy {' and '.join(names)}!" if names else ""
 
 
 def load_ui(path: Path):
@@ -470,6 +487,7 @@ class MusicHive:
 
         # Playback
         self.playback_state = "stopped"  # "playing", "paused" or "stopped"
+        self.restoring_session = False  # True while the last session's song is put back
         self.position_ms = 0  # last reported playback position
 
         #Discord
@@ -900,6 +918,9 @@ class MusicHive:
 
     def show(self) -> None:
         self.window.show()
+        greeting = todays_greeting()
+        if greeting:
+            self.show_status(greeting)
 
     @staticmethod
     def quit_app() -> None:
@@ -1233,12 +1254,9 @@ class MusicHive:
         self.window.statusBar().showMessage(text)
 
     def show_about(self) -> None:
-        QMessageBox.about(
-            self.window,
-            "About MusicHive",
-            "<b>MusicHive</b><br>A simple local music player built with "
-            "PySide6 and Qt Multimedia.",
-        )
+        dialog = load_dialog(ABOUT_UI_FILE, self.window)
+        dialog.aboutButtonBox.rejected.connect(dialog.reject)
+        dialog.exec()
 
     # ----- volume and window title -----
 
@@ -2375,7 +2393,12 @@ class MusicHive:
             self.play_order.start_at(row, self.play_source_rows())
 
         self.play_order.set_context(self.play_source_rows())
-        return self.load_track_paused(row, session.position_ms)
+        # Coming back paused at startup is not news, so it gets no status message.
+        self.restoring_session = True
+        try:
+            return self.load_track_paused(row, session.position_ms)
+        finally:
+            self.restoring_session = False
 
     def load_track_paused(self, row: int, position_ms: int = 0) -> bool:
         """Make `row` the current track, loaded but paused at `position_ms`."""
@@ -4435,7 +4458,7 @@ class MusicHive:
         else:
             w.playButton.setIcon(self.icon_play)
             w.playButton.setToolTip("Play")
-            if state == "paused":
+            if state == "paused" and not self.restoring_session:
                 self.show_status("Paused")
             else:  # stopped
                 self.position_ms = 0
@@ -4485,6 +4508,9 @@ class MusicHive:
 
 def main() -> int:
     app = QApplication(sys.argv)
+    # Qt draws nothing with this system's Noto Color Emoji, so use a font it can draw.
+    QFontDatabase.addApplicationFont(str(EMOJI_FONT_FILE))
+    QFontDatabase.setApplicationEmojiFontFamilies(EMOJI_FONTS)
     app.setApplicationName("MusicHive")
     app.setDesktopFileName("musichive")  # must match musichive.desktop
     music_hive = MusicHive()

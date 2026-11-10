@@ -295,7 +295,6 @@ class DiscordPresence(QObject):
             event = message.get("evt")
             if event == "READY":
                 self._ready = True
-                self.status_message.emit("Discord Rich Presence connected")
                 self._send_now()
             elif event == "ERROR":
                 data = message.get("data") or {}
