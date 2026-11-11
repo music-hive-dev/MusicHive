@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.2.2
+Version:        1.2.3
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -52,17 +52,8 @@ install -Dm644 musichive_colour.svg \
     %{buildroot}%{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 # The file name must match setDesktopFileName in main.py.
-install -d %{buildroot}%{_datadir}/applications
-cat > %{buildroot}%{_datadir}/applications/%{name}.desktop <<'EOF'
-[Desktop Entry]
-Type=Application
-Name=MusicHive
-Comment=Simple local music player
-Exec=musichive
-Icon=musichive
-Terminal=false
-Categories=AudioVideo;Audio;Player;
-EOF
+install -Dm644 packaging/musichive.desktop \
+    %{buildroot}%{_datadir}/applications/%{name}.desktop
 
 %files
 %{_bindir}/%{name}
@@ -71,6 +62,9 @@ EOF
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Wed Nov 11 2026 MusicHive - 1.2.3-1
+- Added build scripts for Debian and Arch packages
+
 * Wed Nov 11 2026 MusicHive - 1.2.2-1
 - The mini player opens again after a reboot if it was open before
 

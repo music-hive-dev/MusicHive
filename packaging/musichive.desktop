@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MusicHive
+Comment=Simple local music player
+Exec=musichive
+Icon=musichive
+Terminal=false
+Categories=AudioVideo;Audio;Player;

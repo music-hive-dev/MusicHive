@@ -118,6 +118,29 @@ sudo dnf install ./dist/musichive-*.noarch.rpm
 `dnf` brings in everything else it needs, and MusicHive then shows up in your
 application menu. The package is built for the Fedora release you build it on.
 
+### Debian and Ubuntu
+
+The `.deb` needs `dpkg-deb`, which Debian-based systems already have (on Fedora,
+install `dpkg`):
+
+```
+./packaging/build-deb.sh
+sudo apt install ./dist/musichive_*_all.deb
+```
+
+It needs a release that packages PySide6, such as Debian 13 or Ubuntu 24.10 and
+later.
+
+### Arch Linux
+
+On Arch the script uses `makepkg`. On any other distribution it builds inside an
+Arch Linux container, so you only need `podman`:
+
+```
+./packaging/build-arch.sh
+sudo pacman -U ./dist/musichive-*-any.pkg.tar.zst
+```
+
 ## Running from source
 
 On Fedora, the libraries are all available as system packages:

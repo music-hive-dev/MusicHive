@@ -1,0 +1,52 @@
+# Built by build-arch.sh, which fills in pkgver and pkgrel from musichive.spec
+# and puts the source tarball next to this file.
+pkgname=musichive
+pkgver=0
+pkgrel=1
+pkgdesc="Simple local music player"
+arch=('any')
+license=('LicenseRef-Proprietary')
+depends=(
+    'python'
+    'pyside6'
+    'qt6-multimedia'
+    'qt6-svg'
+    'python-mutagen'
+    'python-gobject'
+    'gstreamer'
+    'gst-plugins-base'
+    'gst-plugins-good'
+    'curl'
+    'inter-font'
+)
+optdepends=(
+    'gst-plugins-bad: smoother volume changes'
+    'gst-libav: more audio formats, such as AAC'
+    'gst-plugins-ugly: more audio formats'
+    'udisks2: ejecting portable devices'
+    'dolphin: opening portable devices'
+)
+source=("$pkgname-$pkgver.tar.gz")
+sha256sums=('SKIP')
+
+package() {
+    cd "$srcdir/$pkgname-$pkgver"
+    local app="$pkgdir/usr/share/$pkgname"
+
+    install -d "$app"
+    cp -a main.py days.json ./*.svg ./*.png src ui assets "$app/"
+    python -m compileall -q -d "/usr/share/$pkgname" "$app"
+
+    install -d "$pkgdir/usr/bin"
+    cat > "$pkgdir/usr/bin/$pkgname" <<'SH'
+#!/bin/sh
+exec /usr/bin/python3 /usr/share/musichive/main.py "$@"
+SH
+    chmod 755 "$pkgdir/usr/bin/$pkgname"
+
+    install -Dm644 musichive_colour.svg \
+        "$pkgdir/usr/share/icons/hicolor/scalable/apps/$pkgname.svg"
+    # The file name must match setDesktopFileName in main.py.
+    install -Dm644 packaging/musichive.desktop \
+        "$pkgdir/usr/share/applications/$pkgname.desktop"
+}
