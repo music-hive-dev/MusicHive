@@ -141,6 +141,20 @@ Arch Linux container, so you only need `podman`:
 sudo pacman -U ./dist/musichive-*-any.pkg.tar.zst
 ```
 
+### AppImage
+
+The AppImage carries its own Python, Qt and GStreamer, so it runs without
+installing anything. It's built inside a Debian 12 container with `podman`:
+
+```
+./packaging/build-appimage.sh
+./dist/MusicHive-*-x86_64.AppImage
+```
+
+It runs on 64-bit PCs with a distribution at least as new as Debian 12 (Fedora
+37, Ubuntu 23.04 and Arch all qualify). Unlike the packages, it doesn't add
+MusicHive to your application menu by itself.
+
 ## Running from source
 
 On Fedora, the libraries are all available as system packages:

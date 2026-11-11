@@ -18,7 +18,7 @@
     <widget class="QLabel" name="aboutText">
      <property name="text">
       <string>&lt;h2&gt;MusicHive&lt;/h2&gt;
-&lt;p&gt;Version 1.2.3&lt;/p&gt;
+&lt;p&gt;Version 1.2.4&lt;/p&gt;
 &lt;p&gt;A desktop music player and organiser for people who keep their music in folders.&lt;/p&gt;
 &lt;p&gt;MusicHive plays your local library with playlists, auto-playlists, a queue, crossfades, an equaliser and timed lyrics. It also helps keep the library tidy: edit tags for many songs at once, find covers and genres online, sort files into folders from a naming template, convert them to other formats and sync them to a portable player.&lt;/p&gt;
 &lt;p&gt;It works with Last.fm, Discord and your desktop's media controls.&lt;/p&gt;

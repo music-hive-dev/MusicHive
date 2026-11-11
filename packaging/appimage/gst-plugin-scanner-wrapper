@@ -1,0 +1,6 @@
+#!/bin/sh
+# GStreamer runs this to look at its plugins. It needs the bundled libraries,
+# which start.py takes out of the environment again for MusicHive's children.
+here="$(dirname "$(readlink -f "$0")")"
+export LD_LIBRARY_PATH="$here/../lib"
+exec "$here/gst-plugin-scanner" "$@"

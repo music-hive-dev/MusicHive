@@ -3,6 +3,6 @@ Type=Application
 Name=MusicHive
 Comment=Simple local music player
 Exec=musichive
-Icon=musichive
+Icon=musichive_colour.svg
 Terminal=false
 Categories=AudioVideo;Audio;Player;

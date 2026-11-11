@@ -1,0 +1,5 @@
+#!/bin/sh
+# MusicHive restarts itself by running sys.executable with main.py's path first.
+# AppRun doesn't want that path, so drop it and start the AppImage over.
+shift
+exec "$(dirname "$(readlink -f "$0")")/../../AppRun" "$@"

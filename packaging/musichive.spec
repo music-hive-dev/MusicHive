@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.2.3
+Version:        1.2.4
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -62,6 +62,9 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Wed Nov 11 2026 MusicHive - 1.2.4-1
+- Added a build script for an AppImage
+
 * Wed Nov 11 2026 MusicHive - 1.2.3-1
 - Added build scripts for Debian and Arch packages
 

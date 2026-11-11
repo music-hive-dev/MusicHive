@@ -1,0 +1,37 @@
+#!/bin/sh
+# Starts MusicHive from inside the AppImage with its own Python, PyGObject and
+# GStreamer instead of the ones on the system.
+here="$(dirname "$(readlink -f "$0")")"
+
+# start.py puts this back before MusicHive runs, so programs it starts, such as
+# Dolphin and curl, use the system's libraries again instead of the bundled ones.
+if [ -n "${LD_LIBRARY_PATH+x}" ]; then
+    export MUSICHIVE_HOST_LD_LIBRARY_PATH="$LD_LIBRARY_PATH"
+fi
+export LD_LIBRARY_PATH="$here/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+
+export PYTHONHOME="$here/usr"
+export PYTHONPATH="$here/usr/lib/python3/dist-packages"
+export PYTHONNOUSERSITE=1
+export PYTHONDONTWRITEBYTECODE=1
+
+export GI_TYPELIB_PATH="$here/usr/lib/girepository-1.0"
+export GIO_MODULE_DIR="$here/usr/lib/gio/modules"
+export GST_PLUGIN_SYSTEM_PATH_1_0="$here/usr/lib/gstreamer-1.0"
+export GST_PLUGIN_SCANNER_1_0="$here/usr/libexec/gst-plugin-scanner-wrapper"
+export GST_REGISTRY_1_0="${XDG_CACHE_HOME:-$HOME/.cache}/musichive/appimage-gstreamer-registry.bin"
+unset GST_PLUGIN_PATH GST_PLUGIN_PATH_1_0 GST_PLUGIN_SYSTEM_PATH GST_PLUGIN_SCANNER GST_REGISTRY
+
+# The bundled Python looks for certificates where Debian keeps them, so point it
+# at this system's instead. Last.fm and the artist pictures need them.
+if [ -z "${SSL_CERT_FILE-}" ]; then
+    for file in /etc/ssl/certs/ca-certificates.crt /etc/pki/tls/certs/ca-bundle.crt \
+        /etc/ssl/ca-bundle.pem /etc/ssl/cert.pem; do
+        if [ -f "$file" ]; then
+            export SSL_CERT_FILE="$file"
+            break
+        fi
+    done
+fi
+
+exec "$here/usr/bin/python3" "$here/usr/lib/musichive-appimage/start.py" "$@"
