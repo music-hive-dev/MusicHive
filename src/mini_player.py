@@ -3,7 +3,7 @@
 from collections.abc import Callable
 from pathlib import Path
 
-from PySide6.QtCore import QEvent, QObject, QSettings, QStandardPaths, Qt, Slot
+from PySide6.QtCore import QEvent, QObject, QSettings, QStandardPaths, Qt, QTimer, Slot
 from PySide6.QtDBus import QDBusConnection, QDBusMessage
 from PySide6.QtGui import QAction, QGuiApplication, QIcon
 from PySide6.QtWidgets import QSlider, QWidget
@@ -15,6 +15,11 @@ SCRIPT_NUMBER_KEY = "miniPlayerScriptNumber"
 KWIN_SCRIPT = Path(__file__).parent.parent / "assets" / "mini_player_kwin.js"
 KWIN_SCRIPT_NAME = "musichive_mini_player"
 DBUS_SERVICE = "org.musichive.MiniPlayer"  # also in the script
+# When logging out or shutting down, the desktop closes every window, which looks
+# just like Alt+F4. The mini player waits this long before counting a close as
+# the user's, so that a session end in the meantime keeps it remembered as open.
+CLOSE_DELAY_MS = 3000
+SESSION_END_RESET_MS = 60_000  # in case the logout was cancelled
 
 
 class _PositionReceiver(QObject):
@@ -46,6 +51,14 @@ class MiniPlayer(QObject):
         self._title = ElidedLabel(window.miniTitle, max_lines=1)
         self._artist = ElidedLabel(window.miniArtist, max_lines=1)
         self._wayland = QGuiApplication.platformName().startswith("wayland")
+        self._session_ending = False
+        self._close_timer = QTimer(self)
+        self._close_timer.setSingleShot(True)
+        self._close_timer.setInterval(CLOSE_DELAY_MS)
+        self._close_timer.timeout.connect(self._closed_by_user)
+        app = QGuiApplication.instance()
+        app.commitDataRequest.connect(self._on_session_ending)
+        app.aboutToQuit.connect(self._close_timer.stop)
 
         window.setStyleSheet(f"{app_style_sheet}\n{window.styleSheet()}")
         window.setWindowFlag(Qt.WindowType.WindowStaysOnTopHint)
@@ -91,6 +104,7 @@ class MiniPlayer(QObject):
     def eventFilter(self, watched, event) -> bool:
         kind = event.type()
         if kind == QEvent.Type.Show:
+            self._close_timer.stop()
             if self._wayland:
                 self._run_kwin_script()
             elif (position := self._saved_position()) is not None:
@@ -98,14 +112,28 @@ class MiniPlayer(QObject):
         elif kind == QEvent.Type.Move and not self._wayland and self.window.isVisible():
             self._save_position(f"{self.window.x()},{self.window.y()}")
         elif kind == QEvent.Type.Close and event.spontaneous():
-            # Closed by the desktop (Alt+F4). Not when the program quits, so that
-            # it is still remembered as open for the next start.
-            self._action.setChecked(False)
+            # Closed by the desktop: Alt+F4, or the session ending. Not when the
+            # program quits, so that it is still remembered as open for the next start.
+            if not (self._session_ending or QGuiApplication.isSavingSession()):
+                self._close_timer.start()
         elif kind == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
             # Without a title bar, the window is moved by dragging its background.
             self.window.windowHandle().startSystemMove()
             return True
         return False
+
+    def _closed_by_user(self) -> None:
+        if not self._session_ending:
+            self._action.setChecked(False)
+
+    def _on_session_ending(self, _manager) -> None:
+        """The desktop is logging out or shutting down."""
+        self._session_ending = True
+        self._close_timer.stop()
+        QTimer.singleShot(SESSION_END_RESET_MS, self._end_session_wait)
+
+    def _end_session_wait(self) -> None:
+        self._session_ending = False
 
     def _show_position(self, position: int) -> None:
         if not self.slider.isSliderDown():  # the user is dragging; don't fight them

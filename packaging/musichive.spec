@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.2.1
+Version:        1.2.2
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -71,6 +71,9 @@ EOF
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Wed Nov 11 2026 MusicHive - 1.2.2-1
+- The mini player opens again after a reboot if it was open before
+
 * Tue Nov 10 2026 MusicHive - 1.2.1-1
 - The About window shows the version and a fuller description
 
