@@ -3301,6 +3301,13 @@ QDockWidget::float-button {
              <height>0</height>
             </size>
            </property>
+           <property name="styleSheet">
+            <string notr="true">QPushButton {
+	border-radius: 20px;
+	border: 0px solid #ffffff;
+	padding: 9px 7px;
+}</string>
+           </property>
            <property name="text">
             <string/>
            </property>
