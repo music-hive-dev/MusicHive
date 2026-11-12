@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.3.0
+Version:        1.3.1
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -62,6 +62,10 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Thu Nov 12 2026 MusicHive - 1.3.1-1
+- Podcasts and radio stations can be pinned to the sidebar
+- The sidebar's sections can be put in another order by dragging
+
 * Thu Nov 12 2026 MusicHive - 1.3.0-1
 - Added podcasts: search, subscriptions, automatic downloads and deleting, progress
 - Added internet radio with pausing back in time, taping, history and remembered songs

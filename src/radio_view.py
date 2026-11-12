@@ -58,6 +58,7 @@ class RadioTab(QObject):
     go_live_requested = Signal()
     tape_toggled = Signal(bool)
     remember_requested = Signal()
+    pin_toggled = Signal(int)  # a station to pin to the sidebar, or unpin
 
     def __init__(
         self,
@@ -78,6 +79,7 @@ class RadioTab(QObject):
         self._show_status = show_status
         self._settings = settings
         self._find_in_library = find_in_library
+        self.is_pinned: Callable[[int], bool] = lambda _station_id: False  # set by the window
         self.shown_station: int | None = None
         self.playing_station: int | None = None
         self._now_playing = ""
@@ -234,6 +236,11 @@ class RadioTab(QObject):
         menu.addAction(self._icon("pencil"), "Rename...").triggered.connect(
             lambda _checked=False: self._rename(station)
         )
+        pinned = self.is_pinned(station.id)
+        menu.addAction(
+            self._icon("pin-off" if pinned else "pin"),
+            "Unpin from Sidebar" if pinned else "Pin to Sidebar",
+        ).triggered.connect(lambda _checked=False: self.pin_toggled.emit(station.id))
         if station.homepage:
             menu.addAction(self._icon("globe"), "Open Website").triggered.connect(
                 lambda _checked=False: QDesktopServices.openUrl(QUrl(station.homepage))

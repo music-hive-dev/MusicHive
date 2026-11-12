@@ -4,20 +4,40 @@
         Folder
             Playlist
         Playlist
+    Podcasts
+        Pinned podcast
+    Radio Stations
+        Pinned station
     Computer
         Pinned folder
     Devices
         Plugged-in device
+
+The sections can be put in another order by dragging one onto the section whose
+place it should take. The pinned podcasts and stations are sorted by name.
 """
 
-from PySide6.QtCore import QModelIndex, QObject, QRect, QSize, Qt, Signal
-from PySide6.QtGui import QIcon, QPainter, QPixmap, QStandardItem, QStandardItemModel
-from PySide6.QtWidgets import QStyledItemDelegate
+import json
+
+from PySide6.QtCore import QEvent, QMimeData, QModelIndex, QObject, QPoint, QRect, QSize, Qt, Signal
+from PySide6.QtGui import QDrag, QIcon, QPainter, QPixmap, QStandardItem, QStandardItemModel
+from PySide6.QtWidgets import QApplication, QStyledItemDelegate, QTreeView
 
 from src.track_list import TRACK_DRAG_MIME, read_track_drag
 
 SECTION, FOLDER, PLAYLIST, PIN, DEVICE = "section", "folder", "playlist", "pin", "device"
+PODCAST, STATION = "podcast", "station"  # pinned podcasts and radio stations
 PLAYLISTS_SECTION, COMPUTER_SECTION, DEVICES_SECTION = "playlists", "computer", "devices"
+PODCASTS_SECTION, STATIONS_SECTION = "podcasts", "stations"
+SECTIONS = (  # the sections and their titles, in the order they start in
+    (PLAYLISTS_SECTION, "Playlists"),
+    (PODCASTS_SECTION, "Podcasts"),
+    (STATIONS_SECTION, "Radio Stations"),
+    (COMPUTER_SECTION, "Computer"),
+    (DEVICES_SECTION, "Devices"),
+)
+SECTION_OF = {PODCAST: PODCASTS_SECTION, STATION: STATIONS_SECTION}  # pinned kind -> section
+ROW_DRAG_MIME = "application/x-musichive-side-row"  # a section being moved
 
 _KIND_ROLE = Qt.ItemDataRole.UserRole + 1
 _VALUE_ROLE = Qt.ItemDataRole.UserRole + 2
@@ -53,11 +73,56 @@ class SideListDelegate(QStyledItemDelegate):
         option.decorationSize = option.icon.actualSize(QSize(10 * height, height))
 
 
+class SectionDragger(QObject):
+    """Starts dragging a section's title.
+
+    Qt only drags selected rows, and a section cannot be selected (clicking it
+    opens or closes it), so the drag is started here instead.
+    """
+
+    def __init__(self, view: QTreeView) -> None:
+        super().__init__(view)
+        self._view = view
+        self._pressed = QModelIndex()
+        self._press_position = QPoint()
+        view.viewport().installEventFilter(self)
+
+    def eventFilter(self, watched, event) -> bool:
+        kind = event.type()
+        if kind == QEvent.Type.MouseButtonPress and event.button() == Qt.MouseButton.LeftButton:
+            index = self._view.indexAt(event.position().toPoint())
+            model = self._view.model()
+            is_section = index.isValid() and model.kind(index) == SECTION
+            self._pressed = index if is_section else QModelIndex()
+            self._press_position = event.position().toPoint()
+        elif kind == QEvent.Type.MouseMove and self._pressed.isValid():
+            if not event.buttons() & Qt.MouseButton.LeftButton:
+                self._pressed = QModelIndex()
+            elif (event.position().toPoint() - self._press_position).manhattanLength() >= (
+                QApplication.startDragDistance()
+            ):
+                self._start_drag()
+                return True
+        elif kind == QEvent.Type.MouseButtonRelease:
+            self._pressed = QModelIndex()
+        return False
+
+    def _start_drag(self) -> None:
+        index, self._pressed = self._pressed, QModelIndex()
+        model = self._view.model()
+        drag = QDrag(self._view)
+        drag.setMimeData(model.mimeData([index]))
+        drag.setPixmap(self._view.viewport().grab(self._view.visualRect(index)))
+        drag.exec(Qt.DropAction.MoveAction)
+
+
 class SideListModel(QStandardItemModel):
     """The rows of the side list. Songs can be dropped on a playlist."""
 
     songs_dropped = Signal(str, list)  # playlist name, library rows
     drop_refused = Signal(str)  # why the songs being dragged cannot be dropped here
+    # A section was dropped on another to take its place: (what moved, where to).
+    section_moved = Signal(str, str)
 
     def __init__(
         self,
@@ -80,6 +145,9 @@ class SideListModel(QStandardItemModel):
         self._device_icon = _joined_icon(None, device_icon)
         self._devices: list[tuple[str, str]] = []
         self._devices_section: QStandardItem | None = None
+        self._pinned: dict[str, list[tuple[str, str, QIcon]]] = {PODCAST: [], STATION: []}
+        self._pinned_sections: dict[str, QStandardItem] = {}
+        self.section_order = [value for value, _title in SECTIONS]
         self._playlists: dict[str, QStandardItem] = {}
         self._locked: set[str] = set()
 
@@ -94,8 +162,17 @@ class SideListModel(QStandardItemModel):
         self._playlists.clear()
         self._locked = {name for name, _folder, locked, _auto in playlists if locked}
 
-        section = self._opening_item("Playlists", SECTION, PLAYLISTS_SECTION)
-        self.appendRow(section)
+        sections = {}
+        for value, title in SECTIONS:
+            sections[value] = self._opening_item(title, SECTION, value)
+            sections[value].setDragEnabled(True)  # the sections can be put in another order
+            sections[value].setDropEnabled(True)
+        order = [v for v in self.section_order if v in sections]
+        order += [v for v, _title in SECTIONS if v not in order]  # sections new in this version
+        for value in order:
+            self.appendRow(sections[value])
+
+        section = sections[PLAYLISTS_SECTION]
         folder_items = {}
         for folder in folders:
             folder_items[folder] = self._opening_item(folder, FOLDER, folder)
@@ -108,17 +185,35 @@ class SideListModel(QStandardItemModel):
             folder_items.get(folder, section).appendRow(item)
             self._playlists[name] = item
 
-        computer = self._opening_item("Computer", SECTION, COMPUTER_SECTION)
-        self.appendRow(computer)
+        self._pinned_sections = {
+            PODCAST: sections[PODCASTS_SECTION],
+            STATION: sections[STATIONS_SECTION],
+        }
+        self._show_pinned()
+
+        computer = sections[COMPUTER_SECTION]
         for path in pins:
             item = self._item(path.rstrip("/").rsplit("/", 1)[-1] or path, PIN, path)
             item.setIcon(self._pin_icon)
             item.setToolTip(path)
             computer.appendRow(item)
 
-        self._devices_section = self._opening_item("Devices", SECTION, DEVICES_SECTION)
-        self.appendRow(self._devices_section)
+        self._devices_section = sections[DEVICES_SECTION]
         self._show_devices()
+
+    def set_pinned(self, kind: str, entries: list[tuple[str, str, QIcon]]) -> None:
+        """Show these pinned podcasts (kind PODCAST) or stations, as (id, name, icon)."""
+        self._pinned[kind] = entries
+        self._show_pinned()
+
+    def _show_pinned(self) -> None:
+        for kind, section in self._pinned_sections.items():
+            section.removeRows(0, section.rowCount())
+            for value, name, icon in self._pinned[kind]:
+                item = self._item(name, kind, value)
+                item.setIcon(_joined_icon(None, icon))
+                item.setToolTip(name)
+                section.appendRow(item)
 
     def set_devices(self, devices: list[tuple[str, str]]) -> None:
         """Show these plugged-in devices, given as (name, folder)."""
@@ -175,9 +270,40 @@ class SideListModel(QStandardItemModel):
     # ----- dropping songs on a playlist -----
 
     def mimeTypes(self) -> list[str]:
-        return [TRACK_DRAG_MIME]
+        return [TRACK_DRAG_MIME, ROW_DRAG_MIME]
+
+    def supportedDropActions(self):
+        return Qt.DropAction.CopyAction | Qt.DropAction.MoveAction
+
+    def mimeData(self, indexes) -> QMimeData:
+        """A section being dragged to another place."""
+        data = QMimeData()
+        index = indexes[0] if indexes else QModelIndex()
+        if self.kind(index) == SECTION:
+            entry = {"kind": self.kind(index), "value": self.value(index)}
+            data.setData(ROW_DRAG_MIME, json.dumps(entry).encode("utf-8"))
+        return data
+
+    def _moved_row(self, data) -> tuple[str, str] | None:
+        try:
+            entry = json.loads(bytes(data.data(ROW_DRAG_MIME)).decode("utf-8"))
+            return entry["kind"], entry["value"]
+        except (ValueError, KeyError, TypeError):
+            return None
+
+    def _row_target(self, data, parent) -> tuple[str, str] | None:
+        """(moved, target) when the dragged section may take the place of `parent`."""
+        moved = self._moved_row(data)
+        if moved is None or moved[0] != SECTION:
+            return None
+        target = self.value(parent)
+        if self.kind(parent) == SECTION and target != moved[1]:
+            return moved[1], target
+        return None
 
     def canDropMimeData(self, data, action, row, column, parent) -> bool:
+        if data.hasFormat(ROW_DRAG_MIME):
+            return self._row_target(data, parent) is not None
         if not data.hasFormat(TRACK_DRAG_MIME) or self.kind(parent) != PLAYLIST:
             return False
         name = self.value(parent)
@@ -187,6 +313,11 @@ class SideListModel(QStandardItemModel):
         return read_track_drag(data)[1] != name
 
     def dropMimeData(self, data, action, row, column, parent) -> bool:
+        if data.hasFormat(ROW_DRAG_MIME):
+            target = self._row_target(data, parent)
+            if target is not None:
+                self.section_moved.emit(*target)  # the window saves the order and rebuilds
+            return False  # nothing is moved here: the list is built again in the new order
         if not self.canDropMimeData(data, action, row, column, parent):
             return False
         self.songs_dropped.emit(self.value(parent), read_track_drag(data)[0])

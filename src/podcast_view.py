@@ -212,6 +212,7 @@ class PodcastsTab(QObject):
     """Connects the Podcasts tab of player.ui to the PodcastManager."""
 
     play_requested = Signal(int)  # the episode to play
+    pin_toggled = Signal(int)  # a podcast to pin to the sidebar, or unpin
 
     def __init__(
         self,
@@ -230,6 +231,7 @@ class PodcastsTab(QObject):
         self._show_status = show_status
         self._icon = icon  # an icon from the assets folder, by name
         self._settings = settings
+        self.is_pinned: Callable[[int], bool] = lambda _podcast_id: False  # set by the window
         self.shown_podcast: int | None = None
         self.playing_episode: int | None = None
         self._rows: dict[int, int] = {}  # episode id -> table row
@@ -343,6 +345,12 @@ class PodcastsTab(QObject):
             lambda _checked=False: self._continue(podcast)
         )
         menu.addSeparator()
+        pinned = self.is_pinned(podcast.id)
+        menu.addAction(
+            self._icon("pin-off" if pinned else "pin"),
+            "Unpin from Sidebar" if pinned else "Pin to Sidebar",
+        ).triggered.connect(lambda _checked=False: self.pin_toggled.emit(podcast.id))
+        menu.addSeparator()
         menu.addAction(self._icon("refresh-cw"), "Check for New Episodes").triggered.connect(
             lambda _checked=False: self.manager.check(podcast.id)
         )
@@ -370,6 +378,12 @@ class PodcastsTab(QObject):
 
     def _continue_shown(self) -> None:
         podcast = self.manager.store.podcast(self.shown_podcast) if self.shown_podcast else None
+        if podcast is not None:
+            self._continue(podcast)
+
+    def continue_podcast(self, podcast_id: int) -> None:
+        """Play: carry on where the listener left off (for the sidebar's pinned podcasts)."""
+        podcast = self.manager.store.podcast(podcast_id)
         if podcast is not None:
             self._continue(podcast)
 

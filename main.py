@@ -88,7 +88,13 @@ from src.side_list import (
     PIN,
     PLAYLIST,
     PLAYLISTS_SECTION,
+    PODCAST,
+    PODCASTS_SECTION,
     SECTION,
+    SECTION_OF,
+    STATION,
+    STATIONS_SECTION,
+    SectionDragger,
     SideListDelegate,
     SideListModel,
     entry_id,
@@ -908,6 +914,11 @@ class MusicHive:
         w.sideList.setItemDelegate(SideListDelegate(w.sideList))
         self.side_expanded: set[str] = set(self.load_json_setting("sideListExpanded"))
         self.pinned_folders: list[str] = self.load_json_setting("pinnedFolders")
+        # Podcasts and stations pinned to the sidebar, as "podcast:12" or "station:5".
+        self.pinned_media: list[str] = self.load_json_setting("pinnedMedia")
+        saved_order = self.load_json_setting("sideSectionOrder")
+        if saved_order:
+            self.side_model.section_order = saved_order
         w.sideList.setModel(self.side_model)
         self.playlist_selection = w.sideList.selectionModel()
         self.playlist_selection.currentChanged.connect(self.on_playlist_selected)
@@ -917,9 +928,12 @@ class MusicHive:
         w.sideList.collapsed.connect(lambda index: self.on_side_list_toggled(index, False))
         w.sideList.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         w.sideList.customContextMenuRequested.connect(self.show_side_menu)
-        # Dropping on a row always means "add to this playlist", never "insert between".
-        w.sideList.setDragDropMode(QAbstractItemView.DragDropMode.DropOnly)
+        # Dropping on a row always means "on this row", never "insert between": songs
+        # are added to the playlist, and a section or pinned row takes the row's place.
+        w.sideList.setDragDropMode(QAbstractItemView.DragDropMode.DragDrop)
+        w.sideList.setDefaultDropAction(Qt.DropAction.MoveAction)
         w.sideList.setDragDropOverwriteMode(True)
+        self.section_dragger = SectionDragger(w.sideList)  # sections cannot be selected
 
         self.playlist_tracks = PlaylistTrackModel(self.library_model, w)
         self.playlist_proxy = PlaylistSortedModel(w)
@@ -1002,6 +1016,8 @@ class MusicHive:
         self.queue_model.songs_dropped.connect(self.drop_into_upcoming, queued)
         self.queue_model.songs_moved.connect(self.move_in_upcoming, queued)
         self.side_model.drop_refused.connect(self.show_status)
+        # Queued: the list is built again, which must not happen during the drop.
+        self.side_model.section_moved.connect(self.on_side_section_moved, queued)
         self.playlist_proxy.drop_refused.connect(self.show_status)
 
         # Holding a dragged song over a tab opens that tab.
@@ -1141,6 +1157,7 @@ class MusicHive:
         self.shortcuts = Shortcuts(w, self.settings)
         self.setup_podcasts()
         self.setup_radio()
+        self.setup_pinned_media()
         self.setup_sleep_timer()
         self.type_ahead = add_type_ahead(w)  # typing in a list or table finds a song
         set_reset_seconds(self.settings.value(FIND_RESET_KEY, DEFAULT_RESET_SECONDS, type=float))
@@ -3772,6 +3789,8 @@ class MusicHive:
         if kind == PLAYLIST:
             self.show_tab_of(self.window.playlistSongList)
             return
+        if kind in (PODCAST, STATION):
+            self.show_pinned(kind, model.value(index))
         if kind in (SECTION, FOLDER):
             view = self.window.sideList
             view.setExpanded(index, not view.isExpanded(index))
@@ -3808,6 +3827,22 @@ class MusicHive:
             add("Safely Remove", "remove_device", lambda: self.safely_remove_device(value))
         elif kind == SECTION and value == DEVICES_SECTION:
             pass  # nothing to offer yet
+        elif kind in (PODCAST, STATION):
+            menu.addAction(asset_icon("play"), "Play").triggered.connect(
+                lambda _checked=False: self.play_pinned(kind, value)
+            )
+            menu.addAction(asset_icon("mic" if kind == PODCAST else "radio"), "Show").triggered.connect(
+                lambda _checked=False: self.show_pinned(kind, value)
+            )
+            menu.addSeparator()
+            menu.addAction(asset_icon("pin-off"), "Unpin from Sidebar").triggered.connect(
+                lambda _checked=False: self.toggle_pin(kind, int(value))
+            )
+        elif kind == SECTION and value in (PODCASTS_SECTION, STATIONS_SECTION):
+            what = "podcasts" if value == PODCASTS_SECTION else "stations"
+            hint = menu.addAction(f"Pin {what} from their right-click menus")
+            hint.setEnabled(False)
+            menu.addAction("Drag a section's title onto another to move it there").setEnabled(False)
         elif self.playlist_store is not None:
             self.fill_playlist_menu(menu, add, kind, value)
         if not menu.isEmpty():
@@ -4727,6 +4762,8 @@ class MusicHive:
             self.play_playlist(self.side_model.value(model_index))
         elif kind == PIN:
             self.open_pinned_folder(self.side_model.value(model_index))
+        elif kind in (PODCAST, STATION):
+            self.play_pinned(kind, self.side_model.value(model_index))
 
     def select_in_playlist(self, row: int) -> None:
         """Highlight a library row in the playlist table, if it is in that playlist."""
@@ -5201,6 +5238,88 @@ class MusicHive:
         self.radio_timer = QTimer(w)  # how far behind live, once a second
         self.radio_timer.setInterval(1000)
         self.radio_timer.timeout.connect(self.show_radio_delay)
+
+    # ----- podcasts and stations pinned to the sidebar -----
+
+    def setup_pinned_media(self) -> None:
+        self.podcast_tab.is_pinned = lambda podcast_id: self.is_pinned(PODCAST, podcast_id)
+        self.radio_tab.is_pinned = lambda station_id: self.is_pinned(STATION, station_id)
+        self.podcast_tab.pin_toggled.connect(lambda podcast_id: self.toggle_pin(PODCAST, podcast_id))
+        self.radio_tab.pin_toggled.connect(lambda station_id: self.toggle_pin(STATION, station_id))
+        # Names and pictures change: show them as they are now.
+        for signal in (
+            self.podcasts.podcast_changed,
+            self.podcasts.cover_ready,
+            self.radio.station_changed,
+            self.radio.logo_ready,
+        ):
+            signal.connect(lambda _id: self.refresh_pinned_media())
+        self.refresh_pinned_media()
+
+    def is_pinned(self, kind: str, item_id: int) -> bool:
+        return f"{kind}:{item_id}" in self.pinned_media
+
+    def toggle_pin(self, kind: str, item_id: int) -> None:
+        key = f"{kind}:{item_id}"
+        if key in self.pinned_media:
+            self.pinned_media.remove(key)
+            self.show_status("Unpinned from the sidebar")
+        else:
+            self.pinned_media.append(key)
+            self.open_side_entries(entry_id(SECTION, SECTION_OF[kind]))
+            self.show_status("Pinned to the sidebar")
+        self.settings.setValue("pinnedMedia", json.dumps(self.pinned_media))
+        self.refresh_pinned_media()
+        self.apply_side_expansion()
+
+    def refresh_pinned_media(self) -> None:
+        """Show the pinned podcasts and stations in the sidebar, sorted by name."""
+        entries = {PODCAST: [], STATION: []}
+        icons = {PODCAST: asset_icon("mic"), STATION: asset_icon("radio")}
+        for key in self.pinned_media:
+            kind, _, value = key.partition(":")
+            if not value.isdigit():
+                continue
+            if kind == PODCAST:
+                podcast = self.podcasts.store.podcast(int(value))
+                if podcast is not None:
+                    entries[PODCAST].append((value, podcast.title, icons[PODCAST]))
+            elif kind == STATION:
+                station = self.radio.store.station(int(value))
+                if station is not None:
+                    entries[STATION].append((value, station.name, icons[STATION]))
+        for kind, rows in entries.items():
+            self.side_model.set_pinned(kind, sorted(rows, key=lambda row: row[1].casefold()))
+
+    def on_side_section_moved(self, moved: str, target: str) -> None:
+        """A section was dropped on another: it takes that one's place (after it when
+        dragged down, before it when dragged up)."""
+        model = self.side_model
+        order = [model.value(model.index(row, 0)) for row in range(model.rowCount())]
+        if moved not in order or target not in order:
+            return
+        moving_down = order.index(target) > order.index(moved)
+        order.remove(moved)
+        order.insert(order.index(target) + (1 if moving_down else 0), moved)
+        model.section_order = order
+        self.settings.setValue("sideSectionOrder", json.dumps(order))
+        self.refresh_playlist_list(select=self.current_playlist)
+
+    def show_pinned(self, kind: str, value: str) -> None:
+        """Open a pinned podcast's or station's page."""
+        w = self.window
+        if kind == PODCAST:
+            w.podcastsTab.setCurrentWidget(w.podcastsTabPage)
+            self.podcast_tab.show_podcast(int(value))
+        else:
+            w.podcastsTab.setCurrentWidget(w.radioTab)
+            self.radio_tab.show_station(int(value))
+
+    def play_pinned(self, kind: str, value: str) -> None:
+        if kind == PODCAST:
+            self.podcast_tab.continue_podcast(int(value))
+        else:
+            self.play_station(int(value))
 
     def find_in_library(self, text: str) -> None:
         """Show the Songs tab, searching for `text` ("Artist - Title" works as words)."""
