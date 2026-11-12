@@ -7,6 +7,7 @@ from PySide6.QtCore import QSettings
 from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
 from PySide6.QtWidgets import QDialog
 
+from src import theme
 from src.number_field import NumberField
 
 BARS_KEY = "visualiser/bars"
@@ -32,6 +33,7 @@ FALL_PER_FRAME = (0.93, 0.86, 0.75)
 
 HIGHLIGHT = "highlight"  # every bar in the highlight colour
 RAINBOW = "rainbow"  # a smooth rainbow from red to violet
+COVER = "cover"  # the playing cover's colours: the bars, and the background behind them
 RAINBOW_HUES = 300  # the rainbow runs from red (0) to violet (300) across the bars
 
 # The stripes of each flag, top to bottom; they become the bars, left to right.
@@ -58,7 +60,7 @@ FLAGS = {
 }
 
 # What each entry of visualiserColours stands for, in the order settings.ui lists them.
-COLOURS = (HIGHLIGHT, RAINBOW, *FLAGS)
+COLOURS = (HIGHLIGHT, RAINBOW, COVER, *FLAGS)
 SAME = "same"  # the mini player's bars look like the big visualiser's
 # What each entry of visualiserMiniColours stands for.
 MINI_COLOURS = (SAME, *COLOURS)
@@ -218,7 +220,9 @@ class VisualiserSettingsTab:
             (d.visualiserMiniColours, MINI_COLOURS),
         ):
             for index, colours in enumerate(choices[: combo.count()]):
-                if colours not in (HIGHLIGHT, SAME):
+                if colours == COVER:
+                    combo.setItemIcon(index, QIcon(str(theme.asset_path("image.svg"))))
+                elif colours not in (HIGHLIGHT, SAME):
                     combo.setItemIcon(index, flag_icon(colours))
         self._show(load_visualiser_settings(settings))
 

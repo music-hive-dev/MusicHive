@@ -738,6 +738,11 @@
               </item>
               <item>
                <property name="text">
+                <string>From the cover</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
                 <string>Pride</string>
                </property>
               </item>
@@ -1114,6 +1119,11 @@
               </item>
               <item>
                <property name="text">
+                <string>From the cover</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
                 <string>Pride</string>
                </property>
               </item>
@@ -1311,6 +1321,28 @@
        </item>
        <item>
         <layout class="QVBoxLayout" name="visualiserTabRight">
+         <item>
+          <widget class="QGroupBox" name="lyricsSizeGroup">
+           <property name="title">
+            <string>Lyrics size</string>
+           </property>
+           <layout class="QFormLayout" name="lyricsSizeForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="lyricsScale">
+              <property name="toolTip">
+               <string>In a window bigger than usual (full screen on a TV, say), the lyrics grow with it, up to four times their size. They never get smaller.</string>
+              </property>
+              <property name="text">
+               <string>Grow with the window (for big screens and TVs)</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
          <item>
           <widget class="QGroupBox" name="lyricsShadowGroup">
            <property name="title">
@@ -1551,7 +1583,7 @@
            <item>
             <widget class="QPushButton" name="lyricsReset">
              <property name="toolTip">
-              <string>Puts the text shadow and No lyrics options back as they were</string>
+              <string>Puts the lyrics size, text shadow and No lyrics options back as they were</string>
              </property>
              <property name="text">
               <string>Reset Lyrics</string>

@@ -40,8 +40,10 @@ from PySide6.QtWidgets import (
 
 from src import theme
 from src.lyrics import parse_lyrics
+from src.cover_colours import CoverColours, cover_colours
 from src.lyrics_settings import LyricsSettings
 from src.visualiser_settings import (
+    COVER,
     FALL_PER_FRAME,
     FILL,
     FIT,
@@ -74,6 +76,10 @@ NO_LYRICS_TEXT = "No lyrics for this song"
 INSTRUMENTAL_LINE = "♪"
 DIM_ALPHA = 120
 CURRENT_LINE_EXTRA_POINTS = 20
+# "Grow with the window": the lyrics' size at this view size (a normal window) is
+# the size set in player.ui; a bigger view makes them bigger, up to this many times.
+SCALE_REFERENCE = (700, 420)  # pixels
+MAX_LYRICS_SCALE = 4.0
 WHEEL_NOTCH = 120  # what one click of a mouse wheel reports
 SCROLL_HOLD_MS = 5000  # after scrolling, the lyrics wait this long before following the song
 BACKGROUND_WORK_SCALE = 0.25  # the cover is blurred at a quarter size: much faster
@@ -153,6 +159,7 @@ class Visualizer(QObject):
         self._widget = widget
         self._corner_radius = corner_radius  # for a widget with rounded corners
         self._cover: QImage | None = None  # the playing song's, for the background
+        self._cover_colours: CoverColours | None = None  # picked from it, for "From the cover"
         self._background: QPixmap | None = None  # the cover as drawn, kept until it changes
         self._background_key: tuple | None = None
         self.enabled = True
@@ -189,8 +196,10 @@ class Visualizer(QObject):
             self._timer.start()
 
     def set_cover(self, cover: QImage | None) -> None:
-        """The playing song's cover, for the album art background (None: no cover)."""
+        """The playing song's cover, for the album art background and the colours
+        taken from it (None: no cover)."""
         self._cover = cover
+        self._cover_colours = cover_colours(cover, dark_mode=_light_text())
         self._background = None
         self._background_key = None
         self._widget.update()
@@ -327,11 +336,13 @@ class Visualizer(QObject):
         bar_count = len(self._levels)
         accent = QColor(theme.active_highlight())
         opacity = round(255 * style.opacity / 100)
-        gradient = GRADIENT if style.colours in (HIGHLIGHT, RAINBOW) else FLAG_GRADIENT
-        brushes = [
-            self._bar_brush(color, height, opacity, gradient)
-            for color in bar_colours(style.colours, bar_count, accent)
-        ]
+        from_cover = style.colours == COVER and self._cover_colours is not None
+        gradient = GRADIENT if style.colours in (HIGHLIGHT, RAINBOW, COVER) else FLAG_GRADIENT
+        if from_cover:
+            colours = [self._cover_colours.bars] * bar_count
+        else:  # (without a cover, "From the cover" uses the highlight colour)
+            colours = bar_colours(style.colours, bar_count, accent)
+        brushes = [self._bar_brush(color, height, opacity, gradient) for color in colours]
         painter = QPainter(widget)
         if self._corner_radius:  # inside the widget's 1px outline and rounded corners
             inside = QPainterPath()
@@ -344,6 +355,8 @@ class Visualizer(QObject):
             painter.setClipPath(inside)
         if self._shows_background() and width > 0 and height > 0:
             painter.drawPixmap(0, 0, self._background_for(width, height))
+        elif from_cover:  # the cover's darker colour behind the bars
+            painter.fillRect(widget.rect(), self._cover_colours.background)
         bar_width = width / bar_count
         gap = style.gap
         for bar, level in enumerate(self._levels):
@@ -397,6 +410,9 @@ class LyricsView(QObject):
         self._fade.setEasingCurve(QEasingCurve.Type.InOutQuad)
         self._fade.valueChanged.connect(self._show_no_lyrics)
         self._fade_wait.timeout.connect(self._fade.start)
+        self._base_font = QFont(view.font())  # the size set in player.ui
+        self._font = QFont(self._base_font)  # the size used, perhaps grown with the window
+        self._scale = 1.0
         self.set_lyrics("")
         view.installEventFilter(self)
         view.viewport().installEventFilter(self)  # wheel events arrive there
@@ -411,6 +427,8 @@ class LyricsView(QObject):
             event.accept()
             return True
         if event.type() in (QEvent.Type.Show, QEvent.Type.Resize):
+            if watched is self._view:
+                self._apply_scale()
             # Wait for the view to get its final size, or the centring is off.
             QTimer.singleShot(0, self._recentre)
         if event.type() == QEvent.Type.Show and watched is self._view and self._no_lyrics:
@@ -442,9 +460,31 @@ class LyricsView(QObject):
         set_text_shadow(self._view.viewport(), style)
         self._fade_wait.setInterval(round(style.no_lyrics_hold * 1000))
         self._fade.setDuration(max(1, round(style.no_lyrics_fade * 1000)))
+        self._apply_scale()
         if self._no_lyrics:
             self._stop_no_lyrics_fade()
             self._start_no_lyrics_fade()  # so the change can be seen at once
+
+    def _apply_scale(self) -> None:
+        """With "Grow with the window", size the lyrics to the view: bigger than set
+        in player.ui when the view is bigger than a normal window, never smaller."""
+        view = self._view
+        scale = 1.0
+        if self._style.scale_with_window:
+            width, height = SCALE_REFERENCE
+            scale = max(1.0, min(MAX_LYRICS_SCALE, view.width() / width, view.height() / height))
+        if abs(scale - self._scale) < 0.03:
+            return  # a small change is not worth laying the lyrics out again
+        self._scale = scale
+        self._font = QFont(self._base_font)
+        if self._base_font.pointSizeF() > 0:
+            self._font.setPointSizeF(self._base_font.pointSizeF() * scale)
+        for row in range(view.count()):
+            view.item(row).setFont(self._font)
+        if self._times:
+            for line in range(view.count() - 2):  # between the two gap rows
+                self._style_line(line, line == self._current)
+        QTimer.singleShot(0, self._recentre)
 
     def _scroll_lines(self, lines: int) -> None:
         """Move this many lyric lines down (or up, if negative)."""
@@ -477,6 +517,7 @@ class LyricsView(QObject):
             view.addItem(self._make_gap())
         for line in lines:
             item = QListWidgetItem(line or (INSTRUMENTAL_LINE if self._times else " "))
+            item.setFont(self._font)
             item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
             item.setFlags(Qt.ItemFlag.ItemIsEnabled)
             view.addItem(item)
@@ -550,10 +591,10 @@ class LyricsView(QObject):
 
     def _style_line(self, line: int, current: bool) -> None:
         item = self._line_item(line)
-        font = QFont(self._view.font())
+        font = QFont(self._font)
         font.setBold(current)
         if current and font.pointSizeF() > 0:
-            font.setPointSizeF(font.pointSizeF() + CURRENT_LINE_EXTRA_POINTS)
+            font.setPointSizeF(font.pointSizeF() + CURRENT_LINE_EXTRA_POINTS * self._scale)
         item.setFont(font)
         color = QColor(theme.colour(theme.TEXT))
         if not current:

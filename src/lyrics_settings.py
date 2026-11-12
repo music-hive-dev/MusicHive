@@ -17,6 +17,7 @@ SHOW_NO_LYRICS_KEY = "lyrics/showNoLyrics"
 FADE_NO_LYRICS_KEY = "lyrics/fadeNoLyrics"
 NO_LYRICS_HOLD_KEY = "lyrics/noLyricsHold"
 NO_LYRICS_FADE_KEY = "lyrics/noLyricsFade"
+SCALE_KEY = "lyrics/scaleWithWindow"
 
 
 @dataclass(frozen=True)
@@ -29,6 +30,7 @@ class LyricsSettings:
     fade_no_lyrics: bool = True  # "No lyrics for this song" fades away
     no_lyrics_hold: float = 3.0  # seconds it shows before fading
     no_lyrics_fade: float = 2.0  # seconds the fade takes
+    scale_with_window: bool = False  # bigger lyrics in a bigger window (a TV, say)
 
 
 def load_lyrics_settings(settings: QSettings) -> LyricsSettings:
@@ -46,6 +48,7 @@ def load_lyrics_settings(settings: QSettings) -> LyricsSettings:
         fade_no_lyrics=settings.value(FADE_NO_LYRICS_KEY, d.fade_no_lyrics, type=bool),
         no_lyrics_hold=number(NO_LYRICS_HOLD_KEY, d.no_lyrics_hold, 0.0, 600.0, float),
         no_lyrics_fade=number(NO_LYRICS_FADE_KEY, d.no_lyrics_fade, 0.1, 600.0, float),
+        scale_with_window=settings.value(SCALE_KEY, d.scale_with_window, type=bool),
     )
 
 
@@ -59,6 +62,7 @@ def save_lyrics_settings(settings: QSettings, style: LyricsSettings) -> None:
         (FADE_NO_LYRICS_KEY, style.fade_no_lyrics),
         (NO_LYRICS_HOLD_KEY, style.no_lyrics_hold),
         (NO_LYRICS_FADE_KEY, style.no_lyrics_fade),
+        (SCALE_KEY, style.scale_with_window),
     ):
         settings.setValue(key, value)
 
@@ -85,7 +89,7 @@ class LyricsSettingsTab:
 
         for field in (self._blur, self._distance, self._strength, self._hold, self._fade):
             field.valueChanged.connect(lambda _value: self._changed())
-        for checkbox in (d.lyricsShadow, d.lyricsShowNoLyrics, d.lyricsFadeNoLyrics):
+        for checkbox in (d.lyricsShadow, d.lyricsShowNoLyrics, d.lyricsFadeNoLyrics, d.lyricsScale):
             checkbox.toggled.connect(lambda _on: self._changed())
         d.lyricsReset.clicked.connect(lambda _checked=False: self._reset())
 
@@ -93,6 +97,7 @@ class LyricsSettingsTab:
         d = self._dialog
         self._showing = True
         d.lyricsShadow.setChecked(style.shadow)
+        d.lyricsScale.setChecked(style.scale_with_window)
         self._blur.setValue(style.shadow_blur)
         self._distance.setValue(style.shadow_distance)
         self._strength.setValue(style.shadow_strength)
@@ -140,6 +145,7 @@ class LyricsSettingsTab:
             fade_no_lyrics=d.lyricsFadeNoLyrics.isChecked(),
             no_lyrics_hold=self._hold.value(),
             no_lyrics_fade=self._fade.value(),
+            scale_with_window=d.lyricsScale.isChecked(),
         )
         save_lyrics_settings(self._settings, style)
         self._on_change(style)
