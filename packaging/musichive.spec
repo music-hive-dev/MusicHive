@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.4.0
+Version:        1.4.1
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -62,6 +62,9 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Thu Nov 12 2026 MusicHive - 1.4.1-1
+- The visualiser can draw 60 frames a second
+
 * Thu Nov 12 2026 MusicHive - 1.4.0-1
 - Songs, albums and playlists can have their own equaliser and visualiser presets
 - Visualiser presets, with a built-in Default

@@ -26,14 +26,17 @@ MINI_BACKGROUND_KEY = "visualiser/miniBackground"
 MINI_COLOURS_KEY = "visualiser/miniColours"
 MINI_BARS_KEY = "visualiser/miniBars"
 GLOW_KEY = "visualiser/glow"
+SMOOTH_KEY = "visualiser/smooth"
 PRESETS_KEY = "visualiser/presets"  # {name: settings}, as JSON
 
 # How the cover fills the space, for each entry of visualiserBackgroundFit.
 FILL, FIT, STRETCH = range(3)
 
-# How much of its height a bar keeps each frame, for each entry of
-# visualiserFallSpeed in settings.ui: slow, normal, fast.
+# How much of its height a bar keeps each frame (at 30 frames a second), for each
+# entry of visualiserFallSpeed in settings.ui: slow, normal, fast.
 FALL_PER_FRAME = (0.93, 0.86, 0.75)
+FRAMES_PER_SECOND = 30
+SMOOTH_FRAMES_PER_SECOND = 60  # "60 frames a second"
 
 HIGHLIGHT = "highlight"  # every bar in the highlight colour
 RAINBOW = "rainbow"  # a smooth rainbow from red to violet
@@ -76,6 +79,7 @@ class VisualiserSettings:
     background_fit: int = FILL  # FILL, FIT or STRETCH
     mini_background: bool = False  # the cover behind the mini player's bars
     glow: bool = False  # a soft light around the bars, in their colours
+    smooth: bool = False  # 60 frames a second instead of 30
 
 
 def for_mini_player(style: VisualiserSettings) -> VisualiserSettings:
@@ -165,6 +169,7 @@ def load_visualiser_settings(settings: QSettings) -> VisualiserSettings:
         background_fit=number(BACKGROUND_FIT_KEY, d.background_fit, FILL, STRETCH),
         mini_background=flag(MINI_BACKGROUND_KEY, d.mini_background),
         glow=flag(GLOW_KEY, d.glow),
+        smooth=flag(SMOOTH_KEY, d.smooth),
     )
 
 
@@ -253,6 +258,7 @@ def save_visualiser_settings(settings: QSettings, style: VisualiserSettings) -> 
         (BACKGROUND_FIT_KEY, style.background_fit),
         (MINI_BACKGROUND_KEY, style.mini_background),
         (GLOW_KEY, style.glow),
+        (SMOOTH_KEY, style.smooth),
     ):
         settings.setValue(key, value)
 
@@ -288,7 +294,9 @@ class VisualiserSettingsTab:
             field.valueChanged.connect(lambda _value: self._changed())
         for combo in (d.visualiserFallSpeed, d.visualiserBackgroundFit):
             combo.activated.connect(lambda _index: self._changed())
-        for checkbox in (d.visualiserBackground, d.visualiserMiniBackground, d.visualiserGlow):
+        for checkbox in (
+            d.visualiserBackground, d.visualiserMiniBackground, d.visualiserGlow, d.visualiserSmooth,
+        ):
             checkbox.toggled.connect(lambda _on: self._changed())
         d.visualiserColours.activated.connect(lambda _index: self._colours_chosen())
         d.visualiserMiniColours.activated.connect(lambda _index: self._mini_colours_chosen())
@@ -318,6 +326,7 @@ class VisualiserSettingsTab:
         d.visualiserBackgroundFit.setCurrentIndex(style.background_fit)
         d.visualiserMiniBackground.setChecked(style.mini_background)
         d.visualiserGlow.setChecked(style.glow)
+        d.visualiserSmooth.setChecked(style.smooth)
         self._showing = False
         self._show_background_options()
 
@@ -485,4 +494,5 @@ class VisualiserSettingsTab:
             background_fit=d.visualiserBackgroundFit.currentIndex(),
             mini_background=d.visualiserMiniBackground.isChecked(),
             glow=d.visualiserGlow.isChecked(),
+            smooth=d.visualiserSmooth.isChecked(),
         )

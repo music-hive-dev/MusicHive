@@ -46,6 +46,8 @@ from src.lyrics_settings import LyricsSettings
 from src.visualiser_settings import (
     COVER,
     FALL_PER_FRAME,
+    FRAMES_PER_SECOND,
+    SMOOTH_FRAMES_PER_SECOND,
     FILL,
     FIT,
     HIGHLIGHT,
@@ -55,7 +57,6 @@ from src.visualiser_settings import (
 )
 
 FFT_SIZE = 1024
-FRAME_MS = 33  # about 30 pictures a second
 LOWEST_FREQUENCY = 40
 HIGHEST_FREQUENCY = 16_000
 QUIET_DB, LOUD_DB = -55.0, 5.0  # what counts as an empty bar and a full one
@@ -192,7 +193,8 @@ class Visualizer(QObject):
         ]
 
         self._timer = QTimer(self)
-        self._timer.setInterval(FRAME_MS)
+        self._timer.setTimerType(Qt.TimerType.PreciseTimer)  # even steps between frames
+        self._timer.setInterval(self._frame_ms())
         self._timer.timeout.connect(self._next_frame)
         widget.installEventFilter(self)
 
@@ -231,10 +233,18 @@ class Visualizer(QObject):
             self._background_key = key
         return self._background
 
+    def _frames_per_second(self) -> int:
+        return SMOOTH_FRAMES_PER_SECOND if self._style.smooth else FRAMES_PER_SECOND
+
+    def _frame_ms(self) -> int:
+        return round(1000 / self._frames_per_second())
+
     def set_style(self, style: VisualiserSettings) -> None:
-        """How the bars look: their number, gap, opacity, colours and fall speed."""
+        """How the bars look: their number, gap, opacity, colours, fall speed and
+        how many times a second they are drawn."""
         bars_changed = style.bars != self._style.bars
         self._style = style
+        self._timer.setInterval(self._frame_ms())  # a running timer keeps going at the new pace
         if bars_changed:
             self._levels = [0.0] * style.bars
             if self._sample_rate:
@@ -329,7 +339,11 @@ class Visualizer(QObject):
             targets = self._spectrum()
         else:
             targets = [0.0] * self._style.bars
-        fall = FALL_PER_FRAME[self._style.fall_speed]
+        # The fall speeds are per frame at 30 a second; with more frames, each falls
+        # less, so the bars sink just as fast.
+        fall = FALL_PER_FRAME[self._style.fall_speed] ** (
+            FRAMES_PER_SECOND / self._frames_per_second()
+        )
         moved = False
         for bar, target in enumerate(targets[: len(self._levels)]):
             level = max(target, self._levels[bar] * fall)
