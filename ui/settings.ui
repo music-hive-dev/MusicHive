@@ -515,6 +515,63 @@
           </widget>
          </item>
          <item>
+          <widget class="QGroupBox" name="playbackSleepGroup">
+           <property name="title">
+            <string>Sleep timer</string>
+           </property>
+           <layout class="QFormLayout" name="playbackSleepForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="playbackSleepFadeLabel">
+              <property name="text">
+               <string>Fade out over:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="playbackSleepFade">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys. Before the sleep timer pauses, the sound gets quieter for this long.</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> s</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>0</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>120</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>5</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>30</number>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QLabel" name="playbackSleepNote">
+              <property name="text">
+               <string>Start the sleep timer from the Playback menu.</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
           <spacer name="playbackTabLeftSpacer">
            <property name="orientation">
             <enum>Qt::Orientation::Vertical</enum>
@@ -1521,6 +1578,565 @@
          </item>
          <item>
           <spacer name="visualiserTabRightSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="podcastsTab">
+      <attribute name="title">
+       <string>Podcasts</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="podcastsTabLayout">
+       <item>
+        <layout class="QVBoxLayout" name="podcastsTabLeft">
+         <item>
+          <widget class="QGroupBox" name="podcastDownloadsGroup">
+           <property name="title">
+            <string>Downloads</string>
+           </property>
+           <layout class="QFormLayout" name="podcastDownloadsForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="podcastFolderTitle">
+              <property name="text">
+               <string>Folder:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <layout class="QHBoxLayout" name="podcastFolderRow">
+              <item>
+               <widget class="QLabel" name="podcastFolder">
+                <property name="textInteractionFlags">
+                 <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="podcastFolderButton">
+                <property name="text">
+                 <string>Change...</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="podcastFolderReset">
+                <property name="toolTip">
+                 <string>Use the folder inside MusicHive's data folder</string>
+                </property>
+                <property name="text">
+                 <string>Default</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="podcastKeepCountLabel">
+              <property name="text">
+               <string>Keep downloaded:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="podcastKeepCountDefault">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>How many of each podcast's next episodes to listen to are downloaded automatically: the ones after the last you played (from the first episode, if you have not started). New releases are downloaded too. Each podcast can have its own number on its page.</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> next</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>0</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>50</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>3</number>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="podcastCheckLabel">
+              <property name="text">
+               <string>Check for new episodes every:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="podcastCheckMinutes">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> min</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>5</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>1440</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>5</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>60</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="podcastPlayingGroup">
+           <property name="title">
+            <string>Playing</string>
+           </property>
+           <layout class="QFormLayout" name="podcastPlayingForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="podcastContinue">
+              <property name="toolTip">
+               <string>The next episode in order of release, if it has not been played yet</string>
+              </property>
+              <property name="text">
+               <string>When an episode ends, play the next one</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="podcastsTabLeftSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="podcastsTabRight">
+         <item>
+          <widget class="QGroupBox" name="podcastDeleteGroup">
+           <property name="title">
+            <string>Delete downloads automatically</string>
+           </property>
+           <layout class="QFormLayout" name="podcastDeleteForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="podcastDeletePlayed">
+              <property name="text">
+               <string>Once they have been listened to</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="podcastDeleteOldRow">
+              <item>
+               <widget class="QCheckBox" name="podcastDeleteOld">
+                <property name="text">
+                 <string>When they are older than</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="podcastDeleteOldDays">
+                <property name="maximumSize">
+                 <size>
+                  <width>110</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>Type a number, or use the Up and Down keys</string>
+                </property>
+                <property name="suffix" stdset="0">
+                 <string> days</string>
+                </property>
+                <property name="minimum" stdset="0">
+                 <number>1</number>
+                </property>
+                <property name="maximum" stdset="0">
+                 <number>365</number>
+                </property>
+                <property name="singleStep" stdset="0">
+                 <number>1</number>
+                </property>
+                <property name="value" stdset="0">
+                 <number>30</number>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="podcastDeleteOldRowSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item row="2" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="podcastSizeLimitRow">
+              <item>
+               <widget class="QCheckBox" name="podcastSizeLimit">
+                <property name="text">
+                 <string>When all downloads take more than</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLineEdit" name="podcastSizeLimitGb">
+                <property name="maximumSize">
+                 <size>
+                  <width>110</width>
+                  <height>16777215</height>
+                 </size>
+                </property>
+                <property name="toolTip">
+                 <string>Type a number, or use the Up and Down keys. The episodes listened to go first, then the oldest.</string>
+                </property>
+                <property name="suffix" stdset="0">
+                 <string> GB</string>
+                </property>
+                <property name="decimals" stdset="0">
+                 <number>1</number>
+                </property>
+                <property name="minimum" stdset="0">
+                 <double>0.500000000000000</double>
+                </property>
+                <property name="maximum" stdset="0">
+                 <double>1000.000000000000000</double>
+                </property>
+                <property name="singleStep" stdset="0">
+                 <double>0.500000000000000</double>
+                </property>
+                <property name="value" stdset="0">
+                 <double>5.000000000000000</double>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="podcastSizeLimitRowSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+            <item row="3" column="0" colspan="2">
+             <widget class="QLabel" name="podcastDeleteNote">
+              <property name="text">
+               <string>Episodes marked “Keep” (right-click an episode) are never deleted automatically, and neither is the one playing.</string>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="podcastsTabRightSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="radioSettingsTab">
+      <attribute name="title">
+       <string>Radio</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="radioSettingsTabLayout">
+       <item>
+        <layout class="QVBoxLayout" name="radioSettingsTabLeft">
+         <item>
+          <widget class="QGroupBox" name="radioPauseGroup">
+           <property name="title">
+            <string>Pausing</string>
+           </property>
+           <layout class="QFormLayout" name="radioPauseForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="radioKeepMinutesLabel">
+              <property name="text">
+               <string>Pause for up to:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="radioKeepMinutes">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>While paused, the station is kept for this long, so Play carries on where you paused. Longer needs more memory (about 1 MB a minute).</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> min</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>240</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>5</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>30</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="radioScrobbleGroup">
+           <property name="title">
+            <string>Last.fm</string>
+           </property>
+           <layout class="QFormLayout" name="radioScrobbleForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="radioScrobble">
+              <property name="toolTip">
+               <string>Only when scrobbling is switched on as well. Stations do not always send clean titles, so this is off unless you want it.</string>
+              </property>
+              <property name="text">
+               <string>Scrobble songs heard on the radio</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="radioScrobbleAfterLabel">
+              <property name="text">
+               <string>A song counts after:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="radioScrobbleAfter">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> s</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>10</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>600</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>10</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>60</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="radioSettingsTabLeftSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="radioSettingsTabRight">
+         <item>
+          <widget class="QGroupBox" name="radioTapeGroup">
+           <property name="title">
+            <string>Taping</string>
+           </property>
+           <layout class="QFormLayout" name="radioTapeForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="radioTapeFolderTitle">
+              <property name="text">
+               <string>Folder:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <layout class="QHBoxLayout" name="radioTapeFolderRow">
+              <item>
+               <widget class="QLabel" name="radioTapeFolder">
+                <property name="textInteractionFlags">
+                 <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="radioTapeFolderButton">
+                <property name="text">
+                 <string>Change...</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="radioTapeFolderReset">
+                <property name="toolTip">
+                 <string>Use “MusicHive Tapes” in your Music folder</string>
+                </property>
+                <property name="text">
+                 <string>Default</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QCheckBox" name="radioTapePerSong">
+              <property name="toolTip">
+               <string>A new file starts whenever the station announces a new title. Off: one file for everything taped.</string>
+              </property>
+              <property name="text">
+               <string>A file for each song</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="2">
+             <widget class="QCheckBox" name="radioTapeFromStart">
+              <property name="toolTip">
+               <string>Taping includes what was already heard of the song, if it is still kept.</string>
+              </property>
+              <property name="text">
+               <string>Start at the beginning of the song you hear</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0" colspan="2">
+             <widget class="QCheckBox" name="radioTapeTags">
+              <property name="text">
+               <string>Write the artist, title and station into the files (MP3 only)</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="radioSettingsTabRightSpacer">
            <property name="orientation">
             <enum>Qt::Orientation::Vertical</enum>
            </property>

@@ -811,6 +811,15 @@ QScrollBar::add-page, QScrollBar::sub-page {
 /* ----- Less important text ----- */
 QLabel#playlistsTabDescription,
 QLabel#playlistsTabStats,
+QLabel#podcastAuthor,
+QLabel#radioDetails,
+QLabel#radioLiveLabel,
+QLabel#radioHistoryTitle,
+QLabel#podcastDescription,
+QLabel#podcastProgressLabel,
+QLabel#podcastProgressDetails,
+QLabel#podcastWelcomeLabel,
+QLabel#podcastKeepLabel,
 QLabel#artistsTabDescription,
 QLabel#artistsTabStats,
 QLabel#albumsTabArtist,
@@ -1094,6 +1103,10 @@ QTableView {
 }
 
 QListView#upcomingList,
+QListView#podcastList,
+QListView#radioList,
+QListView#radioResults,
+QListView#podcastSearchResults,
 QListView#thisList,
 QListView#songFilterList,
 QListView#artistFilterList,
@@ -1106,6 +1119,10 @@ QListView#albumFilterList {
 /* Scrollbars stop short of the rounded corners of an outline */
 QTableView QScrollBar:vertical,
 QListView#upcomingList QScrollBar:vertical,
+QListView#podcastList QScrollBar:vertical,
+QListView#radioList QScrollBar:vertical,
+QListView#radioResults QScrollBar:vertical,
+QListView#podcastSearchResults QScrollBar:vertical,
 QListView#thisList QScrollBar:vertical,
 QListView#songFilterList QScrollBar:vertical,
 QListView#artistFilterList QScrollBar:vertical,
@@ -2261,9 +2278,6 @@ QWidget {
        </layout>
       </widget>
       <widget class="QWidget" name="radioTab">
-       <property name="enabled">
-        <bool>true</bool>
-       </property>
        <attribute name="icon">
         <iconset>
          <normalon>../assets/radio.svg</normalon>
@@ -2272,8 +2286,640 @@ QWidget {
        <attribute name="title">
         <string>Radio</string>
        </attribute>
+       <layout class="QVBoxLayout" name="radioTabLayout">
+        <item>
+         <layout class="QHBoxLayout" name="radioSearchRow">
+          <item>
+           <widget class="QPushButton" name="radioListButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Show or hide your stations</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normalon>../assets/funnel.svg</normalon>
+             </iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="radioSearch">
+            <property name="placeholderText">
+             <string>Search stations by name, or paste a stream address</string>
+            </property>
+            <property name="clearButtonEnabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="radioCountry">
+            <property name="toolTip">
+             <string>Only stations from this country</string>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>130</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maxVisibleItems">
+             <number>20</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>All countries</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="radioLanguage">
+            <property name="toolTip">
+             <string>Only stations in this language</string>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>130</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maxVisibleItems">
+             <number>20</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>All languages</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QComboBox" name="radioGenre">
+            <property name="toolTip">
+             <string>Only stations with this genre</string>
+            </property>
+            <property name="minimumSize">
+             <size>
+              <width>130</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maxVisibleItems">
+             <number>20</number>
+            </property>
+            <item>
+             <property name="text">
+              <string>All genres</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="radioSearchButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Search Radio Browser, or add the pasted stream address</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normalon>../assets/search.svg</normalon>
+             </iconset>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="radioRememberedButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>The songs you chose to remember</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normalon>../assets/heart.svg</normalon>
+             </iconset>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="radioColumns" stretch="0,1">
+          <item>
+           <widget class="QListWidget" name="radioList">
+            <property name="minimumSize">
+             <size>
+              <width>220</width>
+              <height>0</height>
+             </size>
+            </property>
+            <property name="maximumSize">
+             <size>
+              <width>256</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Your favourite and recently played stations. Right-click for more.</string>
+            </property>
+            <property name="horizontalScrollBarPolicy">
+             <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+            </property>
+            <property name="alternatingRowColors">
+             <bool>true</bool>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>40</width>
+              <height>40</height>
+             </size>
+            </property>
+            <property name="contextMenuPolicy">
+             <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QStackedWidget" name="radioPages">
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <widget class="QWidget" name="radioBrowsePage">
+             <layout class="QVBoxLayout" name="radioBrowseLayout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="radioBrowseTitle">
+                <property name="text">
+                 <string>Popular stations</string>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>Inter</family>
+                  <pointsize>13</pointsize>
+                  <bold>true</bold>
+                 </font>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QListWidget" name="radioResults">
+                <property name="toolTip">
+                 <string>Click a station to see it, double-click to play it</string>
+                </property>
+                <property name="alternatingRowColors">
+                 <bool>true</bool>
+                </property>
+                <property name="horizontalScrollBarPolicy">
+                 <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>48</width>
+                  <height>48</height>
+                 </size>
+                </property>
+                <property name="contextMenuPolicy">
+                 <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="radioStationPage">
+             <layout class="QVBoxLayout" name="radioStationPageLayout" stretch="0,0,1">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <layout class="QHBoxLayout" name="radioHeader">
+                <item>
+                 <widget class="QLabel" name="radioLogo">
+                  <property name="minimumSize">
+                   <size>
+                    <width>96</width>
+                    <height>96</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>96</width>
+                    <height>96</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                  <property name="scaledContents">
+                   <bool>true</bool>
+                  </property>
+                  <property name="pixmap">
+                   <pixmap>../assets/radio.svg</pixmap>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="radioHeaderGap">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Horizontal</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::Policy::Fixed</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>6</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <layout class="QVBoxLayout" name="radioHeaderText">
+                  <property name="spacing">
+                   <number>2</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="radioName">
+                    <property name="text">
+                     <string>Station</string>
+                    </property>
+                    <property name="font">
+                     <font>
+                      <family>Inter</family>
+                      <pointsize>13</pointsize>
+                      <bold>true</bold>
+                     </font>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="radioDetails">
+                    <property name="text">
+                     <string>Country · genres · quality</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="radioNowPlaying">
+                    <property name="text">
+                     <string>Now: Artist – Title</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <layout class="QHBoxLayout" name="radioLiveRow">
+                    <item>
+                     <widget class="QLabel" name="radioLiveLabel">
+                      <property name="text">
+                       <string>Live</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QPushButton" name="radioGoLiveButton">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="toolTip">
+                       <string>Go live: skip to what is on the air now</string>
+                      </property>
+                      <property name="text">
+                       <string/>
+                      </property>
+                      <property name="icon">
+                       <iconset>
+                        <normalon>../assets/skip-forward.svg</normalon>
+                       </iconset>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <spacer name="radioLiveRowSpacer">
+                      <property name="orientation">
+                       <enum>Qt::Orientation::Horizontal</enum>
+                      </property>
+                      <property name="sizeHint" stdset="0">
+                       <size>
+                        <width>40</width>
+                        <height>20</height>
+                       </size>
+                      </property>
+                     </spacer>
+                    </item>
+                   </layout>
+                  </item>
+                 </layout>
+                </item>
+                <item>
+                 <spacer name="radioHeaderStretch">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Horizontal</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::Policy::Fixed</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>6</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <layout class="QHBoxLayout" name="radioHeaderButtons">
+                  <item>
+                   <widget class="QPushButton" name="radioPlayButton">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="toolTip">
+                     <string>Play this station</string>
+                    </property>
+                    <property name="text">
+                     <string/>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normalon>../assets/play.svg</normalon>
+                     </iconset>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="radioFavouriteButton">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="toolTip">
+                     <string>Add to favourites</string>
+                    </property>
+                    <property name="text">
+                     <string/>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normalon>../assets/star.svg</normalon>
+                     </iconset>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="radioRememberButton">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="toolTip">
+                     <string>Remember this song</string>
+                    </property>
+                    <property name="text">
+                     <string/>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normalon>../assets/heart-plus.svg</normalon>
+                     </iconset>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QPushButton" name="radioTapeButton">
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                    <property name="toolTip">
+                     <string>Tape what you hear</string>
+                    </property>
+                    <property name="text">
+                     <string/>
+                    </property>
+                    <property name="icon">
+                     <iconset>
+                      <normalon>../assets/cassette-tape.svg</normalon>
+                     </iconset>
+                    </property>
+                    <property name="checkable">
+                     <bool>true</bool>
+                    </property>
+                    <property name="checked">
+                     <bool>false</bool>
+                    </property>
+                   </widget>
+                  </item>
+                 </layout>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <widget class="QLabel" name="radioHistoryTitle">
+                <property name="text">
+                 <string>Heard on this station</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QTableWidget" name="radioHistory">
+                <property name="contextMenuPolicy">
+                 <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+                </property>
+                <property name="toolTip">
+                 <string>What played on this station while you listened. Right-click for more.</string>
+                </property>
+                <property name="editTriggers">
+                 <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+                </property>
+                <property name="alternatingRowColors">
+                 <bool>true</bool>
+                </property>
+                <property name="selectionMode">
+                 <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+                </property>
+                <property name="selectionBehavior">
+                 <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+                </property>
+                <property name="showGrid">
+                 <bool>false</bool>
+                </property>
+                <property name="wordWrap">
+                 <bool>false</bool>
+                </property>
+                <property name="verticalScrollMode">
+                 <enum>QAbstractItemView::ScrollMode::ScrollPerPixel</enum>
+                </property>
+                <attribute name="verticalHeaderVisible">
+                 <bool>false</bool>
+                </attribute>
+                <attribute name="horizontalHeaderStretchLastSection">
+                 <bool>false</bool>
+                </attribute>
+                <column>
+                 <property name="text">
+                  <string>Heard</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Song</string>
+                 </property>
+                </column>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="radioRememberedPage">
+             <layout class="QVBoxLayout" name="radioRememberedLayout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="radioRememberedTitle">
+                <property name="text">
+                 <string>Remembered songs</string>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>Inter</family>
+                  <pointsize>13</pointsize>
+                  <bold>true</bold>
+                 </font>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QTableWidget" name="radioRemembered">
+                <property name="contextMenuPolicy">
+                 <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+                </property>
+                <property name="toolTip">
+                 <string>Songs you chose to remember. Right-click for more.</string>
+                </property>
+                <property name="editTriggers">
+                 <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+                </property>
+                <property name="alternatingRowColors">
+                 <bool>true</bool>
+                </property>
+                <property name="selectionMode">
+                 <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+                </property>
+                <property name="selectionBehavior">
+                 <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+                </property>
+                <property name="showGrid">
+                 <bool>false</bool>
+                </property>
+                <property name="wordWrap">
+                 <bool>false</bool>
+                </property>
+                <property name="verticalScrollMode">
+                 <enum>QAbstractItemView::ScrollMode::ScrollPerPixel</enum>
+                </property>
+                <attribute name="verticalHeaderVisible">
+                 <bool>false</bool>
+                </attribute>
+                <attribute name="horizontalHeaderStretchLastSection">
+                 <bool>false</bool>
+                </attribute>
+                <column>
+                 <property name="text">
+                  <string>Song</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Station</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Heard</string>
+                 </property>
+                </column>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
       </widget>
-      <widget class="QWidget" name="tab">
+      <widget class="QWidget" name="podcastsTabPage">
        <attribute name="icon">
         <iconset>
          <normalon>../assets/mic.svg</normalon>
@@ -2282,6 +2928,563 @@ QWidget {
        <attribute name="title">
         <string>Podcasts</string>
        </attribute>
+       <layout class="QVBoxLayout" name="podcastsTabLayout">
+        <item>
+         <layout class="QHBoxLayout" name="podcastSearchRow">
+          <item>
+           <widget class="QPushButton" name="podcastListButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Show or hide the list of podcasts</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normaloff>../assets/funnel.svg</normaloff>../assets/funnel.svg</iconset>
+            </property>
+            <property name="checkable">
+             <bool>true</bool>
+            </property>
+            <property name="checked">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QLineEdit" name="podcastSearch">
+            <property name="placeholderText">
+             <string>Search Apple Podcasts, or paste the address of a feed</string>
+            </property>
+            <property name="clearButtonEnabled">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="podcastSearchButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Search Apple Podcasts, or open the pasted feed address</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normalon>../assets/search.svg</normalon>
+             </iconset>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QPushButton" name="podcastCheckButton">
+            <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+             <string>Check every subscribed podcast for new episodes now</string>
+            </property>
+            <property name="text">
+             <string/>
+            </property>
+            <property name="icon">
+             <iconset>
+              <normalon>../assets/refresh-cw.svg</normalon>
+             </iconset>
+            </property>
+           </widget>
+          </item>
+         </layout>
+        </item>
+        <item>
+         <layout class="QHBoxLayout" name="podcastsColumns" stretch="0,1">
+          <item>
+           <widget class="QListWidget" name="podcastList">
+            <property name="minimumSize">
+                <size>
+                 <width>220</width>
+                 <height>0</height>
+                </size>
+               </property>
+               <property name="maximumSize">
+             <size>
+              <width>256</width>
+              <height>16777215</height>
+             </size>
+            </property>
+            <property name="toolTip">
+             <string>Your subscriptions. Right-click for more.</string>
+            </property>
+            <property name="horizontalScrollBarPolicy">
+                <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+               </property>
+               <property name="alternatingRowColors">
+             <bool>true</bool>
+            </property>
+            <property name="iconSize">
+             <size>
+              <width>40</width>
+              <height>40</height>
+             </size>
+            </property>
+            <property name="contextMenuPolicy">
+             <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+            </property>
+           </widget>
+          </item>
+          <item>
+           <widget class="QStackedWidget" name="podcastPages">
+            <property name="currentIndex">
+             <number>0</number>
+            </property>
+            <widget class="QWidget" name="podcastWelcomePage">
+             <layout class="QVBoxLayout" name="podcastWelcomeLayout">
+              <item>
+               <widget class="QLabel" name="podcastWelcomeLabel">
+                <property name="text">
+                 <string>Search for a podcast above, or paste the address of its feed.
+      The podcasts you subscribe to are listed on the left.</string>
+                </property>
+                <property name="wordWrap">
+                 <bool>true</bool>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignmentFlag::AlignCenter</set>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="podcastSearchPage">
+             <layout class="QVBoxLayout" name="podcastSearchPageLayout">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <widget class="QLabel" name="podcastSearchTitle">
+                <property name="text">
+                 <string>Search results</string>
+                </property>
+                <property name="font">
+                 <font>
+                  <family>Inter</family>
+                  <pointsize>13</pointsize>
+                  <bold>true</bold>
+                 </font>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QListWidget" name="podcastSearchResults">
+                <property name="toolTip">
+                 <string>Click a podcast to see its episodes and subscribe</string>
+                </property>
+                <property name="alternatingRowColors">
+                 <bool>true</bool>
+                </property>
+                <property name="iconSize">
+                 <size>
+                  <width>56</width>
+                  <height>56</height>
+                 </size>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+            <widget class="QWidget" name="podcastShowPage">
+             <layout class="QVBoxLayout" name="podcastShowPageLayout" stretch="0,1">
+              <property name="leftMargin">
+               <number>0</number>
+              </property>
+              <property name="topMargin">
+               <number>0</number>
+              </property>
+              <property name="rightMargin">
+               <number>0</number>
+              </property>
+              <property name="bottomMargin">
+               <number>0</number>
+              </property>
+              <item>
+               <layout class="QHBoxLayout" name="podcastHeader">
+                <item>
+                 <widget class="QLabel" name="podcastCover">
+                  <property name="minimumSize">
+                   <size>
+                    <width>96</width>
+                    <height>96</height>
+                   </size>
+                  </property>
+                  <property name="maximumSize">
+                   <size>
+                    <width>96</width>
+                    <height>96</height>
+                   </size>
+                  </property>
+                  <property name="text">
+                   <string/>
+                  </property>
+                  <property name="scaledContents">
+                   <bool>true</bool>
+                  </property>
+                  <property name="pixmap">
+                   <pixmap>../assets/mic.svg</pixmap>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <spacer name="podcastHeaderGap">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Horizontal</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::Policy::Fixed</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>6</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <layout class="QVBoxLayout" name="podcastHeaderText">
+                  <property name="spacing">
+                   <number>2</number>
+                  </property>
+                  <item>
+                   <widget class="QLabel" name="podcastTitle">
+                    <property name="text">
+                     <string>Podcast Title</string>
+                    </property>
+                    <property name="font">
+                     <font>
+                      <family>Inter</family>
+                      <pointsize>13</pointsize>
+                      <bold>true</bold>
+                     </font>
+                    </property>
+                    <property name="textInteractionFlags">
+                     <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="podcastAuthor">
+                    <property name="text">
+                     <string>Author</string>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <widget class="QLabel" name="podcastDescription">
+                    <property name="text">
+                     <string>Description</string>
+                    </property>
+                    <property name="wordWrap">
+                     <bool>true</bool>
+                    </property>
+                    <property name="maximumSize">
+                     <size>
+                      <width>16777215</width>
+                      <height>48</height>
+                     </size>
+                    </property>
+                    <property name="sizePolicy">
+                     <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+                      <horstretch>0</horstretch>
+                      <verstretch>0</verstretch>
+                     </sizepolicy>
+                    </property>
+                   </widget>
+                  </item>
+                  <item>
+                   <layout class="QHBoxLayout" name="podcastProgressRow" stretch="0,0,1">
+                    <item>
+                     <widget class="QProgressBar" name="podcastProgress">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="minimumSize">
+                       <size>
+                        <width>30</width>
+                        <height>8</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>220</width>
+                        <height>8</height>
+                       </size>
+                      </property>
+                      <property name="toolTip">
+                       <string>How much of the podcast you have listened to</string>
+                      </property>
+                      <property name="value">
+                       <number>0</number>
+                      </property>
+                      <property name="textVisible">
+                       <bool>false</bool>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="podcastProgressLabel">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="text">
+                       <string>0 of 0 played</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLabel" name="podcastProgressDetails">
+                      <property name="text">
+                       <string>· 0 started · 0 min left</string>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </item>
+                 </layout>
+                </item>
+                <item>
+                 <spacer name="podcastHeaderStretch">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Horizontal</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::Policy::Fixed</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>6</width>
+                    <height>20</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
+                 <layout class="QVBoxLayout" name="podcastHeaderButtons">
+                  <item>
+                   <layout class="QHBoxLayout" name="podcastHeaderButtonRow">
+                    <item>
+                     <widget class="QPushButton" name="podcastPlayButton">
+                      <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+                      <property name="toolTip">
+                       <string>Play: carry on where you left off, or with the next episode if that one ended</string>
+                      </property>
+                      <property name="text">
+                       <string/>
+                      </property>
+                      <property name="icon">
+                       <iconset>
+                        <normalon>../assets/play.svg</normalon>
+                       </iconset>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QPushButton" name="podcastSubscribeButton">
+                    <property name="sizePolicy">
+             <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+              <horstretch>0</horstretch>
+              <verstretch>0</verstretch>
+             </sizepolicy>
+            </property>
+            <property name="toolTip">
+                     <string>Subscribe</string>
+                    </property>
+                    <property name="text">
+                     <string/>
+                    </property>
+                    <property name="icon">
+             <iconset>
+              <normalon>../assets/calendar.svg</normalon>
+             </iconset>
+            </property>
+                   </widget>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <layout class="QVBoxLayout" name="podcastKeepRow">
+                    <item>
+                     <widget class="QLabel" name="podcastKeepLabel">
+                      <property name="text">
+                       <string>Keep downloaded:</string>
+                      </property>
+                     </widget>
+                    </item>
+                    <item>
+                     <widget class="QLineEdit" name="podcastKeepCount">
+                      <property name="sizePolicy">
+                       <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+                        <horstretch>0</horstretch>
+                        <verstretch>0</verstretch>
+                       </sizepolicy>
+                      </property>
+                      <property name="minimumSize">
+                       <size>
+                        <width>100</width>
+                        <height>30</height>
+                       </size>
+                      </property>
+                      <property name="maximumSize">
+                       <size>
+                        <width>100</width>
+                        <height>30</height>
+                       </size>
+                      </property>
+                      <property name="alignment">
+                       <set>Qt::AlignmentFlag::AlignCenter</set>
+                      </property>
+                      <property name="toolTip">
+                       <string>How many of the next episodes to listen to are downloaded automatically: the ones after the last you played (from the first episode, if you have not started). New releases are downloaded too. Type a number, or use the Up and Down keys.</string>
+                      </property>
+                      <property name="suffix" stdset="0">
+                       <string> next</string>
+                      </property>
+                      <property name="minimum" stdset="0">
+                       <number>0</number>
+                      </property>
+                      <property name="maximum" stdset="0">
+                       <number>50</number>
+                      </property>
+                      <property name="value" stdset="0">
+                       <number>3</number>
+                      </property>
+                     </widget>
+                    </item>
+                   </layout>
+                  </item>
+                  <item>
+                   <spacer name="podcastHeaderButtonsSpacer">
+                    <property name="orientation">
+                     <enum>Qt::Orientation::Vertical</enum>
+                    </property>
+                    <property name="sizeType">
+                     <enum>QSizePolicy::Policy::Minimum</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>20</width>
+                      <height>40</height>
+                     </size>
+                    </property>
+                   </spacer>
+                  </item>
+                 </layout>
+                </item>
+               </layout>
+              </item>
+              <item>
+               <widget class="QTableWidget" name="podcastEpisodes">
+                <property name="contextMenuPolicy">
+                 <enum>Qt::ContextMenuPolicy::CustomContextMenu</enum>
+                </property>
+                <property name="toolTip">
+                 <string>Double-click an episode to play it. Right-click for more.</string>
+                </property>
+                <property name="editTriggers">
+                 <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+                </property>
+                <property name="alternatingRowColors">
+                 <bool>true</bool>
+                </property>
+                <property name="selectionMode">
+                 <enum>QAbstractItemView::SelectionMode::ExtendedSelection</enum>
+                </property>
+                <property name="selectionBehavior">
+                 <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+                </property>
+                <property name="showGrid">
+                 <bool>false</bool>
+                </property>
+                <property name="wordWrap">
+                 <bool>false</bool>
+                </property>
+                <property name="verticalScrollMode">
+                 <enum>QAbstractItemView::ScrollMode::ScrollPerPixel</enum>
+                </property>
+                <attribute name="verticalHeaderVisible">
+                 <bool>false</bool>
+                </attribute>
+                <attribute name="horizontalHeaderStretchLastSection">
+                 <bool>false</bool>
+                </attribute>
+                <column>
+                 <property name="text">
+                  <string>Episode</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Released</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Length</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Progress</string>
+                 </property>
+                </column>
+                <column>
+                 <property name="text">
+                  <string>Download</string>
+                 </property>
+                </column>
+               </widget>
+              </item>
+             </layout>
+            </widget>
+           </widget>
+          </item>
+         </layout>
+        </item>
+       </layout>
       </widget>
       <widget class="QWidget" name="devicesTab">
        <attribute name="icon">
@@ -2774,6 +3977,26 @@ QWidget {
     <property name="title">
      <string>&amp;Playback</string>
     </property>
+    <widget class="QMenu" name="menuSleepTimer">
+     <property name="title">
+      <string>Sleep Timer</string>
+     </property>
+     <property name="icon">
+      <iconset>
+       <normalon>../assets/clock.svg</normalon>
+      </iconset>
+     </property>
+     <addaction name="actionSleepOff"/>
+     <addaction name="separator"/>
+     <addaction name="actionSleep15"/>
+     <addaction name="actionSleep30"/>
+     <addaction name="actionSleep45"/>
+     <addaction name="actionSleep60"/>
+     <addaction name="actionSleep90"/>
+     <addaction name="actionSleep120"/>
+     <addaction name="separator"/>
+     <addaction name="actionSleepEndOfTrack"/>
+    </widget>
     <addaction name="actionPlayPause"/>
     <addaction name="actionPrevious"/>
     <addaction name="actionNext"/>
@@ -2787,6 +4010,8 @@ QWidget {
     <addaction name="actionVolumeAdjustment"/>
     <addaction name="actionCrossfade"/>
     <addaction name="actionMiniPlayer"/>
+    <addaction name="separator"/>
+    <addaction name="menuSleepTimer"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
     <property name="title">
@@ -4018,6 +5243,118 @@ QWidget {
    </property>
    <property name="text">
     <string>Import Settings...</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSleepOff">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>Off</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSleep15">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>15 Minutes</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSleep30">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>30 Minutes</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSleep45">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>45 Minutes</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSleep60">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>1 Hour</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSleep90">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>1½ Hours</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSleep120">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>2 Hours</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSleepEndOfTrack">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>At the End of This Song or Episode</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

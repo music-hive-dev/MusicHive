@@ -490,6 +490,16 @@ class LyricsView(QObject):
         if self._no_lyrics:
             self._start_no_lyrics_fade()
 
+    def clear(self) -> None:
+        """Show nothing at all, not even "No lyrics" (for a podcast episode)."""
+        self._scroll_hold.stop()
+        self._stop_no_lyrics_fade()
+        self._view.clear()
+        self._times = []
+        self._current = -1
+        self._no_lyrics = False
+        self.text = ""
+
     def set_position(self, position_ms: int) -> None:
         """Move the highlight to the line being sung."""
         if not self._times:

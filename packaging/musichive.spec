@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.2.5
+Version:        1.3.0
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -62,6 +62,15 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Thu Nov 12 2026 MusicHive - 1.3.0-1
+- Added podcasts: search, subscriptions, automatic downloads and deleting, progress
+- Added internet radio with pausing back in time, taping, history and remembered songs
+- Added a sleep timer
+- Added settings for the visualiser, lyrics and keyboard shortcuts, and regrouped the settings
+- Added type to find in lists and tables
+- Auto-playlists start with every song and can use the play count
+- Fixed Discord covers that stopped showing after two days
+
 * Wed Nov 11 2026 MusicHive - 1.2.5-1
 - Fixed the icon of the application menu entry
 

@@ -89,7 +89,9 @@ _BUS_MESSAGES = (
     | Gst.MessageType.ERROR
     | Gst.MessageType.ASYNC_DONE
     | Gst.MessageType.DURATION_CHANGED
+    | Gst.MessageType.TAG
 )
+RADIO_URI = "appsrc://"  # the player's sound comes from a RadioStream
 
 PAUSE_FADE_SECONDS = 0.5
 # Sound already handed to the speakers still has to play out after a fade ends.
@@ -197,6 +199,8 @@ class _Deck:
         self.pipeline.set_property("audio-sink", output)
         self.bus = self.pipeline.get_bus()
         self._master.set_property("volume", 0.7)
+        self.radio_stream = None  # the RadioStream that feeds this deck, while it plays radio
+        self.pipeline.connect("source-setup", self._on_source_setup)
 
         self.track: Path | None = None
         self.ready = False  # the track is loaded far enough to seek in it
@@ -209,15 +213,25 @@ class _Deck:
 
     # ----- transport -----
 
-    def open(self, track: Path, position_ms: int | None) -> None:
+    def _on_source_setup(self, _playbin, source) -> None:
+        """GStreamer made the source; for radio, the RadioStream starts feeding it."""
+        stream = self.radio_stream
+        factory = source.get_factory()
+        if stream is not None and factory is not None and factory.get_name() == "appsrc":
+            stream.attach(source)
+
+    def open(self, track: Path | str, position_ms: int | None) -> None:
+        """Open a file, or a web address (str) to stream."""
         self.halt(Gst.State.READY)
+        if track != RADIO_URI:
+            self.radio_stream = None
         self.track = track
         self.pending_seek = position_ms
         self.duration_ms = 0
         self.tail_ms = None
         self.ending_announced = False
         self.set_gain(1.0)
-        self.pipeline.set_property("uri", track.as_uri())
+        self.pipeline.set_property("uri", track if isinstance(track, str) else track.as_uri())
 
     def set_playing(self) -> None:
         self.pipeline.set_state(Gst.State.PLAYING)
@@ -346,6 +360,7 @@ class AudioPlayer(QObject):
     position_changed = Signal(int)  # playback position in milliseconds
     duration_changed = Signal(int)  # track length in milliseconds
     error_occurred = Signal(str)  # human-readable error message
+    stream_title = Signal(str)  # a title the stream itself announced (radio played directly)
     audio_buffer_ready = Signal(object)  # a QAudioBuffer of the sound, for the visualiser
 
     def __init__(self, parent: QObject | None = None) -> None:
@@ -429,6 +444,32 @@ class AudioPlayer(QObject):
         self._report_position(0)
         self._open(track, None, "playing")
         return True
+
+    def play_episode(self, source: Path | str, position_ms: int = 0) -> bool:
+        """Play a podcast episode from `position_ms`: a downloaded file (Path) or a
+        web address (str), which is streamed.
+
+        Unlike songs, it never crossfades and is not searched for silence (an
+        hour-long episode would take long to scan).
+        """
+        if isinstance(source, Path) and not source.is_file():
+            self.error_occurred.emit(f"File not found: {source.name}")
+            return False
+        self._cancel_overlap()
+        self._active.halt(Gst.State.READY)
+        self._set_state("stopped")  # to the app, this is a track change like any other
+        self._report_position(position_ms)
+        self._open(source, position_ms if position_ms > 0 else None, "playing", scan=False)
+        return True
+
+    def play_radio(self, stream) -> None:
+        """Play a radio station through its RadioStream (which allows time-shift)."""
+        self._cancel_overlap()
+        self._active.halt(Gst.State.READY)
+        self._set_state("stopped")
+        self._report_position(0)
+        self._active.radio_stream = stream
+        self._open(RADIO_URI, None, "playing", scan=False)
 
     def load_file(self, path: str | Path, position_ms: int = 0, duration_ms: int = 0) -> bool:
         """Get `path` ready to resume from `position_ms` when play() is called.
@@ -535,7 +576,9 @@ class AudioPlayer(QObject):
         self._apply_track_gains()
 
     def _gain_for(self, track) -> float:
-        return read_track_gain(track, self._level_offset_db) if self._level_enabled else 0.0
+        if not self._level_enabled or not isinstance(track, Path):  # a stream has no tags here
+            return 0.0
+        return read_track_gain(track, self._level_offset_db)
 
     def _apply_track_gains(self) -> None:
         for deck in self._decks():
@@ -594,7 +637,9 @@ class AudioPlayer(QObject):
         head = self._heads.get(track, 0)
         return head if head >= MIN_SILENCE_AT_START_MS else None
 
-    def _open(self, track: Path, position_ms: int | None, state: str) -> None:
+    def _open(
+        self, track: Path | str, position_ms: int | None, state: str, scan: bool = True
+    ) -> None:
         deck = self._active
         deck.open(track, position_ms)
         deck.set_track_gain(self._gain_for(track))
@@ -602,7 +647,7 @@ class AudioPlayer(QObject):
         self._timer.start()
         self.track_started.emit(track)  # first, so that the new state goes with the new track
         self._set_state(state)
-        if self._sound.skip_silence:
+        if self._sound.skip_silence and scan:
             if track not in self._tails:
                 self._request_scan(track)
             else:
@@ -742,6 +787,11 @@ class AudioPlayer(QObject):
             elif kind == Gst.MessageType.ASYNC_DONE:
                 deck.on_ready()
                 self._report_duration(deck)
+            elif kind == Gst.MessageType.TAG:
+                if active:
+                    found, title = message.parse_tag().get_string("title")
+                    if found and title:
+                        self.stream_title.emit(title)
             elif kind == Gst.MessageType.DURATION_CHANGED:
                 deck.read_duration()
                 self._report_duration(deck)

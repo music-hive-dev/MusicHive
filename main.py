@@ -35,6 +35,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import (
     QAction,
     QColor,
+    QActionGroup,
     QCursor,
     QDesktopServices,
     QFontDatabase,
@@ -130,6 +131,12 @@ from src.tag_editor import TagEditorDialog
 from src.tag_writer import SaveResult, TagJob, TagWriter
 from src.mini_player import MiniPlayer
 from src.now_playing import LyricsView, Visualizer
+from src.podcast_view import PodcastSettingsTab, PodcastsTab, format_date
+from src.radio import RadioManager
+from src.radio_stream import RadioStream, split_title
+from src.radio_view import RadioSettingsTab, RadioTab
+from src.sleep_timer import DEFAULT_FADE_SECONDS, FADE_KEY, SleepTimer
+from src.podcasts import PodcastManager
 from src.shortcuts import Shortcuts, ShortcutsSettingsTab
 from src.lyrics_settings import LyricsSettings, LyricsSettingsTab, load_lyrics_settings
 from src.number_field import NumberField
@@ -205,6 +212,7 @@ NOW_PLAYING_DELAY_MS = 3000
 # If the track is further in than this, Previous restarts it instead of
 # going back to the previous track.
 PREVIOUS_RESTART_THRESHOLD_MS = 5000
+EPISODE_SAVE_SECONDS = 5  # how often the place in an episode is written down
 
 GROUP_ICON_SIDE = 128  # pixels, the image at the top of the Artists and Albums tabs
 # Starts a saved play source that is an artist or album. Playlist names cannot
@@ -714,6 +722,18 @@ class MusicHive:
         self.loaded_library: LibraryInfo | None = None  # whose tracks are shown
         self.tracks: list[Path] = []  # indexed by library row
         self.current_index = -1  # library row of the playing track, or -1 if none
+        # Podcast mode: an episode plays instead of the music, which waits.
+        self.episode_id: int | None = None  # the episode playing (or last played), if any
+        self.music_row_before = -1  # the song put aside for it, and where it was
+        self.music_position_before = 0
+        self._episode_saved_at = 0.0  # when its position was last written down
+        # Radio mode: a station plays instead of the music.
+        self.station_id: int | None = None
+        self.radio_stream: RadioStream | None = None  # None while a station is played directly
+        self.radio_title = ""  # "Artist - Title" as heard now
+        self._radio_song_position = 0  # the player's position when that title was first heard
+        self._radio_song_started_at = 0  # and the time, for scrobbling
+        self.sleep_at_end = False  # the sleep timer waits for the song or episode to end
 
         # Which track plays next (play order, queue, shuffle, repeat)
         self.play_order = PlayOrder()
@@ -1119,6 +1139,9 @@ class MusicHive:
         self.setup_mini_player()
         # After every action exists: the user's own shortcuts replace player.ui's.
         self.shortcuts = Shortcuts(w, self.settings)
+        self.setup_podcasts()
+        self.setup_radio()
+        self.setup_sleep_timer()
         self.type_ahead = add_type_ahead(w)  # typing in a list or table finds a song
         set_reset_seconds(self.settings.value(FIND_RESET_KEY, DEFAULT_RESET_SECONDS, type=float))
 
@@ -1209,6 +1232,11 @@ class MusicHive:
                 d, self.settings, self.set_visualiser_style
             )
             self.shortcuts_settings_tab = ShortcutsSettingsTab(d, self.shortcuts)
+            self.podcast_settings_tab = PodcastSettingsTab(d, self.podcasts)
+            self.radio_settings_tab = RadioSettingsTab(d, self.radio)
+            self._sleep_fade = NumberField(d.playbackSleepFade)
+            self._sleep_fade.setValue(self.settings.value(FADE_KEY, DEFAULT_FADE_SECONDS, type=int))
+            self._sleep_fade.valueChanged.connect(lambda value: self.settings.setValue(FADE_KEY, value))
             self.lyrics_settings_tab = LyricsSettingsTab(
                 d, self.settings, self.set_lyrics_style
             )
@@ -1736,6 +1764,10 @@ class MusicHive:
         self.save_table_layouts()
         self.settings.setValue("openTab", self.window.podcastsTab.currentWidget().objectName())
         self.save_session()
+        self.save_episode_position()
+        self.stop_station()  # finishes a tape and a scrobble
+        self.podcasts.shutdown()
+        self.radio.shutdown()
         self.artist_info.shutdown()
         self.online_search.shutdown()
         if self.level_tool is not None:
@@ -1798,6 +1830,10 @@ class MusicHive:
 
     def mpris_metadata(self) -> dict:
         """What MPRIS shows about the current track."""
+        if self.station_id is not None:
+            return self.radio_mpris_metadata()
+        if self.episode_id is not None:
+            return self.episode_mpris_metadata()
         row = self.current_index
         info = self.library_model.info(row)
         if info is None or not 0 <= row < len(self.tracks):
@@ -1836,7 +1872,7 @@ class MusicHive:
             Shuffle=w.shuffleButton.isChecked(),
             Volume=0.0 if w.muteButton.isChecked() else w.volumeSlider.value() / 100,
             Metadata=metadata,
-            CanSeek=metadata["mpris:trackid"][1] != NO_TRACK,
+            CanSeek=metadata["mpris:trackid"][1] != NO_TRACK and self.station_id is None,
         )
 
     def raise_window(self) -> None:
@@ -2132,6 +2168,46 @@ class MusicHive:
 
     def build_discord_activity(self) -> dict | None:
         """What Discord should show right now, or None to show nothing."""
+        if self.discord_active and self.station_id is not None:
+            station = self.radio.store.station(self.station_id)
+            if station is None:
+                return None
+            artist, song = split_title(self.radio_title)
+            cover_url = ""
+            if self.discord.is_ready and self.station_cover_key():
+                cover_url = self.discord_covers.link_for(
+                    self.radio.logo_file(station.id), self.station_cover_key(), is_image=True
+                )
+            return make_activity(
+                title=song or self.radio_title or station.name,
+                artist=artist or station.name,
+                album=f"Radio: {station.name}",
+                audio_format="",
+                position_ms=self.position_ms,
+                duration_ms=0,
+                paused=self.playback_state == "paused",
+                cover_url=cover_url,
+            )
+        if self.discord_active and self.episode_id is not None:
+            episode = self.podcasts.store.episode(self.episode_id)
+            podcast = self.podcasts.store.podcast(episode.podcast_id) if episode else None
+            if episode is None or podcast is None:
+                return None
+            cover_url = ""
+            if self.discord.is_ready:  # nothing is uploaded while Discord isn't running
+                cover_url = self.discord_covers.link_for(
+                    self.podcasts.cover_file(podcast.id), self.episode_cover_key(), is_image=True
+                )
+            return make_activity(
+                title=episode.title,
+                artist=podcast.title,
+                album="Podcast",
+                audio_format="",
+                position_ms=self.position_ms,
+                duration_ms=self.duration_ms or episode.duration_ms,
+                paused=self.playback_state == "paused",
+                cover_url=cover_url,
+            )
         if not self.discord_active or self.current_index < 0:
             return None
         info = self.library_model.info(self.current_index)
@@ -2162,9 +2238,25 @@ class MusicHive:
                 self.discord_covers.link_for(self.tracks[row], info.cover_key)
 
     def on_discord_cover_uploaded(self, cover_key: str) -> None:
+        if self.station_id is not None:
+            if cover_key == self.station_cover_key():
+                self.discord.request_update()
+            return
+        if self.episode_id is not None:
+            if cover_key == self.episode_cover_key():
+                self.discord.request_update()
+            return
         info = self.library_model.info(self.current_index)
         if info is not None and info.cover_key == cover_key:
             self.discord.request_update()
+
+    def episode_cover_key(self) -> str:
+        """Names the playing episode's podcast cover for the Discord uploads ("" for none).
+        It changes when the podcast gets a new cover, so the new one is uploaded."""
+        episode = self.podcasts.store.episode(self.episode_id) if self.episode_id else None
+        if episode is None or not self.podcasts.cover_file(episode.podcast_id).is_file():
+            return ""
+        return f"podcast:{episode.podcast_id}:{self.podcasts.store.cover_url(episode.podcast_id)}"
 
     def on_discord_toggled(self, enabled: bool) -> None:
         self.settings.setValue("discordPresence", enabled)
@@ -2920,14 +3012,17 @@ class MusicHive:
         library = self.loaded_library
         if library is None:
             return
+        row, position_ms = self.current_index, self.position_ms
+        if self.away_from_music:  # the music put aside for the episode or station
+            row, position_ms = self.music_row_before, self.music_position_before
         try:
-            if 0 <= self.current_index < len(self.tracks):
+            if 0 <= row < len(self.tracks):
                 rows, queued, order_position, stop_index = self.play_order.snapshot()
                 library_db.save_session(
                     library.db_path,
                     SavedSession(
-                        rel_path=self.relative_path(self.tracks[self.current_index]),
-                        position_ms=self.position_ms,
+                        rel_path=self.relative_path(self.tracks[row]),
+                        position_ms=position_ms,
                         order=rows,
                         order_position=order_position,
                         queued=queued,
@@ -4923,14 +5018,510 @@ class MusicHive:
         """Play library row `row`. The play order must already point at it."""
         if not 0 <= row < len(self.tracks):
             return
+        # Back from a podcast to the song that was put aside: carry on where it was.
+        resume_at = 0
+        if self.away_from_music:
+            if row == self.music_row_before:
+                resume_at = self.music_position_before
+            self.leave_side_modes()
         self.current_index = row
-        self.position_ms = 0
+        self.position_ms = resume_at
         self.select_in_table(row)
         self.select_in_playlist(row)
         for page in self.group_pages.values():
             self.highlight_row(page.tracks, page.proxy, page.view, row)
         self.refresh_upcoming()
+        if resume_at > 0:
+            info = self.library_model.info(row)
+            duration_ms = (info.duration_ms or 0) if info is not None else 0
+            if self.player.load_file(self.tracks[row], resume_at, duration_ms):
+                self.player.play()
+            return
         self.player.play_file(self.tracks[row])
+
+    # ----- podcasts -----
+
+    def setup_podcasts(self) -> None:
+        w = self.window
+        self.podcasts = PodcastManager(self.settings, w)
+        self.podcast_tab = PodcastsTab(
+            w,
+            self.podcasts,
+            RoundedRowDelegate,
+            asset_icon("mic"),
+            self.show_status,
+            asset_icon,
+            self.settings,
+        )
+        self.podcast_tab.play_requested.connect(self.play_episode)
+        self.podcasts.status.connect(lambda text: self.show_status(text) if text else None)
+        self.podcasts.failed.connect(self.show_status)
+
+    def play_episode(self, episode_id: int) -> None:
+        """Play a podcast episode where it was left off. The music waits meanwhile."""
+        episode = self.podcasts.store.episode(episode_id)
+        if episode is None:
+            return
+        self.save_episode_position()
+        self.enter_side_mode()
+        self.stop_station()
+        self.episode_id = episode_id
+        self.podcasts.playing_episode = episode_id
+        self.podcast_tab.set_playing(episode_id)
+        source = self.podcasts.source_for(episode)
+        if isinstance(source, str):
+            # Streamed; the download runs alongside in case the connection drops.
+            self.podcasts.download(episode_id, first=True)
+        position = 0 if episode.played else episode.position_ms
+        self.position_ms = position
+        self.player.play_episode(source, position)
+
+    @property
+    def away_from_music(self) -> bool:
+        """A podcast episode or a radio station plays (or was the last thing played)."""
+        return self.episode_id is not None or self.station_id is not None
+
+    def enter_side_mode(self) -> None:
+        """An episode or a station takes over: coming from the music, remember where it was."""
+        if not self.away_from_music:
+            self.check_listening()
+            self.music_row_before = self.current_index
+            self.music_position_before = self.position_ms
+        self.current_index = -1
+
+    def stop_episode(self) -> None:
+        """The episode stops being the one playing; it keeps its place for next time."""
+        if self.episode_id is None:
+            return
+        self.save_episode_position()
+        self.episode_id = None
+        self.podcasts.playing_episode = None
+        self.podcast_tab.set_playing(None)
+        self.podcasts.tidy_up()  # the episode may wait to be deleted
+
+    def leave_side_modes(self) -> None:
+        """Music is played again."""
+        self.stop_episode()
+        self.stop_station()
+        self.music_row_before = -1
+        self.music_position_before = 0
+
+    def save_episode_position(self) -> None:
+        if self.episode_id is None:
+            return
+        self._episode_saved_at = time.monotonic()
+        if self.playback_state == "stopped" and self.position_ms == 0:
+            return  # stopping resets the position; that is no reason to forget it
+        self.podcasts.set_position(self.episode_id, self.position_ms, self.duration_ms)
+        self.podcast_tab.update_episode(self.episode_id)
+
+    def episode_beside(self, newer: bool) -> int | None:
+        """The episode released just after (or before) the current one."""
+        episode = self.podcasts.store.episode(self.episode_id) if self.episode_id else None
+        if episode is None:
+            return None
+        episodes = self.podcasts.store.episodes(episode.podcast_id)  # newest first
+        ids = [e.id for e in episodes]
+        index = ids.index(episode.id) + (-1 if newer else 1)
+        return ids[index] if 0 <= index < len(ids) else None
+
+    def finish_episode(self) -> None:
+        """The episode played to its end: it counts as played, and the next may follow."""
+        finished = self.podcasts.store.episode(self.episode_id)
+        self.podcasts.set_played([self.episode_id], True)
+        self.podcast_tab.update_episode(self.episode_id)
+        if self.sleep_at_end:
+            self.sleep_now()
+            return
+        following = self.episode_beside(newer=True)
+        if following is not None and self.podcasts.settings.continue_with_next:
+            upcoming = self.podcasts.store.episode(following)
+            if upcoming is not None and not upcoming.played:
+                self.play_episode(following)
+                return
+        if finished is not None:
+            self.show_status(f"Finished “{finished.title}”")
+
+    def show_episode_info(self) -> None:
+        """Fill the track info panel for the episode that just started."""
+        episode = self.podcasts.store.episode(self.episode_id)
+        podcast = self.podcasts.store.podcast(episode.podcast_id) if episode else None
+        if episode is None or podcast is None:
+            return
+        w = self.window
+        w.currentTrackLabel.setText(episode.title)
+        w.trackInfoTitle.setText(html.escape(episode.title))
+        w.trackInfoArtistAlbumArtist.setText(html.escape(podcast.title))
+        released = format_date(episode.published)
+        w.trackInfoAlbumYear.setText(
+            html.escape(f"Podcast episode, {released}" if released else "Podcast episode")
+        )
+        streaming = self.podcasts.file_path(episode) is None
+        self.track_audio_format = ""
+        w.trackInfoFile.setText(
+            f'<span style="color: {theme.dimmed_text_on_panel()}; font-size: 8pt">'
+            f"{'Streaming' if streaming else 'Downloaded'}</span>"
+        )
+        self.update_window_title(episode.title, podcast.title)
+        cover = self.podcast_tab.cover_image(podcast.id)
+        self.full_cover = cover
+        self.set_visualiser_cover(cover)
+        try:
+            data = self.podcasts.cover_file(podcast.id).read_bytes() if cover else None
+        except OSError:
+            data = None
+        self.full_cover_data = data
+        self.mpris_art_url = cover_file_url(data) if data else ""
+        self.lyrics_view.clear()
+        self.rating_stars.set_rating(0, enabled=False)
+        self.cover_view.set_image(cover)
+
+    # ----- radio -----
+
+    def setup_radio(self) -> None:
+        w = self.window
+        self.radio = RadioManager(self.settings, w)
+        self.radio_tab = RadioTab(
+            w,
+            self.radio,
+            RoundedRowDelegate,
+            asset_icon("radio"),
+            asset_icon,
+            self.show_status,
+            self.settings,
+            self.find_in_library,
+        )
+        self.radio_tab.play_requested.connect(self.play_station)
+        self.radio_tab.go_live_requested.connect(self.radio_go_live)
+        self.radio_tab.tape_toggled.connect(self.set_taping)
+        self.radio_tab.remember_requested.connect(self.remember_radio_song)
+        self.radio.status.connect(lambda text: self.show_status(text) if text else None)
+        self.radio.failed.connect(self.show_status)
+        self.player.stream_title.connect(self.on_player_stream_title)
+        self.radio_timer = QTimer(w)  # how far behind live, once a second
+        self.radio_timer.setInterval(1000)
+        self.radio_timer.timeout.connect(self.show_radio_delay)
+
+    def find_in_library(self, text: str) -> None:
+        """Show the Songs tab, searching for `text` ("Artist - Title" works as words)."""
+        w = self.window
+        w.lineEdit.setText(text.replace(" - ", " "))
+        self.search_songs_now()
+        w.podcastsTab.setCurrentWidget(w.songsTab)
+
+    def play_station(self, station_id: int) -> None:
+        """Tune in to a station. The music waits meanwhile."""
+        station = self.radio.store.station(station_id)
+        if station is None:
+            return
+        if station_id == self.station_id and self.playback_state != "stopped":
+            # Already tuned in: carry on (from where it was paused), do not reconnect.
+            if self.playback_state == "paused":
+                self.player.play()
+            return
+        self.save_episode_position()
+        self.enter_side_mode()
+        self.stop_episode()
+        self.stop_station()
+        self.station_id = station_id
+        self.radio.played(station_id)
+        self.radio_title = ""
+        self._radio_song_position = 0
+        self.show_status(f"Tuning in to {station.name}…")
+        if station.hls:
+            self.play_station_directly(station.url)
+            return
+        stream = RadioStream(station.url, station.name, self.radio.settings.keep_minutes * 60)
+        stream.title_heard.connect(self.on_radio_title)
+        stream.status.connect(self.show_status)
+        stream.failed.connect(lambda message, s=stream: self.on_radio_failed(s, message))
+        stream.tape_file_done.connect(self.on_tape_file_done)
+        self.radio_stream = stream
+        self.radio_tab.set_playing(station_id, can_tape=True)
+        self.window.progressSlider.setEnabled(False)  # live radio cannot be seeked
+        stream.start()
+        self.player.play_radio(stream)
+        self.radio_timer.start()
+
+    def play_station_directly(self, url: str) -> None:
+        """Some stations (HLS) can only be played by the player itself: no pausing
+        back in time and no taping for those."""
+        self.radio_stream = None
+        self.radio_tab.set_playing(self.station_id, can_tape=False)
+        self.radio_tab.set_behind(0)
+        self.window.progressSlider.setEnabled(False)
+        self.player.play_episode(url, 0)
+
+    def stop_station(self) -> None:
+        if self.station_id is None:
+            return
+        self.finish_radio_song()
+        if self.radio_stream is not None:
+            self.radio_stream.stop()
+            self.radio_stream = None
+        self.radio_timer.stop()
+        self.window.progressSlider.setEnabled(True)
+        self.station_id = None
+        self.radio_title = ""
+        self.radio_tab.set_playing(None)
+
+    def on_radio_failed(self, stream: RadioStream, message: str) -> None:
+        if stream is not self.radio_stream:
+            return  # an old station's connection
+        station = self.radio.store.station(self.station_id)
+        stream.stop()
+        if message == "hls" and station is not None:
+            self.play_station_directly(station.url)
+            return
+        self.radio_stream = None
+        self.player.stop()
+        self.show_status(f"{station.name if station else 'The station'} cannot be played: {message}")
+
+    def on_player_stream_title(self, title: str) -> None:
+        """Titles from the player itself count only for a station it plays directly."""
+        if self.station_id is not None and self.radio_stream is None:
+            self.on_radio_title(title)
+
+    def on_radio_title(self, title: str) -> None:
+        """The listener now hears another song on the radio."""
+        if self.station_id is None or title == self.radio_title:
+            return
+        ended = bool(self.radio_title)
+        self.finish_radio_song()
+        self.radio_title = title
+        self._radio_song_position = self.position_ms
+        self._radio_song_started_at = int(time.time())
+        self.radio.heard(self.station_id, title)
+        self.radio_tab.set_now_playing(title)
+        self.show_station_info()
+        self.discord.request_update()
+        self.update_mpris()
+        artist, song = split_title(title)
+        if self.radio_scrobbling() and artist and song:
+            self.lastfm.now_playing({"artist": artist, "title": song, "album": "", "duration": 0})
+        if ended and self.sleep_at_end:  # "at the end of this song": the song changed
+            self.sleep_now()
+
+    def radio_scrobbling(self) -> bool:
+        return self.radio.settings.scrobble and self.window.actionScrobble.isChecked()
+
+    def finish_radio_song(self) -> None:
+        """The song heard on the radio ended: scrobble it if it was heard long enough."""
+        if not self.radio_title or not self.radio_scrobbling():
+            return
+        artist, song = split_title(self.radio_title)
+        heard_ms = self.position_ms - self._radio_song_position
+        if artist and song and heard_ms >= self.radio.settings.scrobble_after_seconds * 1000:
+            self.lastfm.enqueue_scrobble({
+                "artist": artist,
+                "title": song,
+                "album": "",
+                "album_artist": "",
+                "duration": 0,
+                "timestamp": self._radio_song_started_at,
+            })
+
+    def play_favourite_beside(self, step: int) -> None:
+        """Next/Previous on the radio: the next or previous favourite station."""
+        ids = [s.id for s in self.radio.store.favourites()]
+        if not ids:
+            self.show_status("Add stations to your favourites to switch between them")
+            return
+        index = ids.index(self.station_id) + step if self.station_id in ids else 0
+        self.play_station(ids[index % len(ids)])
+
+    def show_radio_delay(self) -> None:
+        behind = self.radio_stream.behind_seconds() if self.radio_stream is not None else 0.0
+        self.radio_tab.set_behind(behind)
+        w = self.window
+        w.durationLabel.setText("LIVE" if behind < 2 else f"−{format_time(int(behind * 1000))}")
+
+    def radio_go_live(self) -> None:
+        stream = self.radio_stream
+        if stream is None:
+            return
+        stream.go_live()
+        self.player.play_radio(stream)  # starts afresh from the newest sound
+
+    def set_taping(self, on: bool) -> None:
+        stream = self.radio_stream
+        if stream is None:
+            self.radio_tab.set_taping(False)
+            return
+        if on:
+            s = self.radio.settings
+            stream.start_taping(s.tapes_folder(), s.tape_per_song, s.tape_from_song_start)
+            self.show_status(f"Taping into {s.tapes_folder()}")
+        else:
+            stream.stop_taping()
+            self.show_status("Taping stopped")
+
+    def on_tape_file_done(self, path: Path, title: str) -> None:
+        """A taped file is finished: give it tags, so the library knows what it is."""
+        station = self.radio.store.station(self.station_id) if self.station_id else None
+        if self.radio.settings.tape_tags and path.suffix.lower() == ".mp3":
+            try:
+                from mutagen.easyid3 import EasyID3
+                from mutagen.id3 import ID3NoHeaderError
+
+                try:
+                    tags = EasyID3(str(path))
+                except ID3NoHeaderError:
+                    tags = EasyID3()
+                artist, song = split_title(title)
+                if song:
+                    tags["title"] = song
+                if artist:
+                    tags["artist"] = artist
+                if station is not None:
+                    tags["album"] = station.name
+                tags.save(str(path))
+            except Exception as error:  # a tape without tags is still a tape
+                print(f"MusicHive: could not tag {path.name}: {error}", file=sys.stderr)
+        self.show_status(f"Taped “{title or path.stem}”")
+
+    def remember_radio_song(self) -> None:
+        if self.station_id is not None and self.radio_title:
+            self.radio.remember(self.station_id, self.radio_title)
+            self.show_status(f"Remembered “{self.radio_title}”")
+
+    def show_station_info(self) -> None:
+        """Fill the track info panel for the station (and the song heard on it)."""
+        station = self.radio.store.station(self.station_id) if self.station_id else None
+        if station is None:
+            return
+        w = self.window
+        artist, song = split_title(self.radio_title)
+        title = song or self.radio_title or station.name
+        w.currentTrackLabel.setText(title)
+        w.trackInfoTitle.setText(html.escape(title))
+        w.trackInfoArtistAlbumArtist.setText(html.escape(artist or (station.name if self.radio_title else "")))
+        w.trackInfoAlbumYear.setText(html.escape(f"Radio: {station.name}"))
+        self.track_audio_format = ""
+        quality = " ".join(p for p in (station.codec, f"{station.bitrate} kbps" if station.bitrate else "") if p)
+        w.trackInfoFile.setText(
+            f'<span style="color: {theme.dimmed_text_on_panel()}; font-size: 8pt">'
+            f"{html.escape(quality or 'Live radio')}</span>"
+        )
+        self.update_window_title(title, artist or station.name)
+        logo = self.radio_tab.logo_image(station.id)
+        self.full_cover = logo
+        self.set_visualiser_cover(logo)
+        try:
+            data = self.radio.logo_file(station.id).read_bytes() if logo else None
+        except OSError:
+            data = None
+        self.full_cover_data = data
+        self.mpris_art_url = cover_file_url(data) if data else ""
+        self.lyrics_view.clear()
+        self.rating_stars.set_rating(0, enabled=False)
+        self.cover_view.set_image(logo)
+
+    def radio_mpris_metadata(self) -> dict:
+        station = self.radio.store.station(self.station_id)
+        if station is None:
+            return {"mpris:trackid": ("o", NO_TRACK)}
+        artist, song = split_title(self.radio_title)
+        metadata = {
+            "mpris:trackid": ("o", f"/org/musichive/radio/{station.id}"),
+            "xesam:title": ("s", song or self.radio_title or station.name),
+            "xesam:artist": ("as", [artist or station.name]),
+            "xesam:album": ("s", station.name),
+        }
+        if self.mpris_art_url:
+            metadata["mpris:artUrl"] = ("s", self.mpris_art_url)
+        return metadata
+
+    def station_cover_key(self) -> str:
+        if self.station_id is None or not self.radio.logo_file(self.station_id).is_file():
+            return ""
+        return f"radio:{self.station_id}"
+
+    # ----- sleep timer -----
+
+    def setup_sleep_timer(self) -> None:
+        w = self.window
+        self.sleep_timer = SleepTimer(w)
+        self.sleep_timer.volume_factor.connect(self.on_sleep_fade)
+        self.sleep_timer.expired.connect(self.sleep_now)
+        self.sleep_timer.remaining_changed.connect(self.show_sleep_remaining)
+        self.sleep_label = QLabel()
+        self.sleep_label.setContentsMargins(0, 0, 8, 0)
+        w.statusBar().addPermanentWidget(self.sleep_label)
+        self.sleep_label.hide()
+        group = QActionGroup(w)
+        group.setExclusive(True)
+        for action, minutes in (
+            (w.actionSleepOff, 0),
+            (w.actionSleep15, 15),
+            (w.actionSleep30, 30),
+            (w.actionSleep45, 45),
+            (w.actionSleep60, 60),
+            (w.actionSleep90, 90),
+            (w.actionSleep120, 120),
+            (w.actionSleepEndOfTrack, -1),
+        ):
+            group.addAction(action)
+            action.triggered.connect(lambda _checked=False, m=minutes: self.set_sleep_timer(m))
+
+    def set_sleep_timer(self, minutes: int) -> None:
+        """0: off. -1: at the end of the song, episode or (on the radio) the song heard."""
+        self.sleep_at_end = minutes == -1  # first: cancelling updates the status bar
+        self.sleep_timer.cancel()
+        if minutes > 0:
+            fade = self.settings.value(FADE_KEY, DEFAULT_FADE_SECONDS, type=int)
+            self.sleep_timer.start(minutes, fade)
+            self.show_status(f"Sleep timer: playback pauses in {minutes} minutes")
+        elif self.sleep_at_end:
+            self.show_sleep_remaining(-1)
+            self.show_status("Sleep timer: playback pauses when this ends")
+        else:
+            self.show_status("Sleep timer off")
+
+    def show_sleep_remaining(self, minutes: int) -> None:
+        label = self.sleep_label
+        if minutes >= 0:
+            label.setText(f"Sleep in {minutes} min")
+        elif self.sleep_at_end:
+            label.setText("Sleep at the end")
+        label.setVisible(minutes >= 0 or self.sleep_at_end)
+
+    def on_sleep_fade(self, factor: float) -> None:
+        w = self.window
+        if not w.muteButton.isChecked():
+            self.player.set_volume(round(w.volumeSlider.value() * factor))
+
+    def sleep_now(self) -> None:
+        """Time is up: pause, then put the volume back for next time."""
+        self.sleep_at_end = False
+        self.sleep_timer.cancel()
+        if self.playback_state == "playing":
+            self.player.pause()
+        w = self.window
+        if not w.muteButton.isChecked():
+            self.player.set_volume(w.volumeSlider.value())
+        w.actionSleepOff.setChecked(True)
+        self.show_sleep_remaining(-1)
+        self.show_status("Sleep timer: paused. Good night!")
+
+    def episode_mpris_metadata(self) -> dict:
+        episode = self.podcasts.store.episode(self.episode_id)
+        podcast = self.podcasts.store.podcast(episode.podcast_id) if episode else None
+        if episode is None or podcast is None:
+            return {"mpris:trackid": ("o", NO_TRACK)}
+        metadata = {
+            "mpris:trackid": ("o", f"/org/musichive/episode/{episode.id}"),
+            "xesam:title": ("s", episode.title),
+            "xesam:artist": ("as", [podcast.author or podcast.title]),
+            "xesam:album": ("s", podcast.title),
+            "xesam:genre": ("as", ["Podcast"]),
+        }
+        duration_ms = self.duration_ms or episode.duration_ms
+        if duration_ms:
+            metadata["mpris:length"] = ("x", duration_ms * 1000)
+        if self.mpris_art_url:
+            metadata["mpris:artUrl"] = ("s", self.mpris_art_url)
+        return metadata
 
     def play_item(self, model_index: QModelIndex) -> None:
         """Called when the user double-clicks a song in the library table."""
@@ -4949,6 +5540,10 @@ class MusicHive:
             self.player.pause()
         elif self.playback_state == "paused":
             self.player.play()
+        elif self.station_id is not None:
+            self.play_station(self.station_id)
+        elif self.episode_id is not None:
+            self.play_episode(self.episode_id)  # the episode again, where it was left off
         else:
             selected = self.window.libraryList.currentIndex()
             row = self.library_proxy.mapToSource(selected).row() if selected.isValid() else -1
@@ -4962,6 +5557,16 @@ class MusicHive:
             self.play_index(row)
 
     def play_next(self) -> None:
+        if self.station_id is not None:
+            self.play_favourite_beside(1)
+            return
+        if self.episode_id is not None:
+            following = self.episode_beside(newer=True)
+            if following is None:
+                self.show_status("This is the newest episode")
+            else:
+                self.play_episode(following)
+            return
         if self.current_index < 0:
             shown = self.play_source_rows()
             if shown:  # nothing playing yet: start from the top of the list
@@ -4976,6 +5581,17 @@ class MusicHive:
 
     def play_previous(self) -> None:
         """Restart the track if it is well underway, otherwise go back one."""
+        if self.station_id is not None:
+            self.play_favourite_beside(-1)
+            return
+        if self.episode_id is not None:
+            earlier = self.episode_beside(newer=False)
+            if self.position_ms > PREVIOUS_RESTART_THRESHOLD_MS or earlier is None:
+                self.player.seek(0)
+                self.discord.request_update()
+            else:
+                self.play_episode(earlier)
+            return
         if self.current_index < 0:
             return
         if self.position_ms - self.player.sound_start_ms > PREVIOUS_RESTART_THRESHOLD_MS:
@@ -5015,7 +5631,12 @@ class MusicHive:
     # ----- player -> UI -----
 
     def on_track_started(self, track: Path) -> None:
-        self.update_track_info(track)
+        if self.station_id is not None:
+            self.show_station_info()
+        elif self.episode_id is not None:
+            self.show_episode_info()
+        else:
+            self.update_track_info(track)
         self.duration_ms = 0  # the real length arrives from the player in a moment
         self.begin_listening()
         self.discord.request_update()
@@ -5023,10 +5644,25 @@ class MusicHive:
 
     def on_track_ending(self) -> None:
         """A crossfade is due. If nothing comes next, the track just plays to its end."""
+        if self.away_from_music:
+            return  # episodes play to their end and never crossfade; radio never ends
         if not self.play_order.ends_after_current():
             self.on_track_finished()
 
     def on_track_finished(self) -> None:
+        if self.station_id is not None:
+            # A station played directly ended its stream: tune in again.
+            self.play_station(self.station_id)
+            return
+        if self.episode_id is not None:
+            self.finish_episode()
+            return
+        if self.sleep_at_end:  # the sleep timer: the next song waits, paused
+            row = self.play_order.next(ended_naturally=True)
+            if row is not None:
+                self.load_track_paused(row)
+            self.sleep_now()
+            return
         stop_here = self.play_order.take_stop_after()
         self.update_stop_after_action()
         row = self.play_order.next(ended_naturally=True)
@@ -5041,6 +5677,8 @@ class MusicHive:
     def on_state_changed(self, state: str) -> None:
         self.playback_state = state
         w = self.window
+        if state == "paused":
+            self.save_episode_position()
 
         # Settle what was playing, then start or stop the listening clock.
         self.check_listening()
@@ -5084,6 +5722,10 @@ class MusicHive:
 
     def on_position_changed(self, position_ms: int) -> None:
         self.position_ms = position_ms
+        if self.episode_id is not None and (
+            time.monotonic() - self._episode_saved_at >= EPISODE_SAVE_SECONDS
+        ):
+            self.save_episode_position()
         self.mpris.set_position(position_ms)
         self.lyrics_view.set_position(position_ms)
         slider = self.window.progressSlider
