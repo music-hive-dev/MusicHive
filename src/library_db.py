@@ -20,7 +20,7 @@ from PySide6.QtCore import QSettings
 
 from src.track_metadata import TrackInfo
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 9
 DB_NAME = "musichive.db"
 DATA_DIR_NAME = ".musichive"
 DATA_FOLDER_KEY = "dataFolder"  # empty means the default folder inside Music
@@ -50,6 +50,17 @@ _RATINGS_TABLE = """
 CREATE TABLE IF NOT EXISTS ratings (
     rel_path TEXT PRIMARY KEY,
     rating   INTEGER NOT NULL
+);
+"""
+
+# A song's own equaliser and visualiser presets (song_settings.py), kept apart
+# from the tracks table so that rescans leave them alone. "" means no preset.
+_TRACK_SETTINGS_TABLE = """
+CREATE TABLE IF NOT EXISTS track_settings (
+    rel_path      TEXT PRIMARY KEY,
+    equaliser     TEXT NOT NULL DEFAULT '',
+    visualiser    TEXT NOT NULL DEFAULT '',
+    over_playlist INTEGER NOT NULL DEFAULT 0
 );
 """
 
@@ -84,7 +95,7 @@ CREATE TABLE plays (
     count       INTEGER NOT NULL,
     last_played REAL
 );
-""" + _TRACK_TAGS_TABLE + _TRACK_ADDED_TABLE + _RATINGS_TABLE
+""" + _TRACK_TAGS_TABLE + _TRACK_ADDED_TABLE + _RATINGS_TABLE + _TRACK_SETTINGS_TABLE
 
 
 @dataclass(frozen=True)
@@ -307,6 +318,7 @@ def _upgrade_schema(conn: sqlite3.Connection) -> None:
         conn.execute(_TRACK_TAGS_TABLE)
         conn.execute(_TRACK_ADDED_TABLE)
         conn.execute(_RATINGS_TABLE)
+        conn.execute(_TRACK_SETTINGS_TABLE)
         # Nobody noted when existing songs arrived: their file date is the best guess.
         conn.execute(
             "INSERT OR IGNORE INTO track_added (rel_path, added_at) "
@@ -577,6 +589,36 @@ def set_rating(db_path: Path, rel_path: str, rating: int) -> None:
                 conn.execute("DELETE FROM ratings WHERE rel_path = ?", (rel_path,))
 
 
+def load_track_settings(db_path: Path, rel_paths: list[str]) -> dict[str, tuple[str, str, bool]]:
+    """The (equaliser, visualiser, over_playlist) of those songs that have any."""
+    found = {}
+    with connect(db_path) as conn:
+        for rel_path in rel_paths:
+            row = conn.execute(
+                "SELECT equaliser, visualiser, over_playlist FROM track_settings "
+                "WHERE rel_path = ?",
+                (rel_path,),
+            ).fetchone()
+            if row is not None:
+                found[rel_path] = (row[0], row[1], bool(row[2]))
+    return found
+
+
+def save_track_settings(db_path: Path, settings: dict[str, tuple[str, str, bool]]) -> None:
+    """Store songs' (equaliser, visualiser, over_playlist); all empty removes them."""
+    with connect(db_path) as conn:
+        with conn:
+            for rel_path, (equaliser, visualiser, over_playlist) in settings.items():
+                if equaliser or visualiser or over_playlist:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO track_settings "
+                        "(rel_path, equaliser, visualiser, over_playlist) VALUES (?, ?, ?, ?)",
+                        (rel_path, equaliser, visualiser, int(over_playlist)),
+                    )
+                else:
+                    conn.execute("DELETE FROM track_settings WHERE rel_path = ?", (rel_path,))
+
+
 def load_play_counts(db_path: Path) -> dict[str, int]:
     """Every stored play count of a library, by relative path."""
     with connect(db_path) as conn:
@@ -712,7 +754,9 @@ def move_tracks(db_path: Path, moves: dict[str, str]) -> None:
     pairs = [(new, old) for old, new in moves.items()]
     with connect(db_path) as conn:
         with conn:
-            for table in ("tracks", "plays", "ratings", "track_tags", "track_added"):
+            for table in (
+                "tracks", "plays", "ratings", "track_tags", "track_added", "track_settings"
+            ):
                 # REPLACE: the song that moved in wins over old rows left under that path.
                 conn.executemany(
                     f"UPDATE OR REPLACE {table} SET rel_path = ? WHERE rel_path = ?", pairs
@@ -759,6 +803,7 @@ def remove_track(db_path: Path, rel_path: str) -> None:
             conn.execute("DELETE FROM ratings WHERE rel_path = ?", (rel_path,))
             conn.execute("DELETE FROM track_tags WHERE rel_path = ?", (rel_path,))
             conn.execute("DELETE FROM track_added WHERE rel_path = ?", (rel_path,))
+            conn.execute("DELETE FROM track_settings WHERE rel_path = ?", (rel_path,))
             conn.execute(
                 "DELETE FROM covers WHERE cover_key NOT IN "
                 "(SELECT cover_key FROM tracks WHERE cover_key IS NOT NULL)"

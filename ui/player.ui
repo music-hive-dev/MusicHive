@@ -872,6 +872,16 @@ QToolTip {
     padding: 2px 6px;
 }
 
+/* What a drag shows under the cursor: "Title - Artist and 3 more songs…" */
+QLabel#dragLabel {
+    background-color: #312d34;
+    color: #ffffff;
+    font-family: &quot;Inter&quot;, &quot;Segoe UI&quot;, sans-serif;
+    font-size: 9pt;
+    border-radius: 8px;
+    padding: 5px 10px;
+}
+
 /* ----- Tabs: only the selected tab has a shape, so inactive icons stay centred ----- */
 QWidget#centralwidget, QTabWidget#podcastsTab, QTabWidget#podcastsTab &gt; QStackedWidget &gt; QWidget {
     background-color: #222023;
@@ -1084,6 +1094,44 @@ QTableView::item:first {
 }
 
 QTableView::item:last {
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+}
+
+/* The shortcuts (Settings): a heading per menu, and its actions as outlined rows */
+QLabel#shortcutsHint, QLabel#onlineSecretsHelp {
+    color: rgba(255, 255, 255, 170);
+}
+
+QLabel#shortcutsGroupTitle {
+    font-weight: bold;
+    color: rgba(255, 255, 255, 170);
+    padding-top: 8px;
+    padding-left: 4px;
+}
+
+QTreeWidget#shortcutsGroupList {
+    background-color: transparent;
+    border: none;
+}
+
+QTreeWidget#shortcutsGroupList::item {
+    border-top: 1px solid #433d47;
+    border-bottom: 1px solid #433d47;
+    border-radius: 0px;
+    margin-top: 2px;
+    margin-bottom: 2px;
+    padding: 2px 4px;
+}
+
+QTreeWidget#shortcutsGroupList::item:first {
+    border-left: 1px solid #433d47;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+}
+
+QTreeWidget#shortcutsGroupList::item:last {
+    border-right: 1px solid #433d47;
     border-top-right-radius: 10px;
     border-bottom-right-radius: 10px;
 }
@@ -4038,6 +4086,7 @@ QWidget {
     </property>
     <addaction name="actionAudioScrobbleLastFm"/>
     <addaction name="actionAutoTagGenres"/>
+    <addaction name="actionAutoLyrics"/>
     <addaction name="actionOrganiseFiles"/>
     <addaction name="actionLevelVolume"/>
     <addaction name="actionConvertFiles"/>
@@ -5116,6 +5165,21 @@ QWidget {
     <enum>QAction::MenuRole::NoRole</enum>
    </property>
   </action>
+  <action name="actionAutoLyrics">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/mic-vocal.svg</normaloff>../assets/mic-vocal.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Find Lyrics…</string>
+   </property>
+   <property name="toolTip">
+    <string>Look up the lyrics of the selected songs online and save them</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
   <action name="actionOrganiseFiles">
    <property name="icon">
     <iconset>
@@ -5361,6 +5425,10 @@ QWidget {
    </property>
   </action>
   <action name="actionSelectAll">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/list-check.svg</normaloff>../assets/list-check.svg</iconset>
+   </property>
    <property name="text">
     <string>Select All</string>
    </property>

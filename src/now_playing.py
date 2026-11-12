@@ -27,6 +27,7 @@ from PySide6.QtGui import (
     QPainter,
     QPainterPath,
     QPixmap,
+    QRadialGradient,
 )
 from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat
 from PySide6.QtWidgets import (
@@ -83,11 +84,21 @@ MAX_LYRICS_SCALE = 4.0
 WHEEL_NOTCH = 120  # what one click of a mouse wheel reports
 SCROLL_HOLD_MS = 5000  # after scrolling, the lyrics wait this long before following the song
 BACKGROUND_WORK_SCALE = 0.25  # the cover is blurred at a quarter size: much faster
+# "Bars glow": the bar's colour fading smoothly away from its sides and top.
+GLOW_STRENGTH = 0.5  # how opaque the glow is right next to the bar
+GLOW_RADIUS = (6, 18)  # pixels: at least, at most (otherwise half a bar's width)
+# How much of GLOW_STRENGTH is left at each step outwards: a soft, bell-like fade.
+GLOW_FADE = ((0.0, 1.0), (0.2, 0.62), (0.4, 0.33), (0.6, 0.14), (0.8, 0.04), (1.0, 0.0))
 
 
 def _light_text() -> bool:
     """Dark mode: light text, so shadows are dark. Light mode: the other way round."""
     return QColor(theme.colour(theme.TEXT)).lightness() > 128
+
+
+def colours_of(cover: QImage | None) -> CoverColours | None:
+    """The background, bar and lyrics colours taken from a cover, for this theme."""
+    return cover_colours(cover, dark_mode=_light_text())
 
 
 def set_text_shadow(widget: QWidget, style: LyricsSettings) -> None:
@@ -195,11 +206,11 @@ class Visualizer(QObject):
         elif self._widget.isVisible():
             self._timer.start()
 
-    def set_cover(self, cover: QImage | None) -> None:
-        """The playing song's cover, for the album art background and the colours
-        taken from it (None: no cover)."""
+    def set_cover(self, cover: QImage | None, colours: CoverColours | None = None) -> None:
+        """The playing song's cover, for the album art background, and the colours
+        taken from it (see colours_of). None: no cover."""
         self._cover = cover
-        self._cover_colours = cover_colours(cover, dark_mode=_light_text())
+        self._cover_colours = colours if cover is not None else None
         self._background = None
         self._background_key = None
         self._widget.update()
@@ -359,17 +370,64 @@ class Visualizer(QObject):
             painter.fillRect(widget.rect(), self._cover_colours.background)
         bar_width = width / bar_count
         gap = style.gap
+        rects = []
         for bar, level in enumerate(self._levels):
             bar_height = level * height
             if bar_height >= 1:
-                rect = QRectF(
+                rects.append((bar, QRectF(
                     bar * bar_width + gap / 2,
                     height - bar_height,
                     max(1.0, bar_width - gap),
                     bar_height,
-                )
-                painter.fillRect(rect, brushes[bar])
+                )))
+        if style.glow:  # under all the bars, so a glow never covers a neighbour
+            self._paint_glow(painter, rects, colours, bar_width, opacity)
+        for bar, rect in rects:
+            painter.fillRect(rect, brushes[bar])
         painter.end()
+
+    @staticmethod
+    def _paint_glow(
+        painter: QPainter,
+        rects: list[tuple[int, QRectF]],
+        colours: list[QColor],
+        bar_width: float,
+        opacity: int,
+    ) -> None:
+        """A soft light around each bar, fading smoothly to nothing.
+
+        The sides and top are strips with a straight fade and the two top corners
+        quarter circles with a round one; they meet with the same strength, so
+        there are no edges. The bars stand on the bottom, so nothing goes below.
+        """
+        low, high = GLOW_RADIUS
+        r = max(low, min(high, bar_width / 2))
+        strength = opacity / 255 * GLOW_STRENGTH
+
+        def stops(gradient, color: QColor) -> None:
+            for at, share in GLOW_FADE:
+                faded = QColor(color)
+                faded.setAlphaF(strength * share)
+                gradient.setColorAt(at, faded)
+
+        for bar, rect in rects:
+            color = colours[bar]
+            left, right, top, bottom = rect.left(), rect.right(), rect.top(), rect.bottom()
+            for start, end, area in (
+                (QPointF(left, 0), QPointF(left - r, 0), QRectF(left - r, top, r, bottom - top)),
+                (QPointF(right, 0), QPointF(right + r, 0), QRectF(right, top, r, bottom - top)),
+                (QPointF(0, top), QPointF(0, top - r), QRectF(left, top - r, right - left, r)),
+            ):
+                gradient = QLinearGradient(start, end)
+                stops(gradient, color)
+                painter.fillRect(area, QBrush(gradient))
+            for corner, area in (
+                (QPointF(left, top), QRectF(left - r, top - r, r, r)),
+                (QPointF(right, top), QRectF(right, top - r, r, r)),
+            ):
+                gradient = QRadialGradient(corner, r)
+                stops(gradient, color)
+                painter.fillRect(area, QBrush(gradient))
 
     @staticmethod
     def _bar_brush(
@@ -410,6 +468,7 @@ class LyricsView(QObject):
         self._fade.setEasingCurve(QEasingCurve.Type.InOutQuad)
         self._fade.valueChanged.connect(self._show_no_lyrics)
         self._fade_wait.timeout.connect(self._fade.start)
+        self._cover_colour: QColor | None = None  # the playing cover's colour for lyrics
         self._base_font = QFont(view.font())  # the size set in player.ui
         self._font = QFont(self._base_font)  # the size used, perhaps grown with the window
         self._scale = 1.0
@@ -454,8 +513,35 @@ class LyricsView(QObject):
         color.setAlphaF(color.alphaF() * opacity)
         self._view.item(0).setForeground(QBrush(color))
 
+    def set_cover_colour(self, colour: QColor | None) -> None:
+        """The playing cover's colour for the lyrics ("Colour from the cover")."""
+        self._cover_colour = colour
+        self._recolour()
+
+    def _text_colour(self) -> QColor:
+        if self._style.cover_colour and self._cover_colour is not None:
+            return QColor(self._cover_colour)
+        return QColor(theme.colour(theme.TEXT))
+
+    def _recolour(self) -> None:
+        """Colour every lyric line again (the cover or the setting changed)."""
+        view = self._view
+        if self._no_lyrics or view.count() == 0:
+            return
+        if self._times:
+            for line in range(view.count() - 2):  # between the two gap rows
+                self._style_line(line, line == self._current)
+            return
+        coloured = self._style.cover_colour and self._cover_colour is not None
+        for row in range(view.count()):
+            if coloured:
+                view.item(row).setForeground(QBrush(self._text_colour()))
+            else:  # the colour the stylesheet gives
+                view.item(row).setData(Qt.ItemDataRole.ForegroundRole, None)
+
     def set_style(self, style: LyricsSettings) -> None:
         """The text shadow, and whether and how "No lyrics" fades away."""
+        recolour = style.cover_colour != self._style.cover_colour
         self._style = style
         set_text_shadow(self._view.viewport(), style)
         self._fade_wait.setInterval(round(style.no_lyrics_hold * 1000))
@@ -464,6 +550,8 @@ class LyricsView(QObject):
         if self._no_lyrics:
             self._stop_no_lyrics_fade()
             self._start_no_lyrics_fade()  # so the change can be seen at once
+        if recolour:
+            self._recolour()
 
     def _apply_scale(self) -> None:
         """With "Grow with the window", size the lyrics to the view: bigger than set
@@ -530,6 +618,8 @@ class LyricsView(QObject):
         self._no_lyrics = not lyrics.texts
         if self._no_lyrics:
             self._start_no_lyrics_fade()
+        elif not self._times:
+            self._recolour()  # plain lyrics; timed ones were coloured line by line
 
     def clear(self) -> None:
         """Show nothing at all, not even "No lyrics" (for a podcast episode)."""
@@ -596,7 +686,7 @@ class LyricsView(QObject):
         if current and font.pointSizeF() > 0:
             font.setPointSizeF(font.pointSizeF() + CURRENT_LINE_EXTRA_POINTS * self._scale)
         item.setFont(font)
-        color = QColor(theme.colour(theme.TEXT))
+        color = self._text_colour()
         if not current:
             color.setAlpha(DIM_ALPHA)
         item.setForeground(QBrush(color))

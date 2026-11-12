@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.3.2
+Version:        1.4.0
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -62,6 +62,17 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Thu Nov 12 2026 MusicHive - 1.4.0-1
+- Songs, albums and playlists can have their own equaliser and visualiser presets
+- Visualiser presets, with a built-in Default
+- Lyrics for many songs at once; instrumentals are tagged haslyrics=false
+- The lyrics can take a colour from the cover, and the bars can glow
+- Cover colours are remembered, so they show without delay
+- Visualiser flags are JSON files, and you can add your own
+- Dragging songs shows just their title and artist
+- The shortcuts are in two columns, grouped by menu, and the settings tabs have icons
+- Settings, Online explains how to set up Last.fm and opens the secrets file
+
 * Thu Nov 12 2026 MusicHive - 1.3.2-1
 - The visualiser can take its colours from the cover
 - The lyrics can grow with the window, for big screens and TVs

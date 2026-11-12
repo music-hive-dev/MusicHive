@@ -76,7 +76,10 @@ class LastFmDialog:
         state = client.login_state
 
         if not client.is_configured:
-            status = "Last.fm is not set up yet. Add your API key and secret in main.py."
+            status = (
+                "Last.fm is not set up yet. Add your API key and secret to the secrets "
+                "file (Settings, Online, Go to Secrets File), then restart MusicHive."
+            )
         elif state == "in":
             status = f"Logged in as {client.username}."
         elif state == "waiting":

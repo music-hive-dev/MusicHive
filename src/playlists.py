@@ -28,6 +28,8 @@ class Playlist:
     match_any: bool = False  # an auto-playlist needs any rule to match, not all of them
     no_duplicates: bool = False  # an auto-playlist keeps one copy of the same song
     limit: dict | None = None  # how much of an auto-playlist to keep (see auto_playlist.py)
+    equaliser: str = ""  # the equaliser preset used while it plays ("" for none)
+    visualiser: str = ""  # the visualiser preset used while it plays ("" for none)
 
     @property
     def is_auto(self) -> bool:
@@ -124,6 +126,8 @@ class PlaylistStore:
         folder = data.get("folder")
         rules = data.get("rules")
         limit = data.get("limit")
+        equaliser = data.get("equaliser")
+        visualiser = data.get("visualiser")
         return Playlist(
             name,
             tracks,
@@ -136,6 +140,8 @@ class PlaylistStore:
             data.get("match_any") is True,
             data.get("no_duplicates") is True,
             limit if isinstance(limit, dict) else None,
+            equaliser if isinstance(equaliser, str) else "",
+            visualiser if isinstance(visualiser, str) else "",
         )
 
     def save(self, playlist: Playlist) -> None:
@@ -156,6 +162,8 @@ class PlaylistStore:
                     "match_any": playlist.match_any,
                     "no_duplicates": playlist.no_duplicates,
                     "limit": playlist.limit,
+                    "equaliser": playlist.equaliser,
+                    "visualiser": playlist.visualiser,
                     "tracks": playlist.tracks,
                 },
                 ensure_ascii=False,
@@ -299,6 +307,12 @@ class PlaylistStore:
     def set_description(self, name: str, description: str) -> None:
         playlist = self.load(name)
         playlist.description = description
+        self.save(playlist)
+
+    def set_presets(self, name: str, equaliser: str, visualiser: str) -> None:
+        playlist = self.load(name)
+        playlist.equaliser = equaliser
+        playlist.visualiser = visualiser
         self.save(playlist)
 
     def set_rules(

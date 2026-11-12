@@ -96,7 +96,7 @@
    <item>
     <widget class="QLabel" name="lastFmSyncLabel">
      <property name="text">
-      <string>TextLabel</string>
+      <string>Plays from elsewhere: download the play counts of your Last.fm account into MusicHive, or import the scrobble log an iPod keeps, to send those plays to Last.fm.</string>
      </property>
      <property name="wordWrap">
       <bool>true</bool>

@@ -40,13 +40,50 @@
 </layout></widget>
 <widget class="QWidget" name="tagEditLyricsTab"><attribute name="title"><string>Lyrics</string></attribute>
 <layout class="QVBoxLayout" name="tagEditLyricsLayout">
+<item><layout class="QHBoxLayout" name="tagEditLyricsRow">
 <item><widget class="QComboBox" name="tagEditLyricsSource">
+<property name="toolTip"><string>Which lyrics to show and edit: the .lrc file next to the song, or the lyrics inside it</string></property>
 <item><property name="text"><string>.lrc file next to the song</string></property></item>
 <item><property name="text"><string>Embedded in the song</string></property></item>
 </widget></item>
+<item><spacer name="tagEditLyricsRowSpacer"><property name="orientation"><enum>Qt::Orientation::Horizontal</enum></property><property name="sizeHint" stdset="0"><size><width>40</width><height>20</height></size></property></spacer></item>
+<item><widget class="QComboBox" name="tagEditLyricsPreference">
+<property name="toolTip"><string>Which lyrics "Find online…" looks for. Timed lyrics follow the song in Now Playing.</string></property>
+<item><property name="text"><string>Prefer timed lyrics</string></property></item>
+<item><property name="text"><string>Only timed lyrics</string></property></item>
+<item><property name="text"><string>Prefer plain lyrics</string></property></item>
+<item><property name="text"><string>Only plain lyrics</string></property></item>
+</widget></item>
+<item><widget class="QPushButton" name="tagEditFindLyricsButton">
+<property name="toolTip"><string>Look the lyrics up on LRCLIB, by the title, artist, album and length</string></property>
+<property name="text"><string>Find online…</string></property>
+</widget></item>
+</layout></item>
 <item><widget class="QPlainTextEdit" name="tagEditLyrics"/></item>
 </layout></widget>
-<widget class="QWidget" name="tagEditSettingsTab"><attribute name="title"><string>Settings</string></attribute></widget>
+<widget class="QWidget" name="tagEditSettingsTab"><attribute name="title"><string>Settings</string></attribute>
+<layout class="QVBoxLayout" name="tagEditSettingsLayout">
+<item><layout class="QFormLayout" name="tagEditSettingsForm">
+<item row="0" column="0"><widget class="QLabel" name="tagEditEqualiserLabel"><property name="text"><string>Equaliser</string></property><property name="buddy"><cstring>tagEditEqualiser</cstring></property></widget></item>
+<item row="0" column="1"><widget class="QComboBox" name="tagEditEqualiser">
+<property name="toolTip"><string>The equaliser preset used while this song plays. None keeps the equaliser as it is set.</string></property>
+<property name="placeholderText"><string>(multiple values)</string></property>
+<item><property name="text"><string>None</string></property></item>
+</widget></item>
+<item row="1" column="0"><widget class="QLabel" name="tagEditVisualiserLabel"><property name="text"><string>Visualiser</string></property><property name="buddy"><cstring>tagEditVisualiser</cstring></property></widget></item>
+<item row="1" column="1"><widget class="QComboBox" name="tagEditVisualiser">
+<property name="toolTip"><string>The visualiser preset used while this song plays. Presets are saved in Settings, Now Playing.</string></property>
+<property name="placeholderText"><string>(multiple values)</string></property>
+<item><property name="text"><string>None</string></property></item>
+</widget></item>
+</layout></item>
+<item><widget class="QCheckBox" name="tagEditOverPlaylist">
+<property name="toolTip"><string>When this song plays from a playlist that has presets of its own, use the song's presets instead. Otherwise the playlist's win.</string></property>
+<property name="text"><string>Override the presets of playlists</string></property>
+</widget></item>
+<item><spacer name="tagEditSettingsSpacer"><property name="orientation"><enum>Qt::Orientation::Vertical</enum></property><property name="sizeHint" stdset="0"><size><width>20</width><height>40</height></size></property></spacer></item>
+</layout>
+</widget>
 </widget></item>
 <item><widget class="QDialogButtonBox" name="tagEditButtonBox">
 <property name="standardButtons"><set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Save</set></property>

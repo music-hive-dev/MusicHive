@@ -17,6 +17,11 @@
    <item>
     <widget class="QTabWidget" name="settingsTabs">
      <widget class="QWidget" name="generalTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/settings.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>General</string>
       </attribute>
@@ -265,6 +270,11 @@
       </layout>
      </widget>
      <widget class="QWidget" name="interfaceTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/app-window.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>Interface</string>
       </attribute>
@@ -410,6 +420,11 @@
       </layout>
      </widget>
      <widget class="QWidget" name="playbackTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/play.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>Playback</string>
       </attribute>
@@ -696,12 +711,80 @@
       </layout>
      </widget>
      <widget class="QWidget" name="visualiserTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/audio-lines.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>Now Playing</string>
       </attribute>
       <layout class="QHBoxLayout" name="visualiserTabLayout">
        <item>
         <layout class="QVBoxLayout" name="visualiserTabLeft">
+         <item>
+          <layout class="QHBoxLayout" name="visualiserPresetRow">
+           <item>
+            <widget class="QLabel" name="visualiserPresetLabel">
+             <property name="text">
+              <string>Preset:</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QComboBox" name="visualiserPreset">
+             <property name="minimumSize">
+              <size>
+               <width>180</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>Saved visualiser, background and mini player options. Songs and playlists can use a preset of their own.</string>
+             </property>
+             <property name="placeholderText">
+              <string>Custom</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="visualiserSavePreset">
+             <property name="toolTip">
+              <string>Keep the options below as a preset</string>
+             </property>
+             <property name="text">
+              <string>Save…</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="visualiserDeletePreset">
+             <property name="text">
+              <string>Delete</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="visualiserPresetRowSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
          <item>
           <widget class="QGroupBox" name="visualiserGroup">
            <property name="title">
@@ -739,76 +822,6 @@
               <item>
                <property name="text">
                 <string>From the cover</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Pride</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Progress Pride</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Gay</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Lesbian</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Bisexual</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Pansexual</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Transgender</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Non-binary</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Genderfluid</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Genderqueer</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Agender</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Asexual</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Aromantic</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Intersex</string>
                </property>
               </item>
              </widget>
@@ -945,6 +958,16 @@
                 <string>Quickly</string>
                </property>
               </item>
+             </widget>
+            </item>
+            <item row="5" column="0" colspan="2">
+             <widget class="QCheckBox" name="visualiserGlow">
+              <property name="toolTip">
+               <string>A soft light around the bars, in their own colours</string>
+              </property>
+              <property name="text">
+               <string>Bars glow</string>
+              </property>
              </widget>
             </item>
            </layout>
@@ -1122,76 +1145,6 @@
                 <string>From the cover</string>
                </property>
               </item>
-              <item>
-               <property name="text">
-                <string>Pride</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Progress Pride</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Gay</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Lesbian</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Bisexual</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Pansexual</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Transgender</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Non-binary</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Genderfluid</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Genderqueer</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Agender</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Asexual</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Aromantic</string>
-               </property>
-              </item>
-              <item>
-               <property name="text">
-                <string>Intersex</string>
-               </property>
-              </item>
              </widget>
             </item>
             <item row="2" column="0">
@@ -1277,6 +1230,19 @@
          <item>
           <layout class="QHBoxLayout" name="visualiserResetRow">
            <item>
+            <widget class="QPushButton" name="visualiserFlagsFolder">
+             <property name="toolTip">
+              <string>Opens the folder for your own flags: one JSON file per flag, with its name and stripe colours (see the README in it). They show in the colour lists the next time the settings window opens.</string>
+             </property>
+             <property name="text">
+              <string>Custom Flags…</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="visualiserReset">
              <property name="toolTip">
               <string>Puts the visualiser, background and mini player options back as they were</string>
@@ -1324,7 +1290,7 @@
          <item>
           <widget class="QGroupBox" name="lyricsSizeGroup">
            <property name="title">
-            <string>Lyrics size</string>
+            <string>Lyrics</string>
            </property>
            <layout class="QFormLayout" name="lyricsSizeForm">
             <property name="fieldGrowthPolicy">
@@ -1337,6 +1303,16 @@
               </property>
               <property name="text">
                <string>Grow with the window (for big screens and TVs)</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QCheckBox" name="lyricsCoverColour">
+              <property name="toolTip">
+               <string>The lyrics take a striking colour of the playing song's cover, one the bars and background don't use (red lips on a black-and-white photo, say). Some colours are harder to read.</string>
+              </property>
+              <property name="text">
+               <string>Colour from the cover</string>
               </property>
              </widget>
             </item>
@@ -1626,6 +1602,11 @@
       </layout>
      </widget>
      <widget class="QWidget" name="podcastsTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/mic.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>Podcasts</string>
       </attribute>
@@ -1954,6 +1935,11 @@
       </layout>
      </widget>
      <widget class="QWidget" name="radioSettingsTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/radio.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>Radio</string>
       </attribute>
@@ -2185,31 +2171,77 @@
       </layout>
      </widget>
      <widget class="QWidget" name="shortcutsTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/keyboard.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>Shortcuts</string>
       </attribute>
       <layout class="QVBoxLayout" name="shortcutsTabLayout">
        <item>
-        <widget class="QTreeWidget" name="shortcutsTree">
-         <property name="toolTip">
+        <widget class="QLabel" name="shortcutsHint">
+         <property name="text">
           <string>Pick an action, then press its new keys below. Changed shortcuts are bold.</string>
          </property>
-         <property name="rootIsDecorated">
-          <bool>false</bool>
-         </property>
-         <property name="uniformRowHeights">
+         <property name="wordWrap">
           <bool>true</bool>
          </property>
-         <column>
-          <property name="text">
-           <string>Action</string>
-          </property>
-         </column>
-         <column>
-          <property name="text">
-           <string>Shortcut</string>
-          </property>
-         </column>
+        </widget>
+       </item>
+       <item>
+        <widget class="QScrollArea" name="shortcutsScroll">
+         <property name="frameShape">
+          <enum>QFrame::Shape::NoFrame</enum>
+         </property>
+         <property name="horizontalScrollBarPolicy">
+          <enum>Qt::ScrollBarPolicy::ScrollBarAlwaysOff</enum>
+         </property>
+         <property name="widgetResizable">
+          <bool>true</bool>
+         </property>
+         <widget class="QWidget" name="shortcutsContents">
+          <layout class="QHBoxLayout" name="shortcutsColumns">
+           <property name="spacing">
+            <number>24</number>
+           </property>
+           <item>
+            <layout class="QVBoxLayout" name="shortcutsColumnLeft">
+             <item>
+              <spacer name="shortcutsColumnLeftSpacer">
+               <property name="orientation">
+                <enum>Qt::Orientation::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+           <item>
+            <layout class="QVBoxLayout" name="shortcutsColumnRight">
+             <item>
+              <spacer name="shortcutsColumnRightSpacer">
+               <property name="orientation">
+                <enum>Qt::Orientation::Vertical</enum>
+               </property>
+               <property name="sizeHint" stdset="0">
+                <size>
+                 <width>20</width>
+                 <height>0</height>
+                </size>
+               </property>
+              </spacer>
+             </item>
+            </layout>
+           </item>
+          </layout>
+         </widget>
         </widget>
        </item>
        <item>
@@ -2285,6 +2317,11 @@
       </layout>
      </widget>
      <widget class="QWidget" name="librariesTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/library.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>Libraries</string>
       </attribute>
@@ -2364,6 +2401,11 @@
       </layout>
      </widget>
      <widget class="QWidget" name="onlineTab">
+            <attribute name="icon">
+       <iconset>
+        <normalon>../assets/globe.svg</normalon>
+       </iconset>
+      </attribute>
       <attribute name="title">
        <string>Online</string>
       </attribute>
@@ -2399,6 +2441,19 @@
                </widget>
               </item>
               <item>
+               <widget class="QPushButton" name="onlineSecretsButton">
+                <property name="toolTip">
+                 <string>Opens the file that holds your Last.fm API key and secret (it is made if it is not there yet)</string>
+                </property>
+                <property name="text">
+                 <string>Go to Secrets File...</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
                <spacer name="onlineLastFmRowSpacer">
                 <property name="orientation">
                  <enum>Qt::Orientation::Horizontal</enum>
@@ -2412,6 +2467,25 @@
                </spacer>
               </item>
              </layout>
+            </item>
+            <item row="2" column="0" colspan="2">
+             <widget class="QLabel" name="onlineSecretsHelp">
+              <property name="text">
+               <string>&lt;p&gt;MusicHive needs a Last.fm API account of your own to scrobble, and to find genres and artist info:&lt;/p&gt;&lt;ol style="margin-left: 0px; -qt-list-indent: 1;"&gt;&lt;li&gt;Create one at &lt;a href="https://www.last.fm/api/account/create"&gt;last.fm/api/account/create&lt;/a&gt;. Any application name works; the callback URL can stay empty.&lt;/li&gt;&lt;li&gt;Click &lt;b&gt;Go to Secrets File&lt;/b&gt; and paste the &lt;b&gt;API key&lt;/b&gt; and the &lt;b&gt;shared secret&lt;/b&gt; between the empty quotes after "lastfm_api_key" and "lastfm_api_secret".&lt;/li&gt;&lt;li&gt;Save the file and restart MusicHive, then log in with &lt;b&gt;Last.fm Account&lt;/b&gt;.&lt;/li&gt;&lt;/ol&gt;&lt;p&gt;Keep the secret to yourself: it is not meant to be shared.&lt;/p&gt;</string>
+              </property>
+              <property name="textFormat">
+               <enum>Qt::TextFormat::RichText</enum>
+              </property>
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+              <property name="openExternalLinks">
+               <bool>true</bool>
+              </property>
+              <property name="textInteractionFlags">
+               <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
+              </property>
+             </widget>
             </item>
            </layout>
           </widget>

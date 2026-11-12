@@ -1,0 +1,10 @@
+{
+  "name": "Non-binary",
+  "order": 8,
+  "stripes": [
+    "#FCF434",
+    "#FFFFFF",
+    "#9C59D1",
+    "#2C2C2C"
+  ]
+}

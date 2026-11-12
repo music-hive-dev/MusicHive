@@ -18,6 +18,7 @@ FADE_NO_LYRICS_KEY = "lyrics/fadeNoLyrics"
 NO_LYRICS_HOLD_KEY = "lyrics/noLyricsHold"
 NO_LYRICS_FADE_KEY = "lyrics/noLyricsFade"
 SCALE_KEY = "lyrics/scaleWithWindow"
+COVER_COLOUR_KEY = "lyrics/coverColour"
 
 
 @dataclass(frozen=True)
@@ -31,6 +32,7 @@ class LyricsSettings:
     no_lyrics_hold: float = 3.0  # seconds it shows before fading
     no_lyrics_fade: float = 2.0  # seconds the fade takes
     scale_with_window: bool = False  # bigger lyrics in a bigger window (a TV, say)
+    cover_colour: bool = False  # the lyrics in a striking colour of the playing cover
 
 
 def load_lyrics_settings(settings: QSettings) -> LyricsSettings:
@@ -49,6 +51,7 @@ def load_lyrics_settings(settings: QSettings) -> LyricsSettings:
         no_lyrics_hold=number(NO_LYRICS_HOLD_KEY, d.no_lyrics_hold, 0.0, 600.0, float),
         no_lyrics_fade=number(NO_LYRICS_FADE_KEY, d.no_lyrics_fade, 0.1, 600.0, float),
         scale_with_window=settings.value(SCALE_KEY, d.scale_with_window, type=bool),
+        cover_colour=settings.value(COVER_COLOUR_KEY, d.cover_colour, type=bool),
     )
 
 
@@ -63,6 +66,7 @@ def save_lyrics_settings(settings: QSettings, style: LyricsSettings) -> None:
         (NO_LYRICS_HOLD_KEY, style.no_lyrics_hold),
         (NO_LYRICS_FADE_KEY, style.no_lyrics_fade),
         (SCALE_KEY, style.scale_with_window),
+        (COVER_COLOUR_KEY, style.cover_colour),
     ):
         settings.setValue(key, value)
 
@@ -89,7 +93,10 @@ class LyricsSettingsTab:
 
         for field in (self._blur, self._distance, self._strength, self._hold, self._fade):
             field.valueChanged.connect(lambda _value: self._changed())
-        for checkbox in (d.lyricsShadow, d.lyricsShowNoLyrics, d.lyricsFadeNoLyrics, d.lyricsScale):
+        for checkbox in (
+            d.lyricsShadow, d.lyricsShowNoLyrics, d.lyricsFadeNoLyrics, d.lyricsScale,
+            d.lyricsCoverColour,
+        ):
             checkbox.toggled.connect(lambda _on: self._changed())
         d.lyricsReset.clicked.connect(lambda _checked=False: self._reset())
 
@@ -98,6 +105,7 @@ class LyricsSettingsTab:
         self._showing = True
         d.lyricsShadow.setChecked(style.shadow)
         d.lyricsScale.setChecked(style.scale_with_window)
+        d.lyricsCoverColour.setChecked(style.cover_colour)
         self._blur.setValue(style.shadow_blur)
         self._distance.setValue(style.shadow_distance)
         self._strength.setValue(style.shadow_strength)
@@ -146,6 +154,7 @@ class LyricsSettingsTab:
             no_lyrics_hold=self._hold.value(),
             no_lyrics_fade=self._fade.value(),
             scale_with_window=d.lyricsScale.isChecked(),
+            cover_colour=d.lyricsCoverColour.isChecked(),
         )
         save_lyrics_settings(self._settings, style)
         self._on_change(style)

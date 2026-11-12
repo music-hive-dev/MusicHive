@@ -121,6 +121,54 @@
          </property>
         </widget>
        </item>
+       <item>
+        <layout class="QFormLayout" name="playlistEditPresetsForm">
+         <item row="0" column="0">
+          <widget class="QLabel" name="playlistEditEqualiserLabel">
+           <property name="text">
+            <string>Equaliser:</string>
+           </property>
+           <property name="buddy">
+            <cstring>playlistEditEqualiser</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="0" column="1">
+          <widget class="QComboBox" name="playlistEditEqualiser">
+           <property name="toolTip">
+            <string>The equaliser preset used while this playlist plays. A song with its own preset that overrides playlists keeps its own.</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>None</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+         <item row="1" column="0">
+          <widget class="QLabel" name="playlistEditVisualiserLabel">
+           <property name="text">
+            <string>Visualiser:</string>
+           </property>
+           <property name="buddy">
+            <cstring>playlistEditVisualiser</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="1" column="1">
+          <widget class="QComboBox" name="playlistEditVisualiser">
+           <property name="toolTip">
+            <string>The visualiser preset used while this playlist plays. Presets are saved in Settings, Now Playing.</string>
+           </property>
+           <item>
+            <property name="text">
+             <string>None</string>
+            </property>
+           </item>
+          </widget>
+         </item>
+        </layout>
+       </item>
       </layout>
      </item>
     </layout>

@@ -7,11 +7,23 @@ user changed are saved, as "shortcuts/<action name>" (an empty text means none).
 
 from PySide6.QtCore import QSettings, Qt
 from PySide6.QtGui import QAction, QKeySequence
-from PySide6.QtWidgets import QDialog, QMainWindow, QMessageBox, QTreeWidgetItem
+from PySide6.QtWidgets import (
+    QAbstractItemView,
+    QDialog,
+    QFrame,
+    QHeaderView,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QTreeWidget,
+    QTreeWidgetItem,
+)
 
 SETTINGS_GROUP = "shortcuts"
 OTHER_GROUP_TITLE = "Other"  # actions that are in no menu
 ACTION_ROLE = Qt.ItemDataRole.UserRole
+KEYS_COLUMN_WIDTH = 150  # pixels, for the shortcut next to each action
+HEADING_ROWS = 2  # a group's heading takes about as much room as this many rows
 
 
 def action_title(action: QAction) -> str:
@@ -97,41 +109,101 @@ class Shortcuts:
         return self.defaults.get(action.objectName(), QKeySequence())
 
 
+def _split_in_two(groups: list[tuple[str, list[QAction]]]) -> int:
+    """How many of the groups go in the left column, so both are about as long.
+    The groups keep the menu bar's order, down the left column and then the right."""
+    sizes = [len(actions) + HEADING_ROWS for _title, actions in groups]
+    total = sum(sizes)
+    best, best_difference, left = len(groups), total, 0
+    for count, size in enumerate(sizes, start=1):
+        left += size
+        difference = abs(total - 2 * left)
+        if difference < best_difference:
+            best, best_difference = count, difference
+    return best
+
+
 class ShortcutsSettingsTab:
-    """Connects the Shortcuts tab of settings.ui: pick an action, press the keys."""
+    """Connects the Shortcuts tab of settings.ui: pick an action, press the keys.
+
+    Each menu gets a heading and a small list of its actions, in two columns.
+    """
 
     def __init__(self, dialog: QDialog, shortcuts: Shortcuts) -> None:
         self._dialog = d = dialog
         self._shortcuts = shortcuts
         self._items: dict[QAction, QTreeWidgetItem] = {}
+        self._lists: list[QTreeWidget] = []
+        self._current: QAction | None = None
 
-        tree = d.shortcutsTree
-        tree.clear()
-        for title, actions in shortcuts.groups:
-            group = QTreeWidgetItem(tree, [title])
-            group.setFlags(Qt.ItemFlag.ItemIsEnabled)
-            group.setFirstColumnSpanned(True)
-            for action in actions:
-                item = QTreeWidgetItem(group, [action_title(action), ""])
-                item.setData(0, ACTION_ROLE, action)
-                if action.toolTip() and action.toolTip() != action_title(action):
-                    item.setToolTip(0, action.toolTip())
-                self._items[action] = item
-                self._show(action)
-        tree.expandAll()
-        tree.resizeColumnToContents(0)
+        split = _split_in_two(shortcuts.groups)
+        for index, (title, actions) in enumerate(shortcuts.groups):
+            column = d.shortcutsColumnLeft if index < split else d.shortcutsColumnRight
+            self._add_group(column, title, actions)
 
         d.shortcutsEdit.setMaximumSequenceLength(1)  # one key combination, not a chord
         d.shortcutsEdit.editingFinished.connect(self._on_keys_entered)
-        tree.currentItemChanged.connect(lambda _item, _previous: self._show_selected())
         d.shortcutsClear.clicked.connect(lambda _checked=False: self._assign(QKeySequence()))
         d.shortcutsReset.clicked.connect(lambda _checked=False: self._reset_selected())
         d.shortcutsResetAll.clicked.connect(lambda _checked=False: self._reset_all())
         self._show_selected()
 
+    def _add_group(self, column, title: str, actions: list[QAction]) -> None:
+        """A heading and the list of the group's actions, above the column's spacer."""
+        parent = self._dialog.shortcutsContents
+        heading = QLabel(title, parent)
+        heading.setObjectName("shortcutsGroupTitle")  # styled in player.ui
+        actions_list = QTreeWidget(parent)
+        actions_list.setObjectName("shortcutsGroupList")  # styled in player.ui
+        actions_list.setColumnCount(2)
+        actions_list.setHeaderHidden(True)
+        actions_list.setRootIsDecorated(False)
+        actions_list.setUniformRowHeights(True)
+        actions_list.setFrameShape(QFrame.Shape.NoFrame)
+        actions_list.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
+        actions_list.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        actions_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        header = actions_list.header()
+        header.setStretchLastSection(False)
+        header.setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Fixed)
+        header.resizeSection(1, KEYS_COLUMN_WIDTH)
+        for action in actions:
+            item = QTreeWidgetItem(actions_list, [action_title(action), ""])
+            item.setData(0, ACTION_ROLE, action)
+            item.setTextAlignment(1, Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
+            if action.toolTip() and action.toolTip() != action_title(action):
+                item.setToolTip(0, action.toolTip())
+            self._items[action] = item
+            self._show(action)
+        # As tall as its rows: the page scrolls, not each list. Polished first, so
+        # the row sizes include the stylesheet's margins and padding.
+        actions_list.ensurePolished()
+        height = sum(actions_list.sizeHintForRow(row) for row in range(len(actions)))
+        actions_list.setFixedHeight(height + 2 * actions_list.frameWidth())
+        actions_list.currentItemChanged.connect(
+            lambda item, _previous, source=actions_list: self._on_picked(source, item)
+        )
+        layout = column
+        layout.insertWidget(layout.count() - 1, heading)
+        layout.insertWidget(layout.count() - 1, actions_list)
+        self._lists.append(actions_list)
+
+    def _on_picked(self, source: QTreeWidget, item: QTreeWidgetItem | None) -> None:
+        """One action is picked at a time, whichever list it is in."""
+        if item is None:
+            return
+        for other in self._lists:
+            if other is not source:
+                other.blockSignals(True)
+                other.clearSelection()
+                other.setCurrentItem(None)
+                other.blockSignals(False)
+        self._current = item.data(0, ACTION_ROLE)
+        self._show_selected()
+
     def _selected(self) -> QAction | None:
-        item = self._dialog.shortcutsTree.currentItem()
-        return item.data(0, ACTION_ROLE) if item is not None else None
+        return self._current
 
     def _show(self, action: QAction) -> None:
         item = self._items[action]

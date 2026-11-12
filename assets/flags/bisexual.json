@@ -1,0 +1,12 @@
+{
+  "name": "Bisexual",
+  "order": 5,
+  "note": "A colour listed twice is a stripe twice as wide (this flag is 2:1:2).",
+  "stripes": [
+    "#D60270",
+    "#D60270",
+    "#9B4F96",
+    "#0038A8",
+    "#0038A8"
+  ]
+}

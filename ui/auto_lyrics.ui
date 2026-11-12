@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>autoLyricsDialog</class>
+ <widget class="QDialog" name="autoLyricsDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>440</width>
+    <height>240</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Find Lyrics</string>
+  </property>
+  <layout class="QVBoxLayout" name="autoLyricsLayout">
+   <item>
+    <widget class="QLabel" name="autoLyricsCountLabel">
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QFormLayout" name="autoLyricsForm">
+     <item row="0" column="0">
+      <widget class="QLabel" name="autoLyricsPreferenceLabel">
+       <property name="text">
+        <string>Look for:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1">
+      <widget class="QComboBox" name="autoLyricsPreference">
+       <property name="toolTip">
+        <string>Timed lyrics follow the song in Now Playing.</string>
+       </property>
+       <item><property name="text"><string>Prefer timed lyrics</string></property></item>
+       <item><property name="text"><string>Only timed lyrics</string></property></item>
+       <item><property name="text"><string>Prefer plain lyrics</string></property></item>
+       <item><property name="text"><string>Only plain lyrics</string></property></item>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="autoLyricsSaveToLabel">
+       <property name="text">
+        <string>Save them:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="autoLyricsSaveTo">
+       <item><property name="text"><string>In a .lrc file next to each song</string></property></item>
+       <item><property name="text"><string>Inside each song (embedded)</string></property></item>
+      </widget>
+     </item>
+     <item row="2" column="0" colspan="2">
+      <widget class="QCheckBox" name="autoLyricsSkipExisting">
+       <property name="toolTip">
+        <string>Songs with a .lrc file or lyrics inside are left alone.</string>
+       </property>
+       <property name="text">
+        <string>Skip songs that already have lyrics</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0" colspan="2">
+      <widget class="QCheckBox" name="autoLyricsUpgrade">
+       <property name="toolTip">
+        <string>Songs with plain lyrics are looked up again, for timed lyrics only. Found ones replace the plain lyrics where those are (the .lrc file or inside the song); otherwise the song is left alone.</string>
+       </property>
+       <property name="text">
+        <string>But replace plain lyrics with timed ones when found</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <spacer name="autoLyricsSpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>10</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="autoLyricsButtonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Cancel|QDialogButtonBox::StandardButton::Ok</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

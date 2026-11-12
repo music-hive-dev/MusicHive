@@ -125,6 +125,23 @@ def _load_user_presets(settings: QSettings) -> dict[str, EqSettings]:
     return {name: preset for name, preset in parsed.items() if preset is not None}
 
 
+def equaliser_preset_names(settings: QSettings) -> list[str]:
+    """Every preset, built-in ones first, as the equaliser window lists them."""
+    return [*PRESETS, *sorted(_load_user_presets(settings), key=str.casefold)]
+
+
+def equaliser_preset(settings: QSettings, name: str) -> EqSettings | None:
+    """The equaliser as a preset sets it, or None if there is no such preset.
+    A built-in preset keeps the current number of bands and balance."""
+    saved = _load_user_presets(settings).get(name)
+    if saved is not None:
+        return replace(saved, gains=list(saved.gains), preset=name)
+    if name in PRESETS:
+        current = load_equaliser(settings)
+        return _built_in_preset(name, current.band_count, current.balance)
+    return None
+
+
 def _frequency_text(frequency: int) -> str:
     return f"{frequency / 1000:g}k" if frequency >= 1000 else str(frequency)
 

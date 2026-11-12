@@ -4,15 +4,29 @@ With several songs, a field whose songs disagree starts empty and is only
 written if the user types in it, so nothing changes by accident.
 """
 
+from collections.abc import Callable
+from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QStandardPaths, Qt
+from PySide6.QtCore import QSettings, QStandardPaths, Qt
 from PySide6.QtGui import QIcon, QImage, QPixmap
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QTableWidgetItem, QWidget
 
 from src.lastfm_dialog import load_dialog
-from src.online_search import OnlineSearch, compare_covers, compare_genres
+from src.online_search import (
+    LYRICS_PREFERENCE_KEY,
+    ONLY_TIMED,
+    PREFER_TIMED,
+    OnlineSearch,
+    compare_covers,
+    compare_genres,
+    HAS_LYRICS_TAG,
+    is_instrumental,
+    pick_lyrics,
+)
+from src.playlist_dialog import chosen_preset, fill_preset_combo
 from src.playlist_models import ClickFilter, make_square_icon
+from src.song_settings import SoundPresets
 from src.star_rating import StarRating
 from src.tag_writer import TagJob
 from src.track_metadata import (
@@ -21,6 +35,7 @@ from src.track_metadata import (
     TagChanges,
     clean_tag_name,
     read_editable_file,
+    read_track_info,
 )
 
 # Each has a widget called tagField_<name> in tag_edit.ui.
@@ -57,8 +72,13 @@ class TagEditorDialog:
         full_star: QIcon,
         online: OnlineSearch,
         siblings: list[Path] | None = None,
+        load_presets: Callable[[list[Path]], dict[Path, SoundPresets]] | None = None,
+        equaliser_names: list[str] | None = None,
+        visualiser_names: list[str] | None = None,
     ) -> None:
-        """`siblings` are the songs the arrow buttons go through, one song at a time."""
+        """`siblings` are the songs the arrow buttons go through, one song at a time.
+        `load_presets` reads songs' presets (the Settings tab); `equaliser_names`
+        and `visualiser_names` are the presets to choose from."""
         self._paths = paths
         self._files = files
         self._placeholder = placeholder
@@ -66,9 +86,16 @@ class TagEditorDialog:
         self._online = online
         self._cover_search: int | None = None  # the request being waited for
         self._genre_search: int | None = None
+        self._lyrics_search: int | None = None
+        self._settings = QSettings("MusicHive", "MusicHive")
         self._pending: dict[Path, TagJob] = {}  # what to write, by song
         self._jobs: list[TagJob] = []
         self._seen = dict(zip(paths, files))  # songs as read, with the edits so far
+        self._load_presets = load_presets or (lambda _paths: {})
+        self._equaliser_names = equaliser_names or []
+        self._visualiser_names = visualiser_names or []
+        self._presets: dict[Path, SoundPresets] = {}  # as stored, with the edits so far
+        self.preset_changes: dict[Path, SoundPresets] = {}  # what to store, after Save
         self._siblings = siblings if len(paths) == 1 and paths[0] in (siblings or []) else []
         self._position = self._siblings.index(paths[0]) if self._siblings else 0
         self.dialog = load_dialog(ui_path, parent)
@@ -92,8 +119,16 @@ class TagEditorDialog:
         self._find_button_text = d.tagEditFindImageButton.text()
         d.tagEditFindImageButton.clicked.connect(lambda _checked=False: self._find_covers())
         d.tagEditFindGenreButton.clicked.connect(lambda _checked=False: self._find_genres())
+        d.tagEditFindLyricsButton.clicked.connect(lambda _checked=False: self._find_lyrics())
+        d.tagEditLyricsPreference.setCurrentIndex(
+            self._settings.value(LYRICS_PREFERENCE_KEY, PREFER_TIMED, type=int)
+        )
+        d.tagEditLyricsPreference.currentIndexChanged.connect(
+            lambda index: self._settings.setValue(LYRICS_PREFERENCE_KEY, index)
+        )
         online.covers_found.connect(self._on_covers_found)
         online.genres_found.connect(self._on_genres_found)
+        online.lyrics_found.connect(self._on_lyrics_found)
         self._show_songs()
 
     def _show_songs(self) -> None:
@@ -124,6 +159,7 @@ class TagEditorDialog:
         self._rating_changed = False
         self._stars.set_rating(self._rating)
         self._show_lyrics()
+        self._show_presets()
         self._cover_search = self._genre_search = None  # those results were for another song
         self._set_searching(d.tagEditFindImageButton, False)
         self._set_searching(d.tagEditFindGenreButton, False)
@@ -141,9 +177,11 @@ class TagEditorDialog:
         self._show_songs()
 
     def run(self) -> list[TagJob]:
-        """Show the window. Returns what to write; empty if nothing is to be done."""
+        """Show the window. Returns what to write; empty if nothing is to be done.
+        The presets to store are in preset_changes afterwards."""
         d = self.dialog
-        d.exec()
+        if d.exec() != QDialog.DialogCode.Accepted:
+            self.preset_changes = {}  # noted while going through songs, then cancelled
         self._online.covers_found.disconnect(self._on_covers_found)
         self._online.genres_found.disconnect(self._on_genres_found)
         d.deleteLater()
@@ -202,6 +240,30 @@ class TagEditorDialog:
             table.setCurrentCell(row, 0)
             table.editItem(name_item)
 
+    def _set_other_tag(self, name: str, text: str) -> None:
+        """Put a value in the other tags table, in the tag's row or a new one."""
+        table = self.dialog.tagEditOtherTable
+        for row in range(table.rowCount()):
+            name_item = table.item(row, 0)
+            if name_item is None:
+                continue
+            old_name = name_item.data(Qt.ItemDataRole.UserRole)
+            if (old_name or clean_tag_name(name_item.text())) == name:
+                value_item = table.item(row, 1)
+                if value_item is None:
+                    table.setItem(row, 1, QTableWidgetItem(text))
+                else:
+                    value_item.setText(text)
+                    value_item.setToolTip("")
+                return
+        self._removed_tags.discard(name)
+        row = table.rowCount()
+        table.insertRow(row)
+        name_item = QTableWidgetItem(name)
+        name_item.setData(Qt.ItemDataRole.UserRole, "")  # new: saved as a new tag
+        table.setItem(row, 0, name_item)
+        table.setItem(row, 1, QTableWidgetItem(text))
+
     def _remove_tag_rows(self) -> None:
         table = self.dialog.tagEditOtherTable
         for row in sorted({index.row() for index in table.selectedIndexes()}, reverse=True):
@@ -209,6 +271,58 @@ class TagEditorDialog:
             if name:
                 self._removed_tags.add(name)
             table.removeRow(row)
+
+    # ----- settings: the song's presets -----
+
+    def _show_presets(self) -> None:
+        d = self.dialog
+        unread = [path for path in self._paths if path not in self._presets]
+        if unread:
+            loaded = self._load_presets(unread)
+            for path in unread:
+                self._presets[path] = loaded.get(path, SoundPresets())
+        shown = [self._presets[path] for path in self._paths]
+        for combo, names, values in (
+            (d.tagEditEqualiser, self._equaliser_names, [p.equaliser for p in shown]),
+            (d.tagEditVisualiser, self._visualiser_names, [p.visualiser for p in shown]),
+        ):
+            same, value = _shared(values)
+            fill_preset_combo(combo, names, value if same else "")
+            if not same:
+                for other in values:  # keep every song's preset on the list
+                    if other and combo.findText(other) < 0:
+                        combo.addItem(other)
+                combo.setCurrentIndex(-1)  # shows "(multiple values)"
+        same, over = _shared([p.over_playlist for p in shown])
+        box = d.tagEditOverPlaylist
+        box.setTristate(not same)
+        if same:
+            box.setCheckState(Qt.CheckState.Checked if over else Qt.CheckState.Unchecked)
+        else:
+            box.setCheckState(Qt.CheckState.PartiallyChecked)
+        self._presets_initial = (
+            d.tagEditEqualiser.currentIndex(),
+            d.tagEditVisualiser.currentIndex(),
+            box.checkState(),
+        )
+
+    def _remember_presets(self) -> None:
+        """Note the presets the user changed, for every song on screen."""
+        d = self.dialog
+        equaliser, visualiser, over = self._presets_initial
+        changes = {}
+        if d.tagEditEqualiser.currentIndex() != equaliser:
+            changes["equaliser"] = chosen_preset(d.tagEditEqualiser)
+        if d.tagEditVisualiser.currentIndex() != visualiser:
+            changes["visualiser"] = chosen_preset(d.tagEditVisualiser)
+        state = d.tagEditOverPlaylist.checkState()
+        if state != over and state != Qt.CheckState.PartiallyChecked:
+            changes["over_playlist"] = state == Qt.CheckState.Checked
+        if not changes:
+            return
+        for path in self._paths:
+            self._presets[path] = replace(self._presets[path], **changes)
+            self.preset_changes[path] = self._presets[path]
 
     # ----- image and rating -----
 
@@ -312,6 +426,55 @@ class TagEditorDialog:
 
     # ----- lyrics -----
 
+    def _find_lyrics(self) -> None:
+        title = self._field_text("title").strip()
+        artist = self._field_text("artist").strip() or self._field_text("albumartist").strip()
+        if not title or not artist:
+            QMessageBox.information(self.dialog, "Find lyrics", "Enter the title and artist first.")
+            return
+        try:
+            duration_ms = read_track_info(self._paths[0])[0].duration_ms or 0
+        except Exception:  # an unreadable file: search without its length
+            duration_ms = 0
+        self._set_searching(self.dialog.tagEditFindLyricsButton, True)
+        self._lyrics_search = self._online.find_lyrics(
+            artist, title, self._field_text("album").strip(), duration_ms / 1000
+        )
+
+    def _on_lyrics_found(self, request: int, found: list, error: str) -> None:
+        if request != self._lyrics_search:
+            return
+        self._lyrics_search = None
+        d = self.dialog
+        self._set_searching(d.tagEditFindLyricsButton, False)
+        if error:
+            QMessageBox.information(d, "Find lyrics", f"The search failed: {error}")
+            return
+        preference = d.tagEditLyricsPreference.currentIndex()
+        text = pick_lyrics(found, preference)
+        if text is None:
+            if is_instrumental(found):
+                self._set_other_tag(HAS_LYRICS_TAG, "false")
+                message = (
+                    "LRCLIB lists this song as an instrumental: it has no lyrics. "
+                    f"Its “{HAS_LYRICS_TAG}” tag was set to false (saved with Save)."
+                )
+            elif found and preference == ONLY_TIMED:
+                message = "Only plain lyrics were found for this song, no timed ones."
+            else:
+                message = "No lyrics were found for this song."
+            QMessageBox.information(d, "Find lyrics", message)
+            return
+        current = d.tagEditLyrics.toPlainText().strip()
+        if current and current != text.strip():
+            answer = QMessageBox.question(
+                d, "Find lyrics", "Replace the lyrics shown with the ones found?"
+            )
+            if answer != QMessageBox.StandardButton.Yes:
+                return
+        d.tagEditLyrics.setPlainText(text)
+        self._set_other_tag(HAS_LYRICS_TAG, "true")
+
     def _show_lyrics(self) -> None:
         """Lyrics belong to one song, so with several the tab is switched off."""
         d = self.dialog
@@ -369,6 +532,7 @@ class TagEditorDialog:
         tags = self._changed_tags()
         if tags is None:
             return False
+        self._remember_presets()
         lrc_text = None
         if self._lyrics is not None:
             self._lyrics[self._lyrics_source] = d.tagEditLyrics.toPlainText()

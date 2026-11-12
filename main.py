@@ -46,7 +46,7 @@ from PySide6.QtGui import (
     QPixmap,
     QTextDocumentFragment,
 )
-from PySide6.QtUiTools import QUiLoader
+from PySide6.QtDBus import QDBus, QDBusConnection, QDBusMessage
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSlider,
@@ -75,6 +75,7 @@ from src import library_db, theme
 from src.artist_info import ArtistInfoService
 from src.audio_player import AudioPlayer
 from src.cover_view import SquareCover
+from src.drag_label import LabelDragUiLoader
 from src.formatting import format_long_duration, format_size, format_time
 from src.library_db import LibraryInfo, SavedSession
 from src.columns_dialog import ColumnsDialog
@@ -121,14 +122,25 @@ from src.track_list import (
 )
 from src.online_search import (
     AUTO_TAG_CANCELLED,
+    EMBEDDED,
+    HAS_LYRICS_TAG,
+    LRC,
+    SAVE_TO_LRC,
+    AutoLyricsSong,
     AutoTagSong,
     OnlineSearch,
+    ask_auto_lyrics,
     ask_auto_tag_count,
 )
 from src.convert_files import ConvertFilesTool, ConvertSong
 from src.device_sync import DeviceSyncPanel
 from src.devices import DeviceEjector, DevicesTab, connected_devices, open_in_dolphin
-from src.equaliser import EqualiserWindow, load_equaliser
+from src.equaliser import (
+    EqualiserWindow,
+    equaliser_preset,
+    equaliser_preset_names,
+    load_equaliser,
+)
 from src.level_volume import LevelVolumeTool
 from src.settings_transfer import export_settings, import_settings
 from src.sound_settings import CROSSFADE_KEY, SoundSettingsTab, load_sound_settings
@@ -136,7 +148,7 @@ from src.organise_files import FileMove, OrganiseDialog, OrganiseResult
 from src.tag_editor import TagEditorDialog
 from src.tag_writer import SaveResult, TagJob, TagWriter
 from src.mini_player import MiniPlayer
-from src.now_playing import LyricsView, Visualizer
+from src.now_playing import LyricsView, Visualizer, colours_of
 from src.podcast_view import PodcastSettingsTab, PodcastsTab, format_date
 from src.radio import RadioManager
 from src.radio_stream import RadioStream, split_title
@@ -156,8 +168,11 @@ from src.visualiser_settings import (
     VisualiserSettings,
     VisualiserSettingsTab,
     for_mini_player,
+    load_visualiser_presets,
     load_visualiser_settings,
+    visualiser_preset_names,
 )
+from src.song_settings import SoundPresets, chosen_presets
 from src.star_rating import StarRating
 from src.tray import TrayMinimizer
 from src.track_metadata import TagChanges, read_editable_file, read_track_details
@@ -183,9 +198,14 @@ DEVICE_CHECK_MS = 3000  # how often to look for devices being plugged in or remo
 DISCORD_CLIENT_ID = "1568612126409498656"
 DISCORD_PREUPLOAD_COUNT = 2  # how many of the next tracks get their cover uploaded early
 # Your Last.fm API account (see the setup steps). The secret is not meant to be public.
+SECRETS_FILE_NAME = "secrets"
+# What a new secrets file holds: the keys to fill in (Settings, Online).
+SECRETS_TEMPLATE = {"lastfm_api_key": "", "lastfm_api_secret": ""}
+
+
 def load_secrets() -> dict:
     """Read API secrets from ~/Music/.musichive/secrets (kept out of the code)."""
-    path = library_db.data_dir() / "secrets"
+    path = library_db.data_dir() / SECRETS_FILE_NAME
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         return data if isinstance(data, dict) else {}
@@ -204,6 +224,7 @@ COLUMNS_EDIT_UI_FILE = UI_DIR / "columns_edit.ui"
 TAG_EDIT_UI_FILE = UI_DIR / "tag_edit.ui"
 SETTINGS_UI_FILE = UI_DIR / "settings.ui"
 AUTO_TAG_UI_FILE = UI_DIR / "auto_tag_genres.ui"
+AUTO_LYRICS_UI_FILE = UI_DIR / "auto_lyrics.ui"
 ORGANISE_UI_FILE = UI_DIR / "organise_files.ui"
 EQUALISER_UI_FILE = UI_DIR / "equaliser.ui"
 LEVEL_VOLUME_UI_FILE = UI_DIR / "level_volume.ui"
@@ -289,6 +310,7 @@ MENU_ICONS = {
     "move_to_folder": "list-start",
     "pin_folder": "pin",
     "open_folder": "door-open",
+    "show_in_files": "folder",
     "unpin_folder": "pin-off",
     "sync_device": "refresh-cw",
     "open_device": "folder-output",
@@ -332,7 +354,7 @@ def load_ui(path: Path):
     if not ui_file.open(QIODevice.ReadOnly):
         raise RuntimeError(f"Cannot open UI file {path}: {ui_file.errorString()}")
     try:
-        loader = QUiLoader()
+        loader = LabelDragUiLoader()  # its views drag a short label, not the rows
         loader.setWorkingDirectory(QDir(str(theme.ui_dir(path.parent))))
         window = loader.load(ui_file)
     finally:
@@ -1070,6 +1092,22 @@ class MusicHive:
         self.auto_tag_text = w.actionAutoTagGenres.text()
         self.tags_saved_note = ""  # added to the next "saved" message
         w.actionAutoTagGenres.triggered.connect(lambda _checked=False: self.on_auto_tag_clicked())
+        self.online_search.auto_lyrics_progress.connect(self.on_auto_lyrics_progress)
+        self.online_search.auto_lyrics_finished.connect(self.on_auto_lyrics_finished)
+        self.online_search.auto_lyrics_checking.connect(
+            lambda done, total: self.show_status(
+                f"Checking which songs need lyrics: {done} of {total}…"
+            )
+        )
+        self.online_search.auto_lyrics_waiting.connect(
+            lambda seconds: self.show_status(
+                f"LRCLIB asks to slow down: waiting {seconds} seconds, then carrying on…"
+            )
+        )
+        self.auto_lyrics_library: LibraryInfo | None = None  # set while lyrics are looked up
+        self.auto_lyrics_save_to = SAVE_TO_LRC
+        self.auto_lyrics_text = w.actionAutoLyrics.text()
+        w.actionAutoLyrics.triggered.connect(lambda _checked=False: self.on_auto_lyrics_clicked())
         self.organise_error = ""  # why the library could not follow the moved files
         w.actionOrganiseFiles.triggered.connect(lambda _checked=False: self.on_organise_clicked())
         self.level_tool: LevelVolumeTool | None = None  # made when first opened
@@ -1142,6 +1180,9 @@ class MusicHive:
         w.volumeSlider.setValue(saved_volume)
         self.player.set_volume(w.volumeSlider.value())
         self.player.set_equalizer(load_equaliser(self.settings))
+        # The presets of the playing song or playlist in use; empty means the
+        # equaliser and visualiser are as the user set them.
+        self.active_presets = SoundPresets()
         self.player.set_sound_settings(load_sound_settings(self.settings))
         self.equaliser_window: EqualiserWindow | None = None  # made when first opened
         w.equalizerButton.clicked.connect(lambda _checked=False: self.show_equaliser())
@@ -1268,6 +1309,8 @@ class MusicHive:
             d.settingsButtonBox.rejected.connect(d.reject)
             # Enter confirms a typed number; it must not press Close as well.
             d.settingsButtonBox.button(QDialogButtonBox.StandardButton.Close).setAutoDefault(False)
+        else:
+            self.visualiser_settings_tab.reload_flags()  # flag files may have been added
         self.settings_window.show()
         self.settings_window.raise_()
         self.settings_window.activateWindow()
@@ -1317,6 +1360,23 @@ class MusicHive:
         d.soundEqualiserButton.clicked.connect(lambda _checked=False: self.show_equaliser())
         d.backupImportButton.clicked.connect(lambda _checked=False: self.import_settings_file())
         d.backupExportButton.clicked.connect(lambda _checked=False: self.export_settings_file())
+        d.onlineSecretsButton.clicked.connect(lambda _checked=False: self.open_secrets_file())
+
+    def open_secrets_file(self) -> None:
+        """Settings, Online: open the secrets file, made with empty keys if it is missing."""
+        path = library_db.data_dir() / SECRETS_FILE_NAME
+        try:
+            if not path.exists():
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(json.dumps(SECRETS_TEMPLATE, indent=2) + "\n", encoding="utf-8")
+                os.chmod(path, 0o600)  # only you can read it
+        except OSError as error:
+            QMessageBox.warning(self.window, "Secrets file", f"Cannot make the file: {error}")
+            return
+        if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
+            QMessageBox.information(
+                self.window, "Secrets file", f"Open this file in a text editor:\n{path}"
+            )
 
     def connect_interface_tab(self, d) -> None:
         """Settings, Interface: dark or light mode and the highlight colour.
@@ -1718,9 +1778,12 @@ class MusicHive:
         self.settings.setValue(FIND_RESET_KEY, seconds)
 
     def set_visualiser_cover(self, cover: QImage | None) -> None:
-        """The playing song's cover, for the visualisers' album art background."""
-        self.visualizer.set_cover(cover)
-        self.mini_visualizer.set_cover(cover)
+        """The playing song's cover, for the visualisers' album art background and
+        the colours taken from it (bars, background and lyrics)."""
+        colours = colours_of(cover)  # worked out once, then kept (cover_colours.py)
+        self.visualizer.set_cover(cover, colours)
+        self.mini_visualizer.set_cover(cover, colours)
+        self.lyrics_view.set_cover_colour(colours.lyrics if colours is not None else None)
 
     def set_visualiser_style(self, style: VisualiserSettings) -> None:
         """How the bars of both visualisers look (Settings, Visualiser)."""
@@ -2640,6 +2703,8 @@ class MusicHive:
             tip="Wait for the scan to finish" if scanning else "",
         )
         self.add_go_to_submenu(menu, row, info)
+        add(menu, "Show in File Manager", "show_in_files",
+            lambda: self.show_in_file_manager([self.tracks[row]]))
         menu.addSeparator()
 
         marked = self.play_order.stop_after_offset() == 0
@@ -2791,6 +2856,10 @@ class MusicHive:
             tip="Wait for the scan to finish" if scanning else "",
         )
         self.add_go_to_submenu(menu, row, info)
+        add(
+            menu, f"Show in File Manager{several}", "show_in_files",
+            lambda: self.show_in_file_manager([self.tracks[r] for r in rows]),
+        )
         menu.addSeparator()
 
         if source == "upcoming":
@@ -3176,7 +3245,7 @@ class MusicHive:
         if library is None:
             return
         paths = [self.tracks[row] for row in rows]
-        jobs = TagEditorDialog(
+        editor = TagEditorDialog(
             TAG_EDIT_UI_FILE,
             self.window,
             paths,
@@ -3186,10 +3255,44 @@ class MusicHive:
             asset_icon("star_full"),
             self.online_search,
             [self.tracks[row] for row in dict.fromkeys(neighbours or [])],
-        ).run()
+            self.load_song_presets,
+            equaliser_preset_names(self.settings),
+            visualiser_preset_names(self.settings),
+        )
+        jobs = editor.run()
+        if editor.preset_changes:
+            self.save_song_presets(editor.preset_changes)
         if jobs:
             self.show_status(f"Saving tags of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
             self.tag_writer.save_tags(jobs, library.root, library.db_path)
+
+    def load_song_presets(self, paths: list[Path]) -> dict[Path, SoundPresets]:
+        """The equaliser and visualiser presets of these songs (Edit, Settings)."""
+        library = self.loaded_library
+        if library is None:
+            return {}
+        by_rel_path = {self.relative_path(path): path for path in paths}
+        try:
+            stored = library_db.load_track_settings(library.db_path, list(by_rel_path))
+        except sqlite3.Error:
+            return {}
+        return {by_rel_path[rel]: SoundPresets(*values) for rel, values in stored.items()}
+
+    def save_song_presets(self, presets: dict[Path, SoundPresets]) -> None:
+        library = self.loaded_library
+        if library is None:
+            return
+        rows = {
+            self.relative_path(path): (p.equaliser, p.visualiser, p.over_playlist)
+            for path, p in presets.items()
+        }
+        try:
+            library_db.save_track_settings(library.db_path, rows)
+        except sqlite3.Error as error:
+            self.show_status(f"Cannot save the song settings: {error}")
+            return
+        if 0 <= self.current_index < len(self.tracks) and self.tracks[self.current_index] in presets:
+            self.apply_sound_presets()  # the playing song changed
 
     def selected_song_rows(self) -> list[int]:
         """The songs selected in the song table on screen."""
@@ -3253,6 +3356,80 @@ class MusicHive:
         self.show_status(f"Saving the genres of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
         self.tag_writer.save_tags(jobs, library.root, library.db_path)
 
+    # ----- finding lyrics for many songs -----
+
+    def on_auto_lyrics_clicked(self) -> None:
+        """Tools menu: look up the lyrics of the selected songs, or stop if it is running."""
+        if self.auto_lyrics_library is not None:
+            self.online_search.stop_auto_lyrics()
+            return
+        library = self.loaded_library
+        rows = self.selected_song_rows()
+        if library is None or not rows:
+            self.show_status("Select the songs to find lyrics for in a table first")
+            return
+        if self.scan_task is not None:
+            self.show_status("Wait for the scan to finish")
+            return
+        answer = ask_auto_lyrics(AUTO_LYRICS_UI_FILE, self.window, len(rows), self.settings)
+        if answer is None:
+            return
+        preference, self.auto_lyrics_save_to, skip_existing, upgrade_plain = answer
+        songs = []
+        for row in rows:
+            info = self.library_model.info(row)
+            songs.append(AutoLyricsSong(
+                self.tracks[row],
+                info.artist or info.album_artist,
+                info.title,
+                info.album,
+                (info.duration_ms or 0) / 1000,
+            ))
+        self.auto_lyrics_library = library
+        self.window.actionAutoLyrics.setText("Stop Finding Lyrics")
+        self.online_search.auto_lyrics(songs, preference, skip_existing, upgrade_plain)
+
+    def on_auto_lyrics_progress(self, done: int, total: int) -> None:
+        self.show_status(f"Looking up lyrics: {done} of {total}…")
+
+    def on_auto_lyrics_finished(
+        self, results: list, not_found: int, skipped: int, upgraded: int, error: str, stopped: bool
+    ) -> None:
+        library = self.auto_lyrics_library
+        self.auto_lyrics_library = None
+        self.window.actionAutoLyrics.setText(self.auto_lyrics_text)
+        if stopped:
+            self.show_status("Stopped finding lyrics. No files were changed.")
+            return
+        if error:
+            QMessageBox.warning(self.window, "Find lyrics", f"The lookup stopped early: {error}")
+        instrumentals = sum(1 for _path, text, _where in results if text is None)
+        notes = []
+        if instrumentals:
+            notes.append(f"{instrumentals} marked as instrumental")
+        if upgraded:
+            notes.append(f"{upgraded} upgraded to timed lyrics")
+        if not_found:
+            notes.append(f"none found for {not_found}")
+        if skipped:
+            notes.append(f"{skipped} already had lyrics")
+        if not results:
+            self.show_status("No lyrics were saved" + (f" ({', '.join(notes)})" if notes else ""))
+            return
+        self.tags_saved_note = f" ({', '.join(notes)})" if notes else ""
+        default = LRC if self.auto_lyrics_save_to == SAVE_TO_LRC else EMBEDDED
+        jobs = []
+        for path, text, where in results:  # upgrades go where the plain lyrics were
+            if text is None:  # an instrumental: no lyrics to save
+                jobs.append(TagJob(path, TagChanges({HAS_LYRICS_TAG: "false"})))
+            elif (where or default) == LRC:
+                jobs.append(TagJob(path, TagChanges({HAS_LYRICS_TAG: "true"}), lrc_text=text))
+            else:
+                jobs.append(TagJob(path, TagChanges({"lyrics": text, HAS_LYRICS_TAG: "true"})))
+        count = len(jobs)
+        self.show_status(f"Saving the lyrics of {count} song{'' if count == 1 else 's'}…")
+        self.tag_writer.save_tags(jobs, library.root, library.db_path)
+
     # ----- organising files -----
 
     def on_organise_clicked(self) -> None:
@@ -3264,7 +3441,9 @@ class MusicHive:
         if self.scan_task is not None:
             self.show_status("Wait for the scan to finish")
             return
-        if self.auto_tag_library is not None or self.tag_writer.is_busy():
+        if self.auto_tag_library is not None or self.auto_lyrics_library is not None or (
+            self.tag_writer.is_busy()
+        ):
             self.show_status("Wait for the tags to finish saving")
             return
         if self.level_tool is not None and self.level_tool.is_running:
@@ -3356,6 +3535,8 @@ class MusicHive:
             return "Wait for the scan to finish."
         if self.auto_tag_library is not None:
             return "Wait for the auto-tagging to finish."
+        if self.auto_lyrics_library is not None:
+            return "Wait for the lyrics to be found."
         return None
 
     def on_level_volume_finished(self, library: LibraryInfo, message: str) -> None:
@@ -3993,6 +4174,28 @@ class MusicHive:
         self.pinned_folders.remove(path)
         self.save_pinned_folders()
 
+    def show_in_file_manager(self, paths: list[Path]) -> None:
+        """Open the songs' folder in the file manager with the songs selected.
+
+        Uses the desktop's standard request (org.freedesktop.FileManager1), which
+        Dolphin, Files (Nautilus) and others understand; otherwise just the folder.
+        """
+        existing = [path for path in paths if path.exists()]
+        if not existing:
+            self.show_status("The file no longer exists")
+            return
+        call = QDBusMessage.createMethodCall(
+            "org.freedesktop.FileManager1",
+            "/org/freedesktop/FileManager1",
+            "org.freedesktop.FileManager1",
+            "ShowItems",
+        )
+        call.setArguments([[QUrl.fromLocalFile(str(p)).toString() for p in existing], ""])
+        reply = QDBusConnection.sessionBus().call(call, QDBus.CallMode.Block, 3000)
+        if reply.type() == QDBusMessage.MessageType.ErrorMessage:
+            if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(existing[0].parent))):
+                self.show_status(f"Could not open {existing[0].parent}")
+
     def open_pinned_folder(self, path: str) -> None:
         """Open a pinned folder in the system's file manager."""
         if not Path(path).is_dir():
@@ -4350,6 +4553,8 @@ class MusicHive:
         match_any: bool = False,
         no_duplicates: bool = False,
         limit: dict | None = None,
+        equaliser: str = "",
+        visualiser: str = "",
     ) -> PlaylistDetails | None:
         """Open the playlist window, or the auto-playlist one if `rules` is given.
 
@@ -4369,6 +4574,10 @@ class MusicHive:
             description,
             icon,
             store.animated_icon(name) if name else None,
+            equaliser,
+            visualiser,
+            equaliser_preset_names(self.settings),
+            visualiser_preset_names(self.settings),
         )
         if rules is None:
             return PlaylistEditDialog(PLAYLIST_EDIT_UI_FILE, *arguments).run()
@@ -4417,6 +4626,7 @@ class MusicHive:
         """Store the description and image from the playlist window. Raises OSError."""
         store = self.playlist_store
         store.set_description(name, details.description)
+        store.set_presets(name, details.equaliser, details.visualiser)
         if details.rules is not None:
             store.set_rules(
                 name, details.rules, details.match_any, details.no_duplicates, details.limit
@@ -4443,6 +4653,8 @@ class MusicHive:
             playlist.match_any,
             playlist.no_duplicates,
             playlist.limit,
+            playlist.equaliser,
+            playlist.visualiser,
         )
         if details is None:
             return
@@ -4460,6 +4672,8 @@ class MusicHive:
         QTimer.singleShot(0, lambda: bar.setValue(scroll))
         if details.rules is not None and current == self.play_source and self.current_index >= 0:
             self.update_play_context()  # the rules may have changed what comes next
+        if current == self.play_source:
+            self.apply_sound_presets()  # its presets may have changed
 
     def move_playlist(self, old: str, new: str) -> None:
         """Rename a playlist and everything that refers to it. Raises OSError."""
@@ -5750,6 +5964,7 @@ class MusicHive:
     # ----- player -> UI -----
 
     def on_track_started(self, track: Path) -> None:
+        self.apply_sound_presets(track)
         if self.station_id is not None:
             self.show_station_info()
         elif self.episode_id is not None:
@@ -5760,6 +5975,37 @@ class MusicHive:
         self.begin_listening()
         self.discord.request_update()
         self.update_mpris()
+
+    def apply_sound_presets(self, track: Path | None = None) -> None:
+        """Use the equaliser and visualiser presets of the playing song and its playlist.
+
+        `track` is the song that starts; by default the current one. Episodes and
+        stations use the equaliser and visualiser as the user set them.
+        """
+        presets = SoundPresets()
+        library = self.loaded_library
+        if track is None and 0 <= self.current_index < len(self.tracks):
+            track = self.tracks[self.current_index]
+        if library is not None and track is not None and not self.away_from_music:
+            try:
+                rel_path = self.relative_path(track)
+                stored = library_db.load_track_settings(library.db_path, [rel_path]).get(rel_path)
+            except (ValueError, sqlite3.Error):  # not in the library, or no database
+                stored = None
+            song = SoundPresets(*stored) if stored else None
+            playlist = None
+            if self.play_source is not None and self.playlist_store is not None:
+                loaded = self.playlist_store.load(self.play_source)
+                playlist = SoundPresets(loaded.equaliser, loaded.visualiser)
+            presets = chosen_presets(song, playlist)
+        old, self.active_presets = self.active_presets, presets
+        # Only on a change, so that tweaks made while a song plays are kept.
+        if presets.equaliser != old.equaliser:
+            eq = equaliser_preset(self.settings, presets.equaliser) if presets.equaliser else None
+            self.player.set_equalizer(eq or load_equaliser(self.settings))
+        if presets.visualiser != old.visualiser:
+            style = load_visualiser_presets(self.settings).get(presets.visualiser)
+            self.set_visualiser_style(style or load_visualiser_settings(self.settings))
 
     def on_track_ending(self) -> None:
         """A crossfade is due. If nothing comes next, the track just plays to its end."""

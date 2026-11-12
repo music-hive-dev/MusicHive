@@ -409,7 +409,9 @@ class TrackListModel(QAbstractTableModel):
         if role == self.CoverRole:
             return self._cover_image(info.cover_key)
         if role == Qt.ItemDataRole.ToolTipRole:
-            return str(self._paths[index.row()])
+            # What the cell says, in full (a long title is cut off in its column).
+            text = self.columns[index.column()].text(info) if has_column else ""
+            return text or None
         return None
 
     # ----- internal -----
@@ -672,6 +674,11 @@ class QueueModel(QAbstractListModel):
             return None
         if role == TrackListModel.StopAfterRole:
             return index.row() == self._stop_after
+        if role == Qt.ItemDataRole.ToolTipRole:  # a list row: "Title – Artist"
+            info = self._library.info(library_row)
+            if info is None:
+                return None
+            return f"{info.title} – {info.artist}" if info.artist else info.title
         if role == Qt.ItemDataRole.DisplayRole:
             role = TrackListModel.TitleRole
         elif role == TrackListModel.SubtitleRole:

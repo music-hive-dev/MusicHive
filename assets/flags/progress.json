@@ -1,0 +1,18 @@
+{
+  "name": "Progress Pride",
+  "order": 2,
+  "note": "The chevron cannot be bars, so its colours come first, then the rainbow.",
+  "stripes": [
+    "#000000",
+    "#784F17",
+    "#5BCEFA",
+    "#F5A9B8",
+    "#FFFFFF",
+    "#E40303",
+    "#FF8C00",
+    "#FFED00",
+    "#008026",
+    "#24408E",
+    "#732982"
+  ]
+}

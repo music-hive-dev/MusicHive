@@ -23,6 +23,7 @@ from PySide6.QtCore import QEvent, QMimeData, QModelIndex, QObject, QPoint, QRec
 from PySide6.QtGui import QDrag, QIcon, QPainter, QPixmap, QStandardItem, QStandardItemModel
 from PySide6.QtWidgets import QApplication, QStyledItemDelegate, QTreeView
 
+from src.drag_label import drag_pixmap
 from src.track_list import TRACK_DRAG_MIME, read_track_drag
 
 SECTION, FOLDER, PLAYLIST, PIN, DEVICE = "section", "folder", "playlist", "pin", "device"
@@ -112,7 +113,8 @@ class SectionDragger(QObject):
         model = self._view.model()
         drag = QDrag(self._view)
         drag.setMimeData(model.mimeData([index]))
-        drag.setPixmap(self._view.viewport().grab(self._view.visualRect(index)))
+        drag.setPixmap(drag_pixmap(self._view, [index]))
+        drag.setHotSpot(QPoint(-12, -12))
         drag.exec(Qt.DropAction.MoveAction)
 
 

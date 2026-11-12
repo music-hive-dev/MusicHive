@@ -44,6 +44,15 @@ class LookupFailed(Exception):
     """The internet could not be asked. Nothing is known about the artist yet."""
 
 
+class RateLimited(LookupFailed):
+    """The server answered "too many requests". `wait` is how many seconds it asked
+    for (from its Retry-After header), or 0 if it did not say."""
+
+    def __init__(self, message: str, wait: int) -> None:
+        super().__init__(message)
+        self.wait = wait
+
+
 @dataclass
 class ArtistRecord:
     description: str
@@ -62,7 +71,11 @@ def download(url: str) -> bytes | None:
         with urllib.request.urlopen(request, timeout=REQUEST_TIMEOUT) as response:
             return response.read()
     except urllib.error.HTTPError as error:
-        if 400 <= error.code < 500 and error.code != 429:
+        if error.code == 429:
+            retry_after = (error.headers.get("Retry-After") or "").strip() if error.headers else ""
+            wait = int(retry_after) if retry_after.isdigit() else 0
+            raise RateLimited(f"HTTP 429 {error.reason}", wait) from error
+        if 400 <= error.code < 500:
             return None
         raise LookupFailed(f"HTTP {error.code} {error.reason}") from error
     except (urllib.error.URLError, TimeoutError, OSError) as error:

@@ -32,6 +32,24 @@ class PlaylistDetails:
     match_any: bool = False
     no_duplicates: bool = False
     limit: dict | None = None
+    equaliser: str = ""  # the equaliser preset used while it plays ("" for none)
+    visualiser: str = ""  # the visualiser preset used while it plays ("" for none)
+
+
+def fill_preset_combo(combo, names: list[str], chosen: str) -> None:
+    """The preset names after the combo's first entry ("None"), with `chosen` selected.
+    A preset that has since been deleted is still listed, so it is not lost unseen."""
+    while combo.count() > 1:
+        combo.removeItem(1)
+    combo.addItems(names)
+    if chosen and chosen not in names:
+        combo.addItem(chosen)
+    combo.setCurrentIndex(combo.findText(chosen) if chosen else 0)
+
+
+def chosen_preset(combo) -> str:
+    """The preset picked in a combo filled by fill_preset_combo; "" for none."""
+    return combo.currentText() if combo.currentIndex() > 0 else ""
 
 
 class PlaylistEditDialog:
@@ -49,7 +67,12 @@ class PlaylistEditDialog:
         description: str = "",
         icon: QImage | None = None,
         animation: Path | None = None,
+        equaliser: str = "",
+        visualiser: str = "",
+        equaliser_names: list[str] | None = None,
+        visualiser_names: list[str] | None = None,
     ) -> None:
+        """`equaliser_names` and `visualiser_names` are the presets to choose from."""
         self._placeholder = placeholder
         self._check_name = check_name  # says why a title cannot be used, or None
         self._icon = icon
@@ -64,6 +87,8 @@ class PlaylistEditDialog:
         d.playlistEditTitle.selectAll()
         d.playlistEditTitle.setFocus()
         d.playlistEditDescription.setPlainText(description)
+        fill_preset_combo(d.playlistEditEqualiser, equaliser_names or [], equaliser)
+        fill_preset_combo(d.playlistEditVisualiser, visualiser_names or [], visualiser)
         self._show_icon()
 
         self._image_click = ClickFilter(d.playlistEditImage)
@@ -84,6 +109,8 @@ class PlaylistEditDialog:
                 self._icon,
                 self._icon_changed,
                 self._animation,
+                equaliser=chosen_preset(d.playlistEditEqualiser),
+                visualiser=chosen_preset(d.playlistEditVisualiser),
             )
         self._stop_preview()
         d.deleteLater()
