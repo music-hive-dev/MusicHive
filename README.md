@@ -22,6 +22,7 @@ Plasma.
 - Rate songs with stars. Ratings are written to the files, so they aren't locked inside the app.
 - A History tab shows what you've been listening to.
 - Artist pictures and descriptions are fetched from the internet and kept on disk.
+- Start typing in any list or table to jump to a matching song, searching the sorted column first.
 
 ### Playback
 
@@ -33,18 +34,38 @@ Plasma.
 - Skips silence at the start and end of songs.
 - Picks up where you left off, paused at the same spot in the same song.
 - Scroll over the volume icon to change the volume by 1%, or 10% with Shift held.
+- A sleep timer that fades out music, podcasts and radio.
+- Every action has a keyboard shortcut you can change.
 
 ### Sound
 
 - 10 or 15 band equaliser with a pre-amp, built-in presets and your own saved ones.
 - Left and right balance.
+- Songs, albums and playlists can have their own equaliser preset. A song's own preset wins over its playlist's.
 - Level Volume measures how loud your songs are and stores the result as standard ReplayGain tags, so a whole library plays at one volume and other players can use the numbers too.
 
 ### Now Playing
 
-- A live spectrum visualiser.
+- A live spectrum visualiser that follows the sound you actually hear, at up to 60 frames a second. You can set the number of bars, the gap, opacity, fall speed and glow, and colour them yourself, as a rainbow, as a pride flag, or from the album cover. The background can be a blurred copy of the cover.
+- Visualiser presets, with a built-in Default. Like equaliser presets, they can be given to songs, albums and playlists.
+- Pride flags are plain JSON files, so you can add your own to the `flags` folder in the data folder.
 - Timed lyrics in LRC format, read from your files. The current line is highlighted and centred, and plain lyrics work too.
+- Lyrics can have a text shadow, take a colour from the cover and grow with the window, which is nice on a TV.
 - Scrolling moves one line per wheel click. After you scroll, the lyrics stay put for a few seconds before following the song again.
+
+### Podcasts
+
+- Search for podcasts through Apple Podcasts and subscribe to them.
+- New episodes can download by themselves, and played ones can be deleted by themselves.
+- Progress is remembered for each episode and shown for each series. Episodes can also be streamed without downloading.
+
+### Radio
+
+- Thousands of internet radio stations from [Radio Browser](https://www.radio-browser.info), with favourites.
+- Pause the radio and carry on from where you paused, or go back a few minutes in time.
+- Tape a stream to a file, see a history of what played and remember songs you liked.
+- Radio songs can be scrobbled to Last.fm if you want.
+- Podcasts and stations can be pinned to the sidebar, and the sidebar's sections can be dragged into any order.
 
 ### Mini player
 
@@ -62,15 +83,15 @@ its position.
 ### Playlists
 
 - Normal playlists with their own image and description. Animated GIFs work as playlist images.
-- Auto-playlists that fill themselves from rules such as "Genre contains Rock" or "Year is greater than 1999".
+- Auto-playlists that fill themselves from rules such as "Genre contains Rock", "Year is greater than 1999" or a play count. A new one starts with every song.
 - Import and export M3U and M3U8 files.
 - Drag songs between lists. Hold a song over a tab and that tab opens.
 
 ### Tags and file tools
 
 - A tag editor for one song or many at once. When editing several songs, a field they disagree on stays empty and is only written if you type in it, so nothing changes by accident.
-- Find album covers and genres online. Nothing is saved until you've approved it in a side by side comparison.
-- Auto-Tag Genres does the same for a whole set of songs.
+- Find album covers, genres and lyrics online. Nothing is saved until you've approved it in a side by side comparison.
+- Auto-Tag Genres does the same for a whole set of songs, and lyrics can be found for many songs at once. Instrumentals get tagged `haslyrics=false` so they aren't searched again.
 - Organise Files moves a library into a folder structure from a naming template like `<albumartist>/<album>/<trackno> - <title>`.
 - Convert Files makes copies in MP3, Ogg Vorbis, Opus or FLAC.
 
@@ -96,6 +117,7 @@ at a time.
 
 ### Small things
 
+- Dark and light mode, with a highlight colour of your choice.
 - Settings can be exported to a file and imported again.
 - The data folder can be moved somewhere else.
 - Some small easter eggs for you to find. :)
@@ -172,7 +194,8 @@ enough. The interface uses the Inter font if it's installed.
 ## Last.fm setup
 
 Last.fm needs an API key, which isn't included in this repository. Get one from
-Last.fm, then put it in `~/Music/.musichive/secrets`:
+Last.fm, then put it in `~/Music/.musichive/secrets` (Settings, Online has a
+button that opens this file):
 
 ```json
 {
@@ -190,14 +213,13 @@ you've moved that folder in the settings. Other settings are in
 `~/.config/MusicHive`. Uninstalling the app leaves both of them alone.
 
 MusicHive is a local player, but a few features do use the internet. Artist
-pictures and album searches go to Deezer and iTunes, and Last.fm gets your plays
-if you've turned scrobbling on. Discord can only show images that are online, so
-with Rich Presence on, the cover of the current song is uploaded to
-[Litterbox](https://litterbox.catbox.moe), a temporary file host.
-
-## Not finished yet
-
-The Radio and Podcasts tabs are there, but they're empty for now.
+pictures and album searches go to Deezer and iTunes, lyrics come from
+[LRCLIB](https://lrclib.net), podcasts from Apple Podcasts and radio stations from
+Radio Browser, and Last.fm gets your plays if you've turned scrobbling on.
+Discord can only show images that are online, so with Rich Presence on, the cover
+of the current song is uploaded to a file host:
+[Litterbox](https://litterbox.catbox.moe), with [Catbox](https://catbox.moe) and
+[Uguu](https://uguu.se) as fallbacks.
 
 ## Built with
 
