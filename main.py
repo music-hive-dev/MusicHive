@@ -40,11 +40,9 @@ from PySide6.QtGui import (
     QFontDatabase,
     QIcon,
     QImage,
-    QKeySequence,
     QPainter,
     QPalette,
     QPixmap,
-    QShortcut,
     QTextDocumentFragment,
 )
 from PySide6.QtUiTools import QUiLoader
@@ -132,6 +130,21 @@ from src.tag_editor import TagEditorDialog
 from src.tag_writer import SaveResult, TagJob, TagWriter
 from src.mini_player import MiniPlayer
 from src.now_playing import LyricsView, Visualizer
+from src.shortcuts import Shortcuts, ShortcutsSettingsTab
+from src.lyrics_settings import LyricsSettings, LyricsSettingsTab, load_lyrics_settings
+from src.number_field import NumberField
+from src.type_ahead import (
+    DEFAULT_RESET_SECONDS,
+    FIND_RESET_KEY,
+    add_type_ahead,
+    set_reset_seconds,
+)
+from src.visualiser_settings import (
+    VisualiserSettings,
+    VisualiserSettingsTab,
+    for_mini_player,
+    load_visualiser_settings,
+)
 from src.star_rating import StarRating
 from src.tray import TrayMinimizer
 from src.track_metadata import TagChanges, read_editable_file, read_track_details
@@ -144,7 +157,7 @@ from src.playlist_models import (
     is_animated_gif,
     make_square_icon,
 )
-from src.auto_playlist import TIME_TAG, apply_limit, song_matches
+from src.auto_playlist import PLAYS_TAG, TIME_TAG, apply_limit, song_matches
 from src.playlist_dialog import AutoPlaylistEditDialog, PlaylistDetails, PlaylistEditDialog
 from src.playlists import Playlist, PlaylistStore
 
@@ -203,7 +216,9 @@ SONG_SEARCH_DELAY_MS = 200
 SEARCH_CLEAR_ICON_SCALE = 0.55  # how much of its button the search bar's clear icon fills
 HISTORY_SOURCE = "history"  # the History tab, as a list that can be played from
 # Offered in an auto-playlist's rules even before a library has been rescanned.
-COMMON_RULE_TAGS = ("album", "albumartist", "artist", "date", "genre", "rating", "time", "title")
+COMMON_RULE_TAGS = (
+    "album", "albumartist", "artist", "date", "genre", "plays", "rating", "time", "title"
+)
 
 # What MPRIS calls the playback states and repeat modes.
 MPRIS_STATUS = {"playing": "Playing", "paused": "Paused", "stopped": "Stopped"}
@@ -826,10 +841,12 @@ class MusicHive:
         w.upcomingList.setDropIndicatorShown(True)
         w.upcomingList.doubleClicked.connect(self.play_upcoming_item)
         # Delete removes the selected songs (never the playing one) from the list.
-        delete_shortcut = QShortcut(QKeySequence(Qt.Key.Key_Delete), w.upcomingList)
-        delete_shortcut.setContext(Qt.ShortcutContext.WidgetShortcut)
-        delete_shortcut.activated.connect(
-            lambda: self.remove_from_upcoming([o for o in self.selected_upcoming_offsets() if o > 0])
+        # The action only works while the list has focus (shortcutContext in player.ui).
+        w.upcomingList.addAction(w.actionRemoveFromUpcoming)
+        w.actionRemoveFromUpcoming.triggered.connect(
+            lambda _checked=False: self.remove_from_upcoming(
+                [o for o in self.selected_upcoming_offsets() if o > 0]
+            )
         )
         w.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, w.upcomingDock)
         self.setup_dock_toggles()
@@ -974,9 +991,7 @@ class MusicHive:
         tab_bar.setChangeCurrentOnDrag(True)
         tab_bar.setAcceptDrops(True)
 
-        QShortcut(QKeySequence(QKeySequence.StandardKey.SelectAll), w).activated.connect(
-            self.select_all_in_table
-        )
+        w.actionSelectAll.triggered.connect(lambda _checked=False: self.select_all_in_table())
         w.playlistLockButton.clicked.connect(self.on_playlist_lock_clicked)
         w.playlistEditButton.setToolTip("Edit this playlist's title, image and description")
         w.playlistEditButton.clicked.connect(lambda _checked=False: self.edit_playlist())
@@ -994,6 +1009,7 @@ class MusicHive:
         self.visualizer = Visualizer(w.nowPlayingVisualizer)
         self.player.audio_buffer_ready.connect(self.visualizer.add_buffer)
         self.lyrics_view = LyricsView(w.nowPlayingLyrics)
+        self.lyrics_view.set_style(load_lyrics_settings(self.settings))
         w.nowPlayingLyrics.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         w.nowPlayingLyrics.customContextMenuRequested.connect(self.show_lyrics_menu)
         for widget in (
@@ -1101,6 +1117,10 @@ class MusicHive:
         w.volumeSlider.installEventFilter(self._volume_wheel)
         w.muteButton.installEventFilter(self._volume_wheel)
         self.setup_mini_player()
+        # After every action exists: the user's own shortcuts replace player.ui's.
+        self.shortcuts = Shortcuts(w, self.settings)
+        self.type_ahead = add_type_ahead(w)  # typing in a list or table finds a song
+        set_reset_seconds(self.settings.value(FIND_RESET_KEY, DEFAULT_RESET_SECONDS, type=float))
 
         # Player -> UI
         self.player.track_started.connect(self.on_track_started)
@@ -1185,6 +1205,20 @@ class MusicHive:
             self.sound_settings_tab = SoundSettingsTab(
                 d, self.settings, self.on_sound_settings_changed
             )
+            self.visualiser_settings_tab = VisualiserSettingsTab(
+                d, self.settings, self.set_visualiser_style
+            )
+            self.shortcuts_settings_tab = ShortcutsSettingsTab(d, self.shortcuts)
+            self.lyrics_settings_tab = LyricsSettingsTab(
+                d, self.settings, self.set_lyrics_style
+            )
+            d.visualiserMiniPlayer.setChecked(self.mini_visualizer.enabled)
+            d.visualiserMiniPlayer.toggled.connect(self.set_mini_visualizer)
+            self._find_reset = NumberField(d.generalFindReset)
+            self._find_reset.setValue(
+                self.settings.value(FIND_RESET_KEY, DEFAULT_RESET_SECONDS, type=float)
+            )
+            self._find_reset.valueChanged.connect(self.set_find_reset)
             self.connect_settings_tabs(d)
             d.settingsButtonBox.rejected.connect(d.reject)
             # Enter confirms a typed number; it must not press Close as well.
@@ -1354,6 +1388,8 @@ class MusicHive:
         w.actionExportSettings.triggered.connect(lambda _checked=False: self.export_settings_file())
         w.actionImportSettings.triggered.connect(lambda _checked=False: self.import_settings_file())
         w.actionEqualiser.triggered.connect(lambda _checked=False: self.show_equaliser())
+        w.addAction(w.actionMute)  # in no menu, so it needs the window to hear its keys
+        w.actionMute.triggered.connect(lambda _checked=False: w.muteButton.toggle())
 
         w.actionShuffle.setChecked(w.shuffleButton.isChecked())
         w.actionShuffle.toggled.connect(w.shuffleButton.setChecked)
@@ -1586,11 +1622,15 @@ class MusicHive:
         )
         controls.customContextMenuRequested.connect(self.show_mini_player_menu)
         # 13: the panel's 14px corners, less its outline.
-        self.mini_visualizer = Visualizer(controls.miniPlayerContents, corner_radius=13)
+        self.mini_visualizer = Visualizer(
+            controls.miniPlayerContents, corner_radius=13
+        )
         self.player.audio_buffer_ready.connect(self.mini_visualizer.add_buffer)
         self.mini_visualizer.set_enabled(
             self.settings.value("miniPlayerVisualizer", True, type=bool)
         )
+        self.set_visualiser_style(load_visualiser_settings(self.settings))
+        mini.set_text_shadow(load_lyrics_settings(self.settings))
         mini.connect_action(w.actionMiniPlayer)
         w.actionMiniPlayer.toggled.connect(lambda on: self.settings.setValue("miniPlayer", on))
         self.update_volume_ui()
@@ -1620,6 +1660,27 @@ class MusicHive:
     def set_mini_visualizer(self, enabled: bool) -> None:
         self.mini_visualizer.set_enabled(enabled)
         self.settings.setValue("miniPlayerVisualizer", enabled)
+        if self.settings_window is not None:
+            self.settings_window.visualiserMiniPlayer.setChecked(enabled)
+
+    def set_lyrics_style(self, style: LyricsSettings) -> None:
+        """The text shadow (lyrics and mini player) and the "No lyrics" fade."""
+        self.lyrics_view.set_style(style)
+        self.mini_player.set_text_shadow(style)
+
+    def set_find_reset(self, seconds: float) -> None:
+        set_reset_seconds(seconds)
+        self.settings.setValue(FIND_RESET_KEY, seconds)
+
+    def set_visualiser_cover(self, cover: QImage | None) -> None:
+        """The playing song's cover, for the visualisers' album art background."""
+        self.visualizer.set_cover(cover)
+        self.mini_visualizer.set_cover(cover)
+
+    def set_visualiser_style(self, style: VisualiserSettings) -> None:
+        """How the bars of both visualisers look (Settings, Visualiser)."""
+        self.visualizer.set_style(style)
+        self.mini_visualizer.set_style(for_mini_player(style))  # its own bars and background
 
     def on_minimize_to_tray_toggled(self, enabled: bool) -> None:
         self.settings.setValue("minimizeToTray", enabled)
@@ -2009,6 +2070,7 @@ class MusicHive:
                 self.library_model.set_play_count(row, count)
                 self.library_model.set_last_played(row, played_at)
                 self.refresh_history()
+                self.update_playlists_using(PLAYS_TAG)
 
         scrobbling = self.window.actionScrobble.isChecked()
         if scrobbling and entry["artist"] and entry["title"]:  # Last.fm needs both
@@ -2063,6 +2125,7 @@ class MusicHive:
         self.library_model.set_all_play_counts(
             [stored.get(self.relative_path(path), 0) for path in self.tracks]
         )
+        self.update_playlists_using(PLAYS_TAG)
 
 
     # ----- Discord -----
@@ -2139,6 +2202,7 @@ class MusicHive:
         self.update_window_title(details.title, details.artist)
         cover = QImage.fromData(details.cover) if details.cover else None
         self.full_cover = cover if cover is not None and not cover.isNull() else None
+        self.set_visualiser_cover(self.full_cover)
         self.full_cover_data = details.cover if self.full_cover is not None else None
         self.mpris_art_url = cover_file_url(details.cover) if details.cover else ""
         self.lyrics_view.set_lyrics(details.lyrics)
@@ -2159,18 +2223,18 @@ class MusicHive:
             library_db.set_rating(library.db_path, path, rating)
         except sqlite3.Error:
             pass  # the next rescan reads it from the file again
-        self.update_rating_playlists()
+        self.update_playlists_using("rating")
 
-    def update_rating_playlists(self) -> None:
-        """A rating changed: auto-playlists with a rating rule must look again."""
-        for key in [key for key in self.auto_playlist_cache if '"tag": "rating"' in key]:
+    def update_playlists_using(self, tag: str) -> None:
+        """A rating or play count changed: auto-playlists with a rule on it must look again."""
+        for key in [key for key in self.auto_playlist_cache if f'"tag": "{tag}"' in key]:
             del self.auto_playlist_cache[key]
         store = self.playlist_store
         if store is None:
             return
         for name in {self.current_playlist, self.play_source} - {None}:
             playlist = store.load(name)
-            if playlist.is_auto and any(rule["tag"] == "rating" for rule in playlist.rules):
+            if playlist.is_auto and any(rule["tag"] == tag for rule in playlist.rules):
                 self.playlist_edited(name)
 
     def show_current_rating(self) -> None:
@@ -2192,7 +2256,7 @@ class MusicHive:
         self.library_model.set_rating(self.current_index, rating)
         self.show_current_rating()
         self.tag_writer.write_rating(self.tracks[self.current_index], rating)
-        self.update_rating_playlists()
+        self.update_playlists_using("rating")
         stars = f"{rating} star{'' if rating == 1 else 's'}"
         self.show_status(f"Rated '{info.title}' {stars}" if rating else f"Cleared the rating of '{info.title}'")
 
@@ -2293,6 +2357,7 @@ class MusicHive:
         ):
             label.clear()
         self.full_cover = None
+        self.set_visualiser_cover(None)
         self.full_cover_data = None
         self.track_audio_format = ""
         self.mpris_art_url = ""
@@ -3877,7 +3942,7 @@ class MusicHive:
             [rules, playlist.match_any, playlist.no_duplicates, playlist.limit], sort_keys=True
         )
         if key not in self.auto_playlist_cache:
-            names = sorted({rule["tag"] for rule in rules} - {"rating", TIME_TAG})
+            names = sorted({rule["tag"] for rule in rules} - {"rating", TIME_TAG, PLAYS_TAG})
 
             def tags_of(row: int, path: Path) -> dict[str, str]:
                 """The song's tags, plus what MusicHive itself knows about it."""
@@ -3886,6 +3951,7 @@ class MusicHive:
                     **values.get(self.relative_path(path), {}),
                     "rating": str(info.rating),  # 0 for an unrated song
                     TIME_TAG: str((info.duration_ms or 0) // 1000),
+                    PLAYS_TAG: str(info.play_count),  # 0 for a song never played
                 }
 
             try:

@@ -9,6 +9,7 @@ import math
 import threading
 import time
 from array import array
+from collections import deque
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
@@ -42,6 +43,11 @@ _SHORT_BUFFERS = (
     if Gst.ElementFactory.find("audiobuffersplit")
     else ""
 )
+_VISUAL_RATE = 44100  # samples per second of the visualiser's copy of the sound
+_VISUAL_HELD_MAX = 256  # pieces of sound waiting for their turn (about 5 seconds)
+_VISUAL_LATE_NS = 200 * 1_000_000  # pieces this far behind the position are skipped
+_VISUAL_AHEAD_NS = 5 * 1_000_000_000  # sound this far ahead is from before a seek back
+
 # Decoded sound runs through this, in floating point so that boosts cannot clip
 # on the way. Mono and surround files are converted to stereo.
 _FILTER_CHAIN = (
@@ -54,15 +60,20 @@ _FILTER_CHAIN = (
 # One branch goes to the speakers. The other is a copy for the visualiser, which
 # drops what nobody collects so that it can never hold up the sound. The speaker
 # queue is kept short (100 ms) because sound in it already has the old equaliser
-# settings applied.
+# settings applied. The visualiser's copy arrives as soon as it is decoded
+# (sync=false), ahead of the speakers; AudioPlayer holds each piece back until the
+# playing position reaches it, so the bars match what is heard, sound system
+# delay included. async=false: that sink takes sound at once, so it holds none when
+# the song pauses, and pausing must not wait for it to get some (it never would,
+# as the paused speakers hold up the sound for both branches).
 _OUTPUT_CHAIN = (
     "tee name=split "
     "split. ! queue max-size-time=100000000 ! volume name=trackgain "
     "! volume name=fade ! volume name=master "
     "! audioconvert ! audioresample ! autoaudiosink "
-    "split. ! queue leaky=downstream max-size-buffers=8 ! audioconvert ! audioresample "
-    "! audio/x-raw,format=S16LE,rate=44100,channels=1 "
-    "! appsink name=samples sync=true max-buffers=8 drop=true"
+    "split. ! queue leaky=downstream max-size-buffers=64 ! audioconvert ! audioresample "
+    f"! audio/x-raw,format=S16LE,rate={_VISUAL_RATE},channels=1 "
+    "! appsink name=samples sync=false async=false max-buffers=64 drop=true"
 )
 _SCAN_RATE = 16000  # samples per second; enough to tell silence from sound
 _SCAN_CHAIN = (
@@ -346,9 +357,12 @@ class AudioPlayer(QObject):
         self._level_enabled = True  # False plays every song at its own volume
 
         self._visual_format = QAudioFormat()
-        self._visual_format.setSampleRate(44100)
+        self._visual_format.setSampleRate(_VISUAL_RATE)
         self._visual_format.setChannelCount(1)
         self._visual_format.setSampleFormat(QAudioFormat.SampleFormat.Int16)
+        # Visualiser sound that is not playing yet: (stream time in ns, bytes).
+        self._visual_held: deque[tuple[int, bytes]] = deque(maxlen=_VISUAL_HELD_MAX)
+        self._visual_deck: _Deck | None = None  # the deck the held sound came from
 
         self._state = "stopped"
         self._position = 0
@@ -737,8 +751,32 @@ class AudioPlayer(QObject):
             self.duration_changed.emit(deck.duration_ms)
 
     def _collect_visualiser_sound(self) -> None:
-        samples = self._active.samples
-        while (sample := samples.emit("try-pull-sample", 0)) is not None:
+        """Hand the visualiser the sound that is being heard right now.
+
+        The sound arrives early, with its place in the song. It waits here until
+        the playing position (which the sound system keeps up to date with what
+        comes out of the speakers) reaches it.
+        """
+        deck = self._active
+        held = self._visual_held
+        if deck is not self._visual_deck:  # a new deck after a crossfade: another timeline
+            held.clear()
+            self._visual_deck = deck
+        while (sample := deck.samples.emit("try-pull-sample", 0)) is not None:
             buffer = sample.get_buffer()
-            data = buffer.extract_dup(0, buffer.get_size())
-            self.audio_buffer_ready.emit(QAudioBuffer(QByteArray(data), self._visual_format))
+            start = sample.get_segment().to_stream_time(Gst.Format.TIME, buffer.pts)
+            if buffer.pts == Gst.CLOCK_TIME_NONE or start in (-1, Gst.CLOCK_TIME_NONE):
+                continue
+            held.append((start, buffer.extract_dup(0, buffer.get_size())))
+        if not held:
+            return
+        found, position = deck.pipeline.query_position(Gst.Format.TIME)
+        if not found:
+            return
+        if held[0][0] > position + _VISUAL_AHEAD_NS:
+            held.clear()  # sound from before a seek backwards; it will not come up
+            return
+        while held and held[0][0] <= position:
+            start, data = held.popleft()
+            if start >= position - _VISUAL_LATE_NS:
+                self.audio_buffer_ready.emit(QAudioBuffer(QByteArray(data), self._visual_format))

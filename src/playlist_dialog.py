@@ -179,9 +179,7 @@ class AutoPlaylistEditDialog(PlaylistEditDialog):
             lambda _checked=False: self._add_row()
         )
         for rule in rules:
-            self._add_row(rule)
-        if not rules:
-            self._add_row()
+            self._add_row(rule)  # no rules: every song of the library qualifies
 
     def run(self) -> PlaylistDetails | None:
         details = super().run()

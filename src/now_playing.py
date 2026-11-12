@@ -6,25 +6,62 @@ import time
 from array import array
 from collections import deque
 
-from PySide6.QtCore import QEvent, QObject, QPoint, QPointF, QRectF, QSize, Qt, QTimer
-from PySide6.QtGui import QBrush, QColor, QFont, QLinearGradient, QPainter, QPainterPath
+from PySide6.QtCore import (
+    QEasingCurve,
+    QEvent,
+    QObject,
+    QPoint,
+    QPointF,
+    QRectF,
+    QSize,
+    Qt,
+    QTimer,
+    QVariantAnimation,
+)
+from PySide6.QtGui import (
+    QBrush,
+    QColor,
+    QFont,
+    QImage,
+    QLinearGradient,
+    QPainter,
+    QPainterPath,
+    QPixmap,
+)
 from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat
-from PySide6.QtWidgets import QListWidget, QListWidgetItem, QWidget
+from PySide6.QtWidgets import (
+    QGraphicsBlurEffect,
+    QGraphicsDropShadowEffect,
+    QGraphicsScene,
+    QListWidget,
+    QListWidgetItem,
+    QWidget,
+)
 
 from src import theme
 from src.lyrics import parse_lyrics
+from src.lyrics_settings import LyricsSettings
+from src.visualiser_settings import (
+    FALL_PER_FRAME,
+    FILL,
+    FIT,
+    HIGHLIGHT,
+    RAINBOW,
+    VisualiserSettings,
+    bar_colours,
+)
 
 FFT_SIZE = 1024
-BAR_COUNT = 12
 FRAME_MS = 33  # about 30 pictures a second
-FALL_PER_FRAME = 0.86  # bars jump up at once and sink slowly
 LOWEST_FREQUENCY = 40
 HIGHEST_FREQUENCY = 16_000
 QUIET_DB, LOUD_DB = -55.0, 5.0  # what counts as an empty bar and a full one
 TILT_DB_PER_OCTAVE = 3.0  # music has less energy up high; this evens the bars out
 AUDIO_GONE_SECONDS = 0.25  # without new sound for this long, the bars sink
-BAR_GAP = 8  # pixels
-BAR_OPACITY = 150  # out of 255; the lyrics are drawn on top of the bars
+# How much darker the foot and lighter the top of a bar are, in percent. Flags get
+# a flatter gradient, so their colours stay true.
+GRADIENT = (130, 140)
+FLAG_GRADIENT = (110, 115)
 
 _ARRAY_TYPES = {
     QAudioFormat.SampleFormat.UInt8: ("B", 1 / 128, -1.0),
@@ -39,6 +76,73 @@ DIM_ALPHA = 120
 CURRENT_LINE_EXTRA_POINTS = 20
 WHEEL_NOTCH = 120  # what one click of a mouse wheel reports
 SCROLL_HOLD_MS = 5000  # after scrolling, the lyrics wait this long before following the song
+BACKGROUND_WORK_SCALE = 0.25  # the cover is blurred at a quarter size: much faster
+
+
+def _light_text() -> bool:
+    """Dark mode: light text, so shadows are dark. Light mode: the other way round."""
+    return QColor(theme.colour(theme.TEXT)).lightness() > 128
+
+
+def set_text_shadow(widget: QWidget, style: LyricsSettings) -> None:
+    """Give a see-through widget's text a soft shadow, or take it away.
+
+    Only what is drawn casts it, so on a see-through widget that is the text.
+    Light text gets a dark shadow; dark text (light mode) a light glow.
+    """
+    if not style.shadow:
+        widget.setGraphicsEffect(None)  # also deletes the effect
+        return
+    effect = QGraphicsDropShadowEffect(widget)
+    effect.setBlurRadius(style.shadow_blur)
+    effect.setOffset(QPointF(style.shadow_distance / 2, style.shadow_distance))
+    color = QColor(Qt.GlobalColor.black if _light_text() else Qt.GlobalColor.white)
+    color.setAlphaF(style.shadow_strength / 100)
+    effect.setColor(color)
+    widget.setGraphicsEffect(effect)
+
+
+def blurred_cover(cover: QImage, width: int, height: int, style: VisualiserSettings) -> QPixmap:
+    """The cover, sized to width x height as the settings say, blurred and dimmed."""
+    work = BACKGROUND_WORK_SCALE if style.background_blur >= 8 else 1.0
+    w, h = max(1, round(width * work)), max(1, round(height * work))
+    radius = style.background_blur * work
+    # Filling past the edges by the blur keeps them from fading to see-through.
+    margin = 0 if style.background_fit == FIT else math.ceil(radius * 2)
+    mode = {
+        FILL: Qt.AspectRatioMode.KeepAspectRatioByExpanding,
+        FIT: Qt.AspectRatioMode.KeepAspectRatio,
+    }.get(style.background_fit, Qt.AspectRatioMode.IgnoreAspectRatio)
+    scaled = cover.scaled(
+        w + 2 * margin, h + 2 * margin, mode, Qt.TransformationMode.SmoothTransformation
+    )
+
+    scene = QGraphicsScene()
+    item = scene.addPixmap(QPixmap.fromImage(scaled))
+    item.setPos((w - scaled.width()) / 2, (h - scaled.height()) / 2)
+    if radius > 0:
+        blur = QGraphicsBlurEffect()
+        blur.setBlurRadius(radius)
+        blur.setBlurHints(QGraphicsBlurEffect.BlurHint.QualityHint)
+        item.setGraphicsEffect(blur)
+    result = QImage(w, h, QImage.Format.Format_ARGB32_Premultiplied)
+    result.fill(Qt.GlobalColor.transparent)
+    painter = QPainter(result)
+    scene.render(painter, QRectF(0, 0, w, h), QRectF(0, 0, w, h))
+    # Dim it towards the window: darker in dark mode, lighter in light mode.
+    painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_SourceAtop)
+    dim = QColor(Qt.GlobalColor.black if _light_text() else Qt.GlobalColor.white)
+    dim.setAlphaF(style.background_darken / 100)
+    painter.fillRect(result.rect(), dim)
+    painter.end()
+    return QPixmap.fromImage(
+        result.scaled(
+            width,
+            height,
+            Qt.AspectRatioMode.IgnoreAspectRatio,
+            Qt.TransformationMode.SmoothTransformation,
+        )
+    )
 
 
 class Visualizer(QObject):
@@ -48,9 +152,13 @@ class Visualizer(QObject):
         super().__init__(widget)
         self._widget = widget
         self._corner_radius = corner_radius  # for a widget with rounded corners
+        self._cover: QImage | None = None  # the playing song's, for the background
+        self._background: QPixmap | None = None  # the cover as drawn, kept until it changes
+        self._background_key: tuple | None = None
         self.enabled = True
+        self._style = VisualiserSettings()
         self._samples: deque[float] = deque(maxlen=FFT_SIZE)
-        self._levels = [0.0] * BAR_COUNT
+        self._levels = [0.0] * self._style.bars
         self._last_audio = 0.0
         self._sample_rate = 0
         self._bands: list[tuple[int, int, float]] = []  # first bin, end bin, tilt in dB
@@ -75,10 +183,43 @@ class Visualizer(QObject):
         self.enabled = enabled
         if not enabled:
             self._timer.stop()
-            self._levels = [0.0] * BAR_COUNT
+            self._levels = [0.0] * self._style.bars
             self._widget.update()
         elif self._widget.isVisible():
             self._timer.start()
+
+    def set_cover(self, cover: QImage | None) -> None:
+        """The playing song's cover, for the album art background (None: no cover)."""
+        self._cover = cover
+        self._background = None
+        self._background_key = None
+        self._widget.update()
+
+    def _shows_background(self) -> bool:
+        style = self._style
+        return style.background and self._cover is not None
+
+    def _background_for(self, width: int, height: int) -> QPixmap:
+        """The blurred cover for this size, made again only when something changed."""
+        style = self._style
+        key = (
+            self._cover.cacheKey(), width, height,
+            style.background_blur, style.background_darken, style.background_fit, _light_text(),
+        )
+        if key != self._background_key:
+            self._background = blurred_cover(self._cover, width, height, style)
+            self._background_key = key
+        return self._background
+
+    def set_style(self, style: VisualiserSettings) -> None:
+        """How the bars look: their number, gap, opacity, colours and fall speed."""
+        bars_changed = style.bars != self._style.bars
+        self._style = style
+        if bars_changed:
+            self._levels = [0.0] * style.bars
+            if self._sample_rate:
+                self._bands = self._make_bands()
+        self._widget.update()
 
     def add_buffer(self, buffer: QAudioBuffer) -> None:
         """New sound from the player."""
@@ -108,7 +249,7 @@ class Visualizer(QObject):
                 self._timer.start()
         elif kind == QEvent.Type.Hide:
             self._timer.stop()
-            self._levels = [0.0] * BAR_COUNT
+            self._levels = [0.0] * self._style.bars
         elif kind == QEvent.Type.Paint:
             self._paint()
             return True
@@ -119,9 +260,10 @@ class Visualizer(QObject):
         nyquist = self._sample_rate / 2
         top = min(HIGHEST_FREQUENCY, nyquist)
         hz_per_bin = self._sample_rate / FFT_SIZE
-        ratio = (top / LOWEST_FREQUENCY) ** (1 / BAR_COUNT)
+        bar_count = self._style.bars
+        ratio = (top / LOWEST_FREQUENCY) ** (1 / bar_count)
         bands = []
-        for bar in range(BAR_COUNT):
+        for bar in range(bar_count):
             low = LOWEST_FREQUENCY * ratio**bar
             first = max(1, int(low / hz_per_bin))
             end = max(first + 1, int(low * ratio / hz_per_bin))
@@ -166,10 +308,11 @@ class Visualizer(QObject):
         if recent and len(self._samples) == FFT_SIZE and self._bands:
             targets = self._spectrum()
         else:
-            targets = [0.0] * BAR_COUNT
+            targets = [0.0] * self._style.bars
+        fall = FALL_PER_FRAME[self._style.fall_speed]
         moved = False
-        for bar, target in enumerate(targets):
-            level = max(target, self._levels[bar] * FALL_PER_FRAME)
+        for bar, target in enumerate(targets[: len(self._levels)]):
+            level = max(target, self._levels[bar] * fall)
             if level < 0.003:
                 level = 0.0
             moved = moved or level != self._levels[bar]
@@ -180,12 +323,15 @@ class Visualizer(QObject):
     def _paint(self) -> None:
         widget = self._widget
         width, height = widget.width(), widget.height()
+        style = self._style
+        bar_count = len(self._levels)
         accent = QColor(theme.active_highlight())
-        gradient = QLinearGradient(QPointF(0, height), QPointF(0, 0))
-        accent.setAlpha(BAR_OPACITY)
-        gradient.setColorAt(0.0, accent.darker(130))
-        gradient.setColorAt(1.0, accent.lighter(140))
-        brush = QBrush(gradient)
+        opacity = round(255 * style.opacity / 100)
+        gradient = GRADIENT if style.colours in (HIGHLIGHT, RAINBOW) else FLAG_GRADIENT
+        brushes = [
+            self._bar_brush(color, height, opacity, gradient)
+            for color in bar_colours(style.colours, bar_count, accent)
+        ]
         painter = QPainter(widget)
         if self._corner_radius:  # inside the widget's 1px outline and rounded corners
             inside = QPainterPath()
@@ -196,18 +342,33 @@ class Visualizer(QObject):
             )
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setClipPath(inside)
-        bar_width = width / BAR_COUNT
+        if self._shows_background() and width > 0 and height > 0:
+            painter.drawPixmap(0, 0, self._background_for(width, height))
+        bar_width = width / bar_count
+        gap = style.gap
         for bar, level in enumerate(self._levels):
             bar_height = level * height
             if bar_height >= 1:
                 rect = QRectF(
-                    bar * bar_width + BAR_GAP / 2,
+                    bar * bar_width + gap / 2,
                     height - bar_height,
-                    max(1.0, bar_width - BAR_GAP),
+                    max(1.0, bar_width - gap),
                     bar_height,
                 )
-                painter.fillRect(rect, brush)
+                painter.fillRect(rect, brushes[bar])
         painter.end()
+
+    @staticmethod
+    def _bar_brush(
+        color: QColor, height: int, opacity: int, shading: tuple[int, int]
+    ) -> QBrush:
+        """A bar's fill: darker at the bottom, lighter at the top, see-through."""
+        color = QColor(color)
+        color.setAlpha(opacity)
+        gradient = QLinearGradient(QPointF(0, height), QPointF(0, 0))
+        gradient.setColorAt(0.0, color.darker(shading[0]))
+        gradient.setColorAt(1.0, color.lighter(shading[1]))
+        return QBrush(gradient)
 
 
 class LyricsView(QObject):
@@ -223,6 +384,19 @@ class LyricsView(QObject):
         self._scroll_hold.setSingleShot(True)
         self._scroll_hold.setInterval(SCROLL_HOLD_MS)
         self._scroll_hold.timeout.connect(self._scroll_to_current)
+        # "No lyrics" shows for a moment, then fades away (each time the tab is shown).
+        self._style = LyricsSettings()
+        self._no_lyrics = False
+        self._fade_wait = QTimer(self)
+        self._fade_wait.setSingleShot(True)
+        self._fade_wait.setInterval(round(self._style.no_lyrics_hold * 1000))
+        self._fade = QVariantAnimation(self)
+        self._fade.setStartValue(1.0)
+        self._fade.setEndValue(0.0)
+        self._fade.setDuration(round(self._style.no_lyrics_fade * 1000))
+        self._fade.setEasingCurve(QEasingCurve.Type.InOutQuad)
+        self._fade.valueChanged.connect(self._show_no_lyrics)
+        self._fade_wait.timeout.connect(self._fade.start)
         self.set_lyrics("")
         view.installEventFilter(self)
         view.viewport().installEventFilter(self)  # wheel events arrive there
@@ -239,7 +413,38 @@ class LyricsView(QObject):
         if event.type() in (QEvent.Type.Show, QEvent.Type.Resize):
             # Wait for the view to get its final size, or the centring is off.
             QTimer.singleShot(0, self._recentre)
+        if event.type() == QEvent.Type.Show and watched is self._view and self._no_lyrics:
+            self._start_no_lyrics_fade()  # say it again, then clear the way
         return False
+
+    def _start_no_lyrics_fade(self) -> None:
+        self._fade.stop()
+        self._show_no_lyrics(1.0)
+        if self._style.show_no_lyrics and self._style.fade_no_lyrics:
+            self._fade_wait.start()
+
+    def _stop_no_lyrics_fade(self) -> None:
+        self._fade_wait.stop()
+        self._fade.stop()
+
+    def _show_no_lyrics(self, opacity: float) -> None:
+        """Draw "No lyrics" this opaque (1 is fully, 0 not at all)."""
+        if not self._no_lyrics or self._view.count() == 0:
+            return
+        self._view.item(0).setHidden(not self._style.show_no_lyrics)
+        color = QColor(theme.colour(theme.TEXT))
+        color.setAlphaF(color.alphaF() * opacity)
+        self._view.item(0).setForeground(QBrush(color))
+
+    def set_style(self, style: LyricsSettings) -> None:
+        """The text shadow, and whether and how "No lyrics" fades away."""
+        self._style = style
+        set_text_shadow(self._view.viewport(), style)
+        self._fade_wait.setInterval(round(style.no_lyrics_hold * 1000))
+        self._fade.setDuration(max(1, round(style.no_lyrics_fade * 1000)))
+        if self._no_lyrics:
+            self._stop_no_lyrics_fade()
+            self._start_no_lyrics_fade()  # so the change can be seen at once
 
     def _scroll_lines(self, lines: int) -> None:
         """Move this many lyric lines down (or up, if negative)."""
@@ -261,6 +466,7 @@ class LyricsView(QObject):
         """Show these lyrics (see lyrics.py). Empty text says there are none."""
         view = self._view
         self._scroll_hold.stop()  # a new song starts following at once
+        self._stop_no_lyrics_fade()
         view.clear()
         lyrics = parse_lyrics(text)
         self._times = lyrics.times_ms
@@ -280,6 +486,9 @@ class LyricsView(QObject):
             for line in range(len(lines)):
                 self._style_line(line, False)
         view.scrollToTop()
+        self._no_lyrics = not lyrics.texts
+        if self._no_lyrics:
+            self._start_no_lyrics_fade()
 
     def set_position(self, position_ms: int) -> None:
         """Move the highlight to the line being sung."""

@@ -23,6 +23,7 @@ COMPARISONS = (
 
 
 TIME_TAG = "time"  # a song's length, in seconds
+PLAYS_TAG = "plays"  # how often a song was played, from MusicHive's own count
 
 
 def _in_seconds(text: str) -> str:
@@ -68,9 +69,11 @@ def rule_matches(rule: dict, tag_text: str) -> bool:
 
 
 def song_matches(rules: list[dict], tags: dict[str, str], match_any: bool = False) -> bool:
-    """Whether a song passes every rule, or any rule. With no rules, no song does."""
+    """Whether a song passes every rule, or any rule. With no rules, every song does."""
+    if not rules:
+        return True
     results = (rule_matches(rule, tags.get(rule["tag"], "")) for rule in rules)
-    return bool(rules) and (any(results) if match_any else all(results))
+    return any(results) if match_any else all(results)
 
 
 # ----- limiting a playlist -----

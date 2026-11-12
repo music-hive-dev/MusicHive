@@ -9,6 +9,8 @@ from PySide6.QtGui import QAction, QGuiApplication, QIcon
 from PySide6.QtWidgets import QSlider, QWidget
 
 from src.elided_label import ElidedLabel
+from src.lyrics_settings import LyricsSettings
+from src.now_playing import set_text_shadow
 
 POSITION_KEY = "miniPlayerPosition"  # saved as "x,y"
 SCRIPT_NUMBER_KEY = "miniPlayerScriptNumber"
@@ -92,6 +94,11 @@ class MiniPlayer(QObject):
     def show_track(self, title: str, artist: str) -> None:
         self._title.set_text(title or self._nothing_playing)
         self._artist.set_text(artist)
+
+    def set_text_shadow(self, style: LyricsSettings) -> None:
+        """A soft shadow behind the title and artist, so they stand out from the bars."""
+        for label in (self.window.miniTitle, self.window.miniArtist):
+            set_text_shadow(label, style)
 
     def show_playing(self, icon: QIcon, tooltip: str) -> None:
         self.window.miniPlayButton.setIcon(icon)

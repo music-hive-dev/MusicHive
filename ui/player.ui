@@ -2801,6 +2801,7 @@ QWidget {
     <addaction name="actionCut"/>
     <addaction name="actionCopy"/>
     <addaction name="actionPaste"/>
+    <addaction name="actionSelectAll"/>
     <addaction name="separator"/>
     <addaction name="actionImportSettings"/>
     <addaction name="actionExportSettings"/>
@@ -3534,9 +3535,6 @@ QWidget {
               <iconset>
                <normaloff>../assets/volume-2.svg</normaloff>../assets/volume-2.svg</iconset>
              </property>
-             <property name="shortcut">
-              <string>M</string>
-             </property>
              <property name="checkable">
               <bool>false</bool>
              </property>
@@ -4020,6 +4018,51 @@ QWidget {
    </property>
    <property name="text">
     <string>Import Settings...</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionSelectAll">
+   <property name="text">
+    <string>Select All</string>
+   </property>
+   <property name="toolTip">
+    <string>Select every song in the table on screen.</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+A</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionMute">
+   <property name="text">
+    <string>Mute</string>
+   </property>
+   <property name="toolTip">
+    <string>Mute or unmute the sound.</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+M</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionRemoveFromUpcoming">
+   <property name="text">
+    <string>Remove from Upcoming Songs</string>
+   </property>
+   <property name="toolTip">
+    <string>Remove the selected songs from Upcoming Songs (only while that list has focus).</string>
+   </property>
+   <property name="shortcut">
+    <string>Del</string>
+   </property>
+   <property name="shortcutContext">
+    <enum>Qt::ShortcutContext::WidgetShortcut</enum>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

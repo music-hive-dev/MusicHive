@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>640</width>
-    <height>480</height>
+    <width>820</width>
+    <height>560</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,98 +20,247 @@
       <attribute name="title">
        <string>General</string>
       </attribute>
-      <layout class="QVBoxLayout" name="generalTabLayout">
+      <layout class="QHBoxLayout" name="generalTabLayout">
        <item>
-        <widget class="QCheckBox" name="generalMinimizeToTray">
-         <property name="text">
-          <string>Minimize to tray</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="generalStartMinimized">
-         <property name="toolTip">
-          <string>Needs Minimize to tray, because the tray icon is how you open the window.</string>
-         </property>
-         <property name="text">
-          <string>Start minimized to tray</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="generalShowUpcoming">
-         <property name="text">
-          <string>Show Upcoming Songs</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="generalShowLibrary">
-         <property name="text">
-          <string>Show Library</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="generalShowPlayer">
-         <property name="text">
-          <string>Show Player</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="generalDataFolderRow">
+        <layout class="QVBoxLayout" name="generalTabLeft">
          <item>
-          <widget class="QLabel" name="generalDataFolderTitle">
-           <property name="text">
-            <string>Data folder:</string>
+          <widget class="QGroupBox" name="generalWindowGroup">
+           <property name="title">
+            <string>Window</string>
            </property>
+           <layout class="QFormLayout" name="generalWindowForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="generalMinimizeToTray">
+              <property name="text">
+               <string>Minimize to tray</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QCheckBox" name="generalStartMinimized">
+              <property name="toolTip">
+               <string>Needs Minimize to tray, because the tray icon is how you open the window.</string>
+              </property>
+              <property name="text">
+               <string>Start minimized to tray</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="generalDataFolder">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-             <horstretch>1</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
+          <widget class="QGroupBox" name="generalPanelsGroup">
+           <property name="title">
+            <string>Panels</string>
            </property>
-           <property name="textInteractionFlags">
-            <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
-           </property>
+           <layout class="QFormLayout" name="generalPanelsForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="generalShowUpcoming">
+              <property name="text">
+               <string>Show Upcoming Songs</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QCheckBox" name="generalShowLibrary">
+              <property name="text">
+               <string>Show Library</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="2">
+             <widget class="QCheckBox" name="generalShowPlayer">
+              <property name="text">
+               <string>Show Player</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="generalDataFolderButton">
-           <property name="text">
-            <string>Move...</string>
+          <widget class="QGroupBox" name="generalFindGroup">
+           <property name="title">
+            <string>Type to find</string>
            </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
+           <layout class="QFormLayout" name="generalFindForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="generalFindResetLabel">
+              <property name="text">
+               <string>Start a new search after:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="generalFindReset">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>When you type in a list or table, a pause this long starts a new search</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> s</string>
+              </property>
+              <property name="decimals" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="minimum" stdset="0">
+               <double>0.300000000000000</double>
+              </property>
+              <property name="maximum" stdset="0">
+               <double>5.000000000000000</double>
+              </property>
+              <property name="singleStep" stdset="0">
+               <double>0.100000000000000</double>
+              </property>
+              <property name="value" stdset="0">
+               <double>1.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
+         </item>
+         <item>
+          <spacer name="generalTabLeftSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
          </item>
         </layout>
        </item>
        <item>
-        <widget class="QLabel" name="generalDataFolderPending">
-         <property name="wordWrap">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <spacer name="generalTabSpacer">
-         <property name="orientation">
-          <enum>Qt::Orientation::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
+        <layout class="QVBoxLayout" name="generalTabRight">
+         <item>
+          <widget class="QGroupBox" name="generalDataFolderGroup">
+           <property name="title">
+            <string>Data folder</string>
+           </property>
+           <layout class="QFormLayout" name="generalDataFolderForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="generalDataFolderRow">
+              <item>
+               <widget class="QLabel" name="generalDataFolder">
+                <property name="textInteractionFlags">
+                 <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+                </property>
+                <property name="sizePolicy">
+                 <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+                  <horstretch>1</horstretch>
+                  <verstretch>0</verstretch>
+                 </sizepolicy>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="generalDataFolderButton">
+                <property name="text">
+                 <string>Move...</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+             </layout>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QLabel" name="generalDataFolderPending">
+              <property name="wordWrap">
+               <bool>true</bool>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="backupGroup">
+           <property name="title">
+            <string>Backup</string>
+           </property>
+           <layout class="QFormLayout" name="backupForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="backupButtonsRow">
+              <item>
+               <widget class="QPushButton" name="backupImportButton">
+                <property name="text">
+                 <string>Import Settings...</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QPushButton" name="backupExportButton">
+                <property name="text">
+                 <string>Export Settings...</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="backupButtonsRowSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="generalTabRightSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
        </item>
       </layout>
      </widget>
@@ -121,274 +270,132 @@
       </attribute>
       <layout class="QVBoxLayout" name="interfaceTabLayout">
        <item>
-        <layout class="QHBoxLayout" name="interfaceModeRow">
-         <item>
-          <widget class="QLabel" name="interfaceModeLabel">
-           <property name="text">
-            <string>Mode:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QComboBox" name="interfaceMode">
-           <item>
+        <widget class="QGroupBox" name="interfaceLookGroup">
+         <property name="title">
+          <string>Look</string>
+         </property>
+         <layout class="QFormLayout" name="interfaceLookForm">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+          </property>
+          <item row="0" column="0">
+           <widget class="QLabel" name="interfaceModeLabel">
             <property name="text">
-             <string>Dark</string>
+             <string>Mode:</string>
             </property>
-           </item>
-           <item>
+           </widget>
+          </item>
+          <item row="0" column="1">
+           <widget class="QComboBox" name="interfaceMode">
+            <item>
+             <property name="text">
+              <string>Dark</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Light</string>
+             </property>
+            </item>
+           </widget>
+          </item>
+          <item row="1" column="0">
+           <widget class="QLabel" name="interfaceHighlightLabel">
             <property name="text">
-             <string>Light</string>
+             <string>Highlight colour:</string>
             </property>
-           </item>
-          </widget>
-         </item>
-         <item>
-          <spacer name="interfaceModeRowSpacer">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="interfaceHighlightRow">
-         <item>
-          <widget class="QLabel" name="interfaceHighlightLabel">
-           <property name="text">
-            <string>Highlight colour:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLabel" name="interfaceHighlightSwatch">
-           <property name="minimumSize">
-            <size>
-             <width>24</width>
-             <height>24</height>
-            </size>
-           </property>
-           <property name="maximumSize">
-            <size>
-             <width>24</width>
-             <height>24</height>
-            </size>
-           </property>
-           <property name="toolTip">
-            <string>The highlight colour</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="interfaceHighlight">
-           <property name="maximumSize">
-            <size>
-             <width>110</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="toolTip">
-            <string>A colour as #rrggbb, for example #6c53a6. Reset to Default uses the mode's own colour: purple in dark mode, green in light mode.</string>
-           </property>
-           <property name="maxLength">
-            <number>7</number>
-           </property>
-           <property name="placeholderText">
-            <string>#rrggbb</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="interfaceHighlightChoose">
-           <property name="text">
-            <string>Choose...</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="interfaceHighlightReset">
-           <property name="text">
-            <string>Reset to Default</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="interfaceHighlightRowSpacer">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QLabel" name="interfaceRestartNote">
-         <property name="text">
-          <string>The new look is used the next time MusicHive starts.</string>
-         </property>
-         <property name="wordWrap">
-          <bool>true</bool>
-         </property>
+           </widget>
+          </item>
+          <item row="1" column="1">
+           <layout class="QHBoxLayout" name="interfaceHighlightRow">
+            <item>
+             <widget class="QLabel" name="interfaceHighlightSwatch">
+              <property name="minimumSize">
+               <size>
+                <width>24</width>
+                <height>24</height>
+               </size>
+              </property>
+              <property name="maximumSize">
+               <size>
+                <width>24</width>
+                <height>24</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>The highlight colour</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QLineEdit" name="interfaceHighlight">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>A colour as #rrggbb, for example #6c53a6. Reset to Default uses the mode's own colour: purple in dark mode, green in light mode.</string>
+              </property>
+              <property name="maxLength">
+               <number>7</number>
+              </property>
+              <property name="placeholderText">
+               <string>#rrggbb</string>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="interfaceHighlightChoose">
+              <property name="text">
+               <string>Choose...</string>
+              </property>
+              <property name="autoDefault">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="interfaceHighlightReset">
+              <property name="text">
+               <string>Reset to Default</string>
+              </property>
+              <property name="autoDefault">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="interfaceHighlightRowSpacer">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+          <item row="2" column="0" colspan="2">
+           <widget class="QLabel" name="interfaceRestartNote">
+            <property name="text">
+             <string>The new look is used the next time MusicHive starts.</string>
+            </property>
+            <property name="wordWrap">
+             <bool>true</bool>
+            </property>
+           </widget>
+          </item>
+         </layout>
         </widget>
        </item>
        <item>
-        <spacer name="interfaceTabSpacer">
-         <property name="orientation">
-          <enum>Qt::Orientation::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="soundTab">
-      <attribute name="title">
-       <string>Sound</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="soundTabLayout">
-       <item>
-        <widget class="QCheckBox" name="soundCrossfade">
-         <property name="text">
-          <string>Crossfade between songs</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="soundCrossfadeRow">
-         <item>
-          <widget class="QLabel" name="soundCrossfadeLabel">
-           <property name="text">
-            <string>Crossfade length:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QLineEdit" name="soundCrossfadeSeconds">
-           <property name="maximumSize">
-            <size>
-             <width>110</width>
-             <height>16777215</height>
-            </size>
-           </property>
-           <property name="toolTip">
-            <string>Type a number, or use the Up and Down keys</string>
-           </property>
-           <property name="suffix" stdset="0">
-            <string> seconds</string>
-           </property>
-           <property name="decimals" stdset="0">
-            <number>1</number>
-           </property>
-           <property name="minimum" stdset="0">
-            <double>0.500000000000000</double>
-           </property>
-           <property name="maximum" stdset="0">
-            <double>30.000000000000000</double>
-           </property>
-           <property name="singleStep" stdset="0">
-            <double>0.500000000000000</double>
-           </property>
-           <property name="value" stdset="0">
-            <double>5.000000000000000</double>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="soundCrossfadeRowSpacer">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="soundCrossfadeOnSkip">
-         <property name="text">
-          <string>Also crossfade when skipping songs</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="soundFadeOnPause">
-         <property name="text">
-          <string>Fade smoothly when pausing or stopping</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="soundSkipSilence">
-         <property name="text">
-          <string>Skip silence at the beginning and end of songs</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="soundVolumeAdjustment">
-         <property name="text">
-          <string>Adjust the volume of levelled songs</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="soundEqualiserRow">
-         <item>
-          <widget class="QPushButton" name="soundEqualiserButton">
-           <property name="text">
-            <string>Equaliser...</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="soundEqualiserRowSpacer">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
-       </item>
-       <item>
-        <spacer name="soundTabSpacer">
+        <spacer name="interfaceTabLayoutSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>
          </property>
@@ -406,51 +413,1201 @@
       <attribute name="title">
        <string>Playback</string>
       </attribute>
-      <layout class="QVBoxLayout" name="playbackTabLayout">
+      <layout class="QHBoxLayout" name="playbackTabLayout">
        <item>
-        <widget class="QCheckBox" name="playbackShuffle">
-         <property name="text">
-          <string>Shuffle</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="playbackMiniPlayer">
-         <property name="text">
-          <string>Mini Player</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="playbackRepeatRow">
+        <layout class="QVBoxLayout" name="playbackTabLeft">
          <item>
-          <widget class="QLabel" name="playbackRepeatLabel">
+          <widget class="QGroupBox" name="playbackGroup">
+           <property name="title">
+            <string>Playback</string>
+           </property>
+           <layout class="QFormLayout" name="playbackForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="playbackShuffle">
+              <property name="text">
+               <string>Shuffle</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="playbackRepeatLabel">
+              <property name="text">
+               <string>Repeat:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="playbackRepeat">
+              <item>
+               <property name="text">
+                <string>Off</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>All songs</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Current song</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="2">
+             <widget class="QCheckBox" name="playbackMiniPlayer">
+              <property name="text">
+               <string>Mini Player</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="soundVolumeGroup">
+           <property name="title">
+            <string>Volume</string>
+           </property>
+           <layout class="QFormLayout" name="soundVolumeForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="soundVolumeAdjustment">
+              <property name="text">
+               <string>Adjust the volume of levelled songs</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="soundEqualiserRow">
+              <item>
+               <widget class="QPushButton" name="soundEqualiserButton">
+                <property name="text">
+                 <string>Equaliser...</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="soundEqualiserRowSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="playbackTabLeftSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="playbackTabRight">
+         <item>
+          <widget class="QGroupBox" name="soundFadeGroup">
+           <property name="title">
+            <string>Fading</string>
+           </property>
+           <layout class="QFormLayout" name="soundFadeForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="soundCrossfade">
+              <property name="text">
+               <string>Crossfade between songs</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="soundCrossfadeLabel">
+              <property name="text">
+               <string>Crossfade length:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="soundCrossfadeSeconds">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> seconds</string>
+              </property>
+              <property name="decimals" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="minimum" stdset="0">
+               <double>0.500000000000000</double>
+              </property>
+              <property name="maximum" stdset="0">
+               <double>30.000000000000000</double>
+              </property>
+              <property name="singleStep" stdset="0">
+               <double>0.500000000000000</double>
+              </property>
+              <property name="value" stdset="0">
+               <double>5.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="2">
+             <widget class="QCheckBox" name="soundCrossfadeOnSkip">
+              <property name="text">
+               <string>Also crossfade when skipping songs</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0" colspan="2">
+             <widget class="QCheckBox" name="soundFadeOnPause">
+              <property name="text">
+               <string>Fade smoothly when pausing or stopping</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="soundSilenceGroup">
+           <property name="title">
+            <string>Silence</string>
+           </property>
+           <layout class="QFormLayout" name="soundSilenceForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="soundSkipSilence">
+              <property name="text">
+               <string>Skip silence at the beginning and end of songs</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <spacer name="playbackTabRightSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="visualiserTab">
+      <attribute name="title">
+       <string>Now Playing</string>
+      </attribute>
+      <layout class="QHBoxLayout" name="visualiserTabLayout">
+       <item>
+        <layout class="QVBoxLayout" name="visualiserTabLeft">
+         <item>
+          <widget class="QGroupBox" name="visualiserGroup">
+           <property name="title">
+            <string>Visualiser</string>
+           </property>
+           <layout class="QFormLayout" name="visualiserForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0">
+             <widget class="QLabel" name="visualiserColoursLabel">
+              <property name="text">
+               <string>Colours:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QComboBox" name="visualiserColours">
+              <property name="toolTip">
+               <string>The colours of the bars. A flag also sets the number of bars, so that every stripe gets as many.</string>
+              </property>
+              <property name="maxVisibleItems">
+               <number>16</number>
+              </property>
+              <item>
+               <property name="text">
+                <string>Highlight colour</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Rainbow</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Pride</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Progress Pride</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Gay</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Lesbian</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Bisexual</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Pansexual</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Transgender</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Non-binary</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Genderfluid</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Genderqueer</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Agender</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Asexual</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Aromantic</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Intersex</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="visualiserBarsLabel">
+              <property name="text">
+               <string>Bars:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="visualiserBars">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> bars</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>4</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>48</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>12</number>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="visualiserGapLabel">
+              <property name="text">
+               <string>Gap between bars:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="visualiserGap">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> px</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>0</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>30</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>8</number>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="visualiserOpacityLabel">
+              <property name="text">
+               <string>Opacity:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLineEdit" name="visualiserOpacity">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys. Lower lets the lyrics stand out more.</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> %</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>10</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>100</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>5</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>100</number>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0">
+             <widget class="QLabel" name="visualiserFallSpeedLabel">
+              <property name="text">
+               <string>Bars fall:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QComboBox" name="visualiserFallSpeed">
+              <property name="toolTip">
+               <string>How quickly the bars sink back after a loud moment</string>
+              </property>
+              <item>
+               <property name="text">
+                <string>Slowly</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Normally</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Quickly</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="visualiserBackgroundGroup">
+           <property name="title">
+            <string>Album art background</string>
+           </property>
+           <layout class="QFormLayout" name="visualiserBackgroundForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="visualiserBackground">
+              <property name="toolTip">
+               <string>The playing song's cover, blurred, fills the space behind the bars. The mini player has its own checkbox below; both use these settings.</string>
+              </property>
+              <property name="text">
+               <string>Show the album art behind the big visualiser</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="visualiserBackgroundBlurLabel">
+              <property name="text">
+               <string>Blur:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="visualiserBackgroundBlur">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> px</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>0</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>100</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>5</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>100</number>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="visualiserBackgroundDarkenLabel">
+              <property name="text">
+               <string>Dim:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="visualiserBackgroundDarken">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys. Dims the cover towards the window: darker in dark mode, lighter in light mode, so the bars and lyrics stay easy to see.</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> %</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>0</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>95</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>5</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>50</number>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="visualiserBackgroundFitLabel">
+              <property name="text">
+               <string>Size:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QComboBox" name="visualiserBackgroundFit">
+              <property name="toolTip">
+               <string>How the cover is made to fit the space</string>
+              </property>
+              <item>
+               <property name="text">
+                <string>Fill (crop the sides)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Fit (show it whole)</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Stretch</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="visualiserMiniGroup">
+           <property name="title">
+            <string>Mini player</string>
+           </property>
+           <layout class="QFormLayout" name="visualiserMiniForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="visualiserMiniPlayer">
+              <property name="text">
+               <string>Show the visualiser in the mini player</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="visualiserMiniColoursLabel">
+              <property name="text">
+               <string>Colours:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QComboBox" name="visualiserMiniColours">
+              <property name="toolTip">
+               <string>The colours of the mini player's bars. A flag also sets its number of bars, so that every stripe gets as many.</string>
+              </property>
+              <property name="maxVisibleItems">
+               <number>17</number>
+              </property>
+              <item>
+               <property name="text">
+                <string>Same as the big visualiser</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Highlight colour</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Rainbow</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Pride</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Progress Pride</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Gay</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Lesbian</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Bisexual</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Pansexual</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Transgender</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Non-binary</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Genderfluid</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Genderqueer</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Agender</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Asexual</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Aromantic</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Intersex</string>
+               </property>
+              </item>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="visualiserMiniBarsLabel">
+              <property name="text">
+               <string>Bars:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="visualiserMiniBars">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> bars</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>4</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>48</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>12</number>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="visualiserMiniGapLabel">
+              <property name="text">
+               <string>Gap between bars:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLineEdit" name="visualiserMiniGap">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys. Of the gap above; a small window looks better with narrower gaps.</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> %</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>0</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>100</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>10</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>50</number>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0" colspan="2">
+             <widget class="QCheckBox" name="visualiserMiniBackground">
+              <property name="text">
+               <string>Show the album art behind the mini player's bars</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="visualiserResetRow">
+           <item>
+            <widget class="QPushButton" name="visualiserReset">
+             <property name="toolTip">
+              <string>Puts the visualiser, background and mini player options back as they were</string>
+             </property>
+             <property name="text">
+              <string>Reset Visualiser</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="visualiserResetRowSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <spacer name="visualiserTabLeftSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+       <item>
+        <layout class="QVBoxLayout" name="visualiserTabRight">
+         <item>
+          <widget class="QGroupBox" name="lyricsShadowGroup">
+           <property name="title">
+            <string>Text shadow</string>
+           </property>
+           <layout class="QFormLayout" name="lyricsShadowForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="lyricsShadow">
+              <property name="toolTip">
+               <string>A soft shadow behind the lyrics and the mini player's title and artist, so they stand out from the visualiser</string>
+              </property>
+              <property name="text">
+               <string>Shadow behind the lyrics and mini player text</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0">
+             <widget class="QLabel" name="lyricsShadowBlurLabel">
+              <property name="text">
+               <string>Softness:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="lyricsShadowBlur">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> px</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>0</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>30</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>8</number>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="lyricsShadowDistanceLabel">
+              <property name="text">
+               <string>Distance:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="lyricsShadowDistance">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> px</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>0</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>10</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>2</number>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="lyricsShadowStrengthLabel">
+              <property name="text">
+               <string>Strength:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLineEdit" name="lyricsShadowStrength">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> %</string>
+              </property>
+              <property name="minimum" stdset="0">
+               <number>10</number>
+              </property>
+              <property name="maximum" stdset="0">
+               <number>100</number>
+              </property>
+              <property name="singleStep" stdset="0">
+               <number>5</number>
+              </property>
+              <property name="value" stdset="0">
+               <number>86</number>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <widget class="QGroupBox" name="lyricsNoLyricsGroup">
+           <property name="title">
+            <string>No lyrics</string>
+           </property>
+           <layout class="QFormLayout" name="lyricsNoLyricsForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="lyricsShowNoLyrics">
+              <property name="toolTip">
+               <string>Off: a song without lyrics leaves the space empty, for the visualiser.</string>
+              </property>
+              <property name="text">
+               <string>Show “No lyrics for this song”</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <widget class="QCheckBox" name="lyricsFadeNoLyrics">
+              <property name="toolTip">
+               <string>So the visualiser is undisturbed. It shows again each time the tab is opened.</string>
+              </property>
+              <property name="text">
+               <string>Fade out “No lyrics for this song”</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="lyricsNoLyricsHoldLabel">
+              <property name="text">
+               <string>Show it for:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QLineEdit" name="lyricsNoLyricsHold">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> s</string>
+              </property>
+              <property name="decimals" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="minimum" stdset="0">
+               <double>0.000000000000000</double>
+              </property>
+              <property name="maximum" stdset="0">
+               <double>30.000000000000000</double>
+              </property>
+              <property name="singleStep" stdset="0">
+               <double>0.500000000000000</double>
+              </property>
+              <property name="value" stdset="0">
+               <double>3.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="0">
+             <widget class="QLabel" name="lyricsNoLyricsFadeLabel">
+              <property name="text">
+               <string>Fade out over:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="3" column="1">
+             <widget class="QLineEdit" name="lyricsNoLyricsFade">
+              <property name="maximumSize">
+               <size>
+                <width>110</width>
+                <height>16777215</height>
+               </size>
+              </property>
+              <property name="toolTip">
+               <string>Type a number, or use the Up and Down keys</string>
+              </property>
+              <property name="suffix" stdset="0">
+               <string> s</string>
+              </property>
+              <property name="decimals" stdset="0">
+               <number>1</number>
+              </property>
+              <property name="minimum" stdset="0">
+               <double>0.100000000000000</double>
+              </property>
+              <property name="maximum" stdset="0">
+               <double>10.000000000000000</double>
+              </property>
+              <property name="singleStep" stdset="0">
+               <double>0.500000000000000</double>
+              </property>
+              <property name="value" stdset="0">
+               <double>2.000000000000000</double>
+              </property>
+             </widget>
+            </item>
+           </layout>
+          </widget>
+         </item>
+         <item>
+          <layout class="QHBoxLayout" name="lyricsResetRow">
+           <item>
+            <widget class="QPushButton" name="lyricsReset">
+             <property name="toolTip">
+              <string>Puts the text shadow and No lyrics options back as they were</string>
+             </property>
+             <property name="text">
+              <string>Reset Lyrics</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="lyricsResetRowSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>40</width>
+               <height>20</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
+         <item>
+          <spacer name="visualiserTabRightSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Vertical</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>40</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+     <widget class="QWidget" name="shortcutsTab">
+      <attribute name="title">
+       <string>Shortcuts</string>
+      </attribute>
+      <layout class="QVBoxLayout" name="shortcutsTabLayout">
+       <item>
+        <widget class="QTreeWidget" name="shortcutsTree">
+         <property name="toolTip">
+          <string>Pick an action, then press its new keys below. Changed shortcuts are bold.</string>
+         </property>
+         <property name="rootIsDecorated">
+          <bool>false</bool>
+         </property>
+         <property name="uniformRowHeights">
+          <bool>true</bool>
+         </property>
+         <column>
+          <property name="text">
+           <string>Action</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Shortcut</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="shortcutsEditRow">
+         <item>
+          <widget class="QLabel" name="shortcutsEditLabel">
            <property name="text">
-            <string>Repeat:</string>
+            <string>Shortcut:</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="playbackRepeat">
-           <item>
-            <property name="text">
-             <string>Off</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>All songs</string>
-            </property>
-           </item>
-           <item>
-            <property name="text">
-             <string>Current song</string>
-            </property>
-           </item>
+          <widget class="QKeySequenceEdit" name="shortcutsEdit">
+           <property name="toolTip">
+            <string>Click here, then press the keys, for example Ctrl+Shift+L</string>
+           </property>
           </widget>
          </item>
          <item>
-          <spacer name="playbackRepeatRowSpacer">
+          <widget class="QPushButton" name="shortcutsClear">
+           <property name="toolTip">
+            <string>Take the shortcut away from this action</string>
+           </property>
+           <property name="text">
+            <string>Clear</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="shortcutsReset">
+           <property name="toolTip">
+            <string>Give this action its first shortcut back</string>
+           </property>
+           <property name="text">
+            <string>Reset</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="shortcutsEditRowSpacer">
            <property name="orientation">
             <enum>Qt::Orientation::Horizontal</enum>
            </property>
@@ -462,20 +1619,20 @@
            </property>
           </spacer>
          </item>
+         <item>
+          <widget class="QPushButton" name="shortcutsResetAll">
+           <property name="toolTip">
+            <string>Put every shortcut back as it was at first</string>
+           </property>
+           <property name="text">
+            <string>Reset All</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
         </layout>
-       </item>
-       <item>
-        <spacer name="playbackTabSpacer">
-         <property name="orientation">
-          <enum>Qt::Orientation::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
        </item>
       </layout>
      </widget>
@@ -485,54 +1642,66 @@
       </attribute>
       <layout class="QVBoxLayout" name="librariesTabLayout">
        <item>
-        <layout class="QHBoxLayout" name="librariesButtonsRow">
-         <item>
-          <widget class="QPushButton" name="librariesAddButton">
-           <property name="text">
-            <string>Add Library...</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="librariesRescanButton">
-           <property name="text">
-            <string>Rescan Library</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="librariesRemoveButton">
-           <property name="text">
-            <string>Remove Library...</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="librariesButtonsRowSpacer">
-           <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-        </layout>
+        <widget class="QGroupBox" name="librariesGroup">
+         <property name="title">
+          <string>Libraries</string>
+         </property>
+         <layout class="QFormLayout" name="librariesForm">
+          <property name="fieldGrowthPolicy">
+           <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+          </property>
+          <item row="0" column="0" colspan="2">
+           <layout class="QHBoxLayout" name="librariesButtonsRow">
+            <item>
+             <widget class="QPushButton" name="librariesAddButton">
+              <property name="text">
+               <string>Add Library...</string>
+              </property>
+              <property name="autoDefault">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="librariesRescanButton">
+              <property name="text">
+               <string>Rescan Library</string>
+              </property>
+              <property name="autoDefault">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <widget class="QPushButton" name="librariesRemoveButton">
+              <property name="text">
+               <string>Remove Library...</string>
+              </property>
+              <property name="autoDefault">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item>
+             <spacer name="librariesButtonsRowSpacer">
+              <property name="orientation">
+               <enum>Qt::Orientation::Horizontal</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+           </layout>
+          </item>
+         </layout>
+        </widget>
        </item>
        <item>
-        <spacer name="librariesTabSpacer">
+        <spacer name="librariesTabLayoutSpacer">
          <property name="orientation">
           <enum>Qt::Orientation::Vertical</enum>
          </property>
@@ -550,42 +1719,64 @@
       <attribute name="title">
        <string>Online</string>
       </attribute>
-      <layout class="QVBoxLayout" name="onlineTabLayout">
+      <layout class="QHBoxLayout" name="onlineTabLayout">
        <item>
-        <widget class="QCheckBox" name="lastFmScrobble">
-         <property name="text">
-          <string>Scrobble songs to Last.fm</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QCheckBox" name="onlineDiscordPresence">
-         <property name="text">
-          <string>Show what I am playing on Discord</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <layout class="QHBoxLayout" name="onlineLastFmRow">
+        <layout class="QVBoxLayout" name="onlineTabLeft">
          <item>
-          <widget class="QPushButton" name="onlineLastFmButton">
-           <property name="text">
-            <string>Last.fm Account...</string>
+          <widget class="QGroupBox" name="onlineLastFmGroup">
+           <property name="title">
+            <string>Last.fm</string>
            </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
+           <layout class="QFormLayout" name="onlineLastFmForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="lastFmScrobble">
+              <property name="text">
+               <string>Scrobble songs to Last.fm</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="0" colspan="2">
+             <layout class="QHBoxLayout" name="onlineLastFmRow">
+              <item>
+               <widget class="QPushButton" name="onlineLastFmButton">
+                <property name="text">
+                 <string>Last.fm Account...</string>
+                </property>
+                <property name="autoDefault">
+                 <bool>false</bool>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <spacer name="onlineLastFmRowSpacer">
+                <property name="orientation">
+                 <enum>Qt::Orientation::Horizontal</enum>
+                </property>
+                <property name="sizeHint" stdset="0">
+                 <size>
+                  <width>40</width>
+                  <height>20</height>
+                 </size>
+                </property>
+               </spacer>
+              </item>
+             </layout>
+            </item>
+           </layout>
           </widget>
          </item>
          <item>
-          <spacer name="onlineLastFmRowSpacer">
+          <spacer name="onlineTabLeftSpacer">
            <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
+            <enum>Qt::Orientation::Vertical</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>40</width>
-             <height>20</height>
+             <width>20</width>
+             <height>40</height>
             </size>
            </property>
           </spacer>
@@ -593,74 +1784,40 @@
         </layout>
        </item>
        <item>
-        <spacer name="onlineTabSpacer">
-         <property name="orientation">
-          <enum>Qt::Orientation::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
-       </item>
-      </layout>
-     </widget>
-     <widget class="QWidget" name="backupTab">
-      <attribute name="title">
-       <string>Backup</string>
-      </attribute>
-      <layout class="QVBoxLayout" name="backupTabLayout">
-       <item>
-        <layout class="QHBoxLayout" name="backupButtonsRow">
+        <layout class="QVBoxLayout" name="onlineTabRight">
          <item>
-          <widget class="QPushButton" name="backupImportButton">
-           <property name="text">
-            <string>Import Settings...</string>
+          <widget class="QGroupBox" name="onlineDiscordGroup">
+           <property name="title">
+            <string>Discord</string>
            </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
+           <layout class="QFormLayout" name="onlineDiscordForm">
+            <property name="fieldGrowthPolicy">
+             <enum>QFormLayout::FieldGrowthPolicy::FieldsStayAtSizeHint</enum>
+            </property>
+            <item row="0" column="0" colspan="2">
+             <widget class="QCheckBox" name="onlineDiscordPresence">
+              <property name="text">
+               <string>Show what I am playing on Discord</string>
+              </property>
+             </widget>
+            </item>
+           </layout>
           </widget>
          </item>
          <item>
-          <widget class="QPushButton" name="backupExportButton">
-           <property name="text">
-            <string>Export Settings...</string>
-           </property>
-           <property name="autoDefault">
-            <bool>false</bool>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="backupButtonsRowSpacer">
+          <spacer name="onlineTabRightSpacer">
            <property name="orientation">
-            <enum>Qt::Orientation::Horizontal</enum>
+            <enum>Qt::Orientation::Vertical</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>40</width>
-             <height>20</height>
+             <width>20</width>
+             <height>40</height>
             </size>
            </property>
           </spacer>
          </item>
         </layout>
-       </item>
-       <item>
-        <spacer name="backupTabSpacer">
-         <property name="orientation">
-          <enum>Qt::Orientation::Vertical</enum>
-         </property>
-         <property name="sizeHint" stdset="0">
-          <size>
-           <width>20</width>
-           <height>40</height>
-          </size>
-         </property>
-        </spacer>
        </item>
       </layout>
      </widget>
