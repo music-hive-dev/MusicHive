@@ -9,7 +9,7 @@
 MusicHive plays your local library on Linux. It has the things I wanted from a
 music player: proper playlists, lyrics that follow the song, a real equaliser,
 Last.fm scrobbling and syncing to a portable player (my beloved iPod lol). It's written in Python with Qt for the interface and GStreamer for the sound, and I run it on Fedora KDE
-Plasma.
+Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.com/).
 
 ## What it does
 
