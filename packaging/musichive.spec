@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.6.4
+Version:        1.6.5
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -66,6 +66,9 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Mon Nov 23 2026 MusicHive - 1.6.5-1
+- Windows: the log starts before Qt and GStreamer, and GStreamer's plugin list is kept per user
+
 * Mon Nov 23 2026 MusicHive - 1.6.4-1
 - Windows: restarting starts a fresh copy, and crashes and a stuck startup are written to the log
 

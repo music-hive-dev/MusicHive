@@ -15,6 +15,31 @@ import json
 import secrets
 from dataclasses import dataclass
 
+STARTUP_HANG_SECONDS = 30  # see log_to_file
+
+
+def log_to_file() -> None:
+    """The Windows build has no console, so keep what would be printed in a log file.
+
+    This runs before anything else is imported, so that a crash while starting
+    Qt or GStreamer is written down too.
+    """
+    folder = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "MusicHive"
+    folder.mkdir(parents=True, exist_ok=True)
+    log = open(folder / "musichive.log", "w", encoding="utf-8", buffering=1)
+    sys.stdout = sys.stderr = log
+    faulthandler.enable(log)  # also a crash inside Qt or GStreamer, which Python cannot catch
+    # If the window has not appeared after this long, write down where startup is stuck.
+    faulthandler.dump_traceback_later(STARTUP_HANG_SECONDS)
+    if getattr(sys, "frozen", False):
+        # PyInstaller keeps GStreamer's list of plugins in the program's folder,
+        # which several copies would share and which may not be writable.
+        os.environ["GST_REGISTRY"] = str(folder / "gstreamer-registry.bin")
+
+
+if __name__ == "__main__" and (sys.stdout is None or sys.stderr is None):
+    log_to_file()
+
 import shiboken6
 from PySide6.QtCore import (
     QDir,
@@ -345,7 +370,6 @@ DAYS_FILE = Path(__file__).parent / "days.json"
 EMOJI_FONT_FILE = Path(__file__).parent / "assets" / "fonts" / "Twemoji.Mozilla.ttf"
 APP_ICON_FILE = Path(__file__).parent / "musichive_colour.svg"
 WINDOWS = sys.platform == "win32"
-STARTUP_HANG_SECONDS = 30  # see log_to_file
 EMOJI_FONTS = ["Twemoji Mozilla", "Segoe UI Emoji", "Noto Emoji"]  # the first with the emoji is used
 NOTHING_TO_PASTE = "There are no songs from this library on the clipboard"
 
@@ -6485,18 +6509,5 @@ def main() -> int:
     return exit_code
 
 
-def log_to_file() -> None:
-    """The Windows build has no console, so keep what would be printed in a log file."""
-    folder = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "MusicHive"
-    folder.mkdir(parents=True, exist_ok=True)
-    log = open(folder / "musichive.log", "w", encoding="utf-8", buffering=1)
-    sys.stdout = sys.stderr = log
-    faulthandler.enable(log)  # also a crash inside Qt or GStreamer, which Python cannot catch
-    # If the window has not appeared after this long, write down where startup is stuck.
-    faulthandler.dump_traceback_later(STARTUP_HANG_SECONDS)
-
-
 if __name__ == "__main__":
-    if sys.stdout is None or sys.stderr is None:
-        log_to_file()
     sys.exit(main())
