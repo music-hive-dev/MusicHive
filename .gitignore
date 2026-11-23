@@ -22,3 +22,6 @@ Thumbs.db
 
 # Personal desktop launcher (has local paths)
 /MusicHive
+
+# Tests
+.pytest_cache/

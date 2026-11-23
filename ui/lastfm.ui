@@ -87,6 +87,42 @@
     </widget>
    </item>
    <item>
+    <widget class="Line" name="lastFmSecretsLine">
+     <property name="orientation">
+      <enum>Qt::Orientation::Horizontal</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="lastFmSecretsHelp">
+     <property name="text">
+      <string>&lt;p&gt;To log in, MusicHive needs a Last.fm API account of your own:&lt;/p&gt;&lt;ol style="margin-left: 0px; -qt-list-indent: 1;"&gt;&lt;li&gt;Create one at &lt;a href="https://www.last.fm/api/account/create"&gt;last.fm/api/account/create&lt;/a&gt;. Any application name works; the callback URL can stay empty.&lt;/li&gt;&lt;li&gt;Click &lt;b&gt;Go to Secrets File&lt;/b&gt; below and paste the &lt;b&gt;API key&lt;/b&gt; and the &lt;b&gt;shared secret&lt;/b&gt; between the empty quotes after "lastfm_api_key" and "lastfm_api_secret".&lt;/li&gt;&lt;li&gt;Save the file and restart MusicHive, then click &lt;b&gt;Log in&lt;/b&gt;.&lt;/li&gt;&lt;/ol&gt;&lt;p&gt;Keep the secret to yourself: it is not meant to be shared.&lt;/p&gt;</string>
+     </property>
+     <property name="textFormat">
+      <enum>Qt::TextFormat::RichText</enum>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+     <property name="openExternalLinks">
+      <bool>true</bool>
+     </property>
+     <property name="textInteractionFlags">
+      <set>Qt::TextInteractionFlag::LinksAccessibleByMouse|Qt::TextInteractionFlag::TextSelectableByMouse</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="lastFmSecretsButton">
+     <property name="toolTip">
+      <string>Opens the file that holds your Last.fm API key and secret (it is made if it is not there yet)</string>
+     </property>
+     <property name="text">
+      <string>Go to Secrets File…</string>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="Line" name="line">
      <property name="orientation">
       <enum>Qt::Orientation::Horizontal</enum>

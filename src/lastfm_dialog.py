@@ -39,6 +39,7 @@ class LastFmDialog:
         client: LastFmClient,
         parent: QWidget,
         apply_counts: Callable[[dict], tuple[int, int]],
+        open_secrets: Callable[[QWidget], None],
     ) -> None:
         self.client = client
         self._apply_counts = apply_counts
@@ -51,6 +52,7 @@ class LastFmDialog:
         d.lastFmRememberCheckBox.toggled.connect(client.set_remember)
         d.lastFmDownloadButton.clicked.connect(self._on_download_clicked)
         d.lastFmImportButton.clicked.connect(self._on_import_clicked)
+        d.lastFmSecretsButton.clicked.connect(lambda _checked=False: open_secrets(d))
         self._backlog_per_day = NumberField(d.lastFmBacklogPerDay)
         self._backlog_per_day.setValue(client.backlog_per_day)
         self._backlog_per_day.valueChanged.connect(client.set_backlog_per_day)
@@ -78,7 +80,7 @@ class LastFmDialog:
         if not client.is_configured:
             status = (
                 "Last.fm is not set up yet. Add your API key and secret to the secrets "
-                "file (Settings, Online, Go to Secrets File), then restart MusicHive."
+                "file (Go to Secrets File, below), then restart MusicHive."
             )
         elif state == "in":
             status = f"Logged in as {client.username}."

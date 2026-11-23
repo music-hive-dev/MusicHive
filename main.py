@@ -1362,8 +1362,13 @@ class MusicHive:
         d.backupExportButton.clicked.connect(lambda _checked=False: self.export_settings_file())
         d.onlineSecretsButton.clicked.connect(lambda _checked=False: self.open_secrets_file())
 
-    def open_secrets_file(self) -> None:
-        """Settings, Online: open the secrets file, made with empty keys if it is missing."""
+    def open_secrets_file(self, parent: QWidget | None = None) -> None:
+        """Open the secrets file, made with empty keys if it is missing.
+
+        Used by Settings, Online and by the Last.fm window; `parent` is the
+        window any message appears over (the main window if None).
+        """
+        parent = parent or self.window
         path = library_db.data_dir() / SECRETS_FILE_NAME
         try:
             if not path.exists():
@@ -1371,11 +1376,11 @@ class MusicHive:
                 path.write_text(json.dumps(SECRETS_TEMPLATE, indent=2) + "\n", encoding="utf-8")
                 os.chmod(path, 0o600)  # only you can read it
         except OSError as error:
-            QMessageBox.warning(self.window, "Secrets file", f"Cannot make the file: {error}")
+            QMessageBox.warning(parent, "Secrets file", f"Cannot make the file: {error}")
             return
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
             QMessageBox.information(
-                self.window, "Secrets file", f"Open this file in a text editor:\n{path}"
+                parent, "Secrets file", f"Open this file in a text editor:\n{path}"
             )
 
     def connect_interface_tab(self, d) -> None:
@@ -2210,7 +2215,11 @@ class MusicHive:
     def show_lastfm_dialog(self) -> None:
         if self._lastfm_dialog is None:
             self._lastfm_dialog = LastFmDialog(
-                LASTFM_UI_FILE, self.lastfm, self.window, self.apply_lastfm_counts
+                LASTFM_UI_FILE,
+                self.lastfm,
+                self.window,
+                self.apply_lastfm_counts,
+                self.open_secrets_file,
             )
         self._lastfm_dialog.open_dialog()
 
