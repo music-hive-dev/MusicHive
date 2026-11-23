@@ -1,6 +1,7 @@
 """MusicHive: application startup and UI wiring."""
 
 import datetime
+import faulthandler
 import hashlib
 import html
 import os
@@ -344,6 +345,7 @@ DAYS_FILE = Path(__file__).parent / "days.json"
 EMOJI_FONT_FILE = Path(__file__).parent / "assets" / "fonts" / "Twemoji.Mozilla.ttf"
 APP_ICON_FILE = Path(__file__).parent / "musichive_colour.svg"
 WINDOWS = sys.platform == "win32"
+STARTUP_HANG_SECONDS = 30  # see log_to_file
 EMOJI_FONTS = ["Twemoji Mozilla", "Segoe UI Emoji", "Noto Emoji"]  # the first with the emoji is used
 NOTHING_TO_PASTE = "There are no songs from this library on the clipboard"
 
@@ -6458,6 +6460,7 @@ def main() -> int:
     app.setPalette(palette)
     app.aboutToQuit.connect(music_hive.shutdown)
     music_hive.show()
+    QTimer.singleShot(0, faulthandler.cancel_dump_traceback_later)  # started fine
     exit_code = app.exec()
     # Delete the windows while the QApplication still exists. Otherwise Python
     # may free them after it on exit, which crashes (SIGSEGV).
@@ -6474,7 +6477,9 @@ def main() -> int:
         arguments = sys.argv[1:] if getattr(sys, "frozen", False) else sys.argv
         if WINDOWS:
             # Windows has no real exec: it would start the new copy before this one has quit.
-            subprocess.Popen([sys.executable, *arguments], close_fds=True)
+            # The reset tells a built program it is a new start, not a helper of this one.
+            environment = {**os.environ, "PYINSTALLER_RESET_ENVIRONMENT": "1"}
+            subprocess.Popen([sys.executable, *arguments], close_fds=True, env=environment)
         else:
             os.execv(sys.executable, [sys.executable, *arguments])
     return exit_code
@@ -6486,6 +6491,9 @@ def log_to_file() -> None:
     folder.mkdir(parents=True, exist_ok=True)
     log = open(folder / "musichive.log", "w", encoding="utf-8", buffering=1)
     sys.stdout = sys.stderr = log
+    faulthandler.enable(log)  # also a crash inside Qt or GStreamer, which Python cannot catch
+    # If the window has not appeared after this long, write down where startup is stuck.
+    faulthandler.dump_traceback_later(STARTUP_HANG_SECONDS)
 
 
 if __name__ == "__main__":
