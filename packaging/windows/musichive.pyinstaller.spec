@@ -36,4 +36,15 @@ exe = EXE(
     console=False,
     icon=str(here / "musichive.ico"),
 )
-coll = COLLECT(exe, a.binaries, a.datas, name="MusicHive")
+# The same program with a console window, for finding out why it does not start:
+# everything is printed there, even what happens before main.py runs.
+debug_exe = EXE(
+    pyz,
+    a.scripts,
+    [],
+    exclude_binaries=True,
+    name="MusicHive-debug",
+    console=True,
+    icon=str(here / "musichive.ico"),
+)
+coll = COLLECT(exe, debug_exe, a.binaries, a.datas, name="MusicHive")
