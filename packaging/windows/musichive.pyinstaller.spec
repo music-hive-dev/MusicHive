@@ -24,6 +24,7 @@ a = Analysis(
     datas=datas,
     # Gio brings GLib's TLS module along, which HTTPS radio streams and podcasts need.
     hiddenimports=["gi.repository.Gio"],
+    runtime_hooks=[str(here / "runtime_environment.py")],
     excludes=["tkinter"],
 )
 pyz = PYZ(a.pure)
