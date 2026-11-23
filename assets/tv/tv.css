@@ -1,0 +1,199 @@
+/* The browser page MusicHive casts to. Sizes are in vw/vh so it fills any TV. */
+
+:root {
+  --window: #151416;
+  --text: #ffffff;
+  --neutral: #ffffff; /* buttons and progress: never a colour that clashes with the bars */
+  --dimmed: rgba(255, 255, 255, 0.67);
+  --surface: #312d34;
+  --lyrics-shadow: none;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--window);
+  color: var(--text);
+  font-family: Inter, "Segoe UI", Roboto, "Noto Sans", sans-serif;
+}
+
+/* The playing cover, blurred and dimmed, behind everything. tv.js draws it
+   tiny once per song and the browser stretches it: a blur that costs nothing
+   (a real blur filter on a whole TV screen makes the sound stutter). */
+#background {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  transition: opacity 0.8s;
+}
+#background.shown { opacity: 1; }
+#dim { position: fixed; inset: 0; pointer-events: none; }
+
+#bars {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Lyrics: the line being sung sits in the middle of the space above the info. */
+#lyrics {
+  position: fixed;
+  left: 6vw;
+  right: 6vw;
+  top: 0;
+  bottom: 22vh;
+  overflow: hidden;
+}
+#lines {
+  position: absolute;
+  left: 0;
+  right: 0;
+  text-align: center;
+  transition: transform 0.45s ease-out;
+  text-shadow: var(--lyrics-shadow);
+  will-change: transform;
+}
+.line {
+  font-size: 2.6vw;
+  line-height: 1.35;
+  padding: 0.35vw 0;
+  opacity: 0.47; /* 120 of 255, as in the Now Playing tab */
+  transition: opacity 0.3s, font-size 0.3s;
+}
+.line.current {
+  font-size: 3.6vw;
+  font-weight: 700;
+  opacity: 1;
+}
+#lines.plain .line { opacity: 1; font-size: 2.2vw; }
+#lines.note .line {
+  opacity: 1;
+  color: var(--dimmed);
+  transition: opacity 2s;
+}
+#lines.note.faded .line { opacity: 0; }
+
+/* Title, artist and progress, at the bottom. */
+#info {
+  position: fixed;
+  left: 4vw;
+  right: 4vw;
+  bottom: 4vh;
+  display: flex;
+  align-items: center;
+  gap: 2vw;
+  text-shadow: var(--lyrics-shadow);
+}
+#cover {
+  width: 11vh;
+  height: 11vh;
+  border-radius: 1.2vh;
+  object-fit: cover;
+  box-shadow: 0 0.6vh 2vh rgba(0, 0, 0, 0.5);
+}
+#cover:not([src]), #cover[src=""] { display: none; }
+#text { flex: 1; min-width: 0; }
+#title, #artist {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+#title { font-size: 2.3vw; font-weight: 700; }
+#artist { font-size: 1.6vw; color: var(--dimmed); margin-top: 0.3vh; }
+#progress {
+  display: flex;
+  align-items: center;
+  gap: 1.2vw;
+  margin-top: 1.2vh;
+  font-size: 1.1vw;
+  color: var(--dimmed);
+  font-variant-numeric: tabular-nums;
+}
+#progress.hidden { visibility: hidden; }
+#track {
+  flex: 1;
+  cursor: pointer; /* click to seek */
+  height: 0.7vh;
+  border-radius: 0.35vh;
+  background: rgba(255, 255, 255, 0.2);
+  overflow: hidden;
+}
+#fill {
+  height: 100%;
+  width: 100%;
+  border-radius: 0.35vh;
+  background: var(--neutral); /* neutral, so it never clashes with the bars */
+  transform: scaleX(0); /* tv.js moves it: cheaper than changing the width */
+  transform-origin: left;
+}
+
+/* Previous, play/pause and next: round buttons, reachable with a TV remote's arrows. */
+#controls {
+  display: flex;
+  align-items: center;
+  gap: 1.2vw;
+}
+.control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 4.4vw;
+  height: 4.4vw;
+  padding: 1.1vw;
+  border: none;
+  border-radius: 50%;
+  color: var(--neutral);
+  background: rgba(49, 45, 52, 0.75); /* #312d34 */
+  cursor: pointer;
+  transition: background 0.2s, transform 0.2s;
+}
+.control.large {
+  width: 5.6vw;
+  height: 5.6vw;
+  padding: 1.4vw;
+  background: var(--neutral); /* neutral, so it never clashes with the bars */
+  color: var(--window);
+}
+.control svg { width: 100%; height: 100%; }
+.control:hover { background: #433d47; }
+.control.large:hover { background: var(--neutral); filter: brightness(0.9); }
+.control:focus { outline: none; }
+.control:focus-visible, .control:focus {
+  box-shadow: 0 0 0 0.25vw var(--window), 0 0 0 0.5vw var(--neutral);
+  transform: scale(1.08);
+}
+#playPause .pause { display: none; }
+#playPause.playing .pause { display: block; }
+#playPause.playing .play { display: none; }
+
+/* "Start": browsers only play sound after a press. */
+#start, #waiting {
+  position: fixed;
+  inset: 0;
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(21, 20, 22, 0.85);
+  cursor: default;
+}
+#start.shown, #waiting.shown { display: flex; }
+#start p { font-size: 1.6vw; color: var(--dimmed); }
+#startButton {
+  font: inherit;
+  font-size: 2.4vw;
+  font-weight: 700;
+  color: var(--window);
+  background: var(--neutral);
+  border: none;
+  border-radius: 999px;
+  padding: 1.2vw 4vw;
+}
+#startButton:focus { outline: 0.3vw solid var(--neutral); outline-offset: 0.3vw; }
+#waiting { font-size: 2vw; color: var(--dimmed); }

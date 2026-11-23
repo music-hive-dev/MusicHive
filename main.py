@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 import random
 import json
+import secrets
 from dataclasses import dataclass
 
 import shiboken6
@@ -74,7 +75,9 @@ from PySide6.QtWidgets import (
 from src import library_db, theme
 from src.artist_info import ArtistInfoService
 from src.audio_player import AudioPlayer
-from src.cast import CHROMECAST, CastDevice, CastFinder
+from src.cast import BROWSER, CHROMECAST, CastDevice, CastError, CastFinder
+from src.cast_browser import screen_style
+from src.cast_screen import CastScreen
 from src.cover_view import SquareCover
 from src.drag_label import LabelDragUiLoader
 from src.formatting import format_long_duration, format_size, format_time
@@ -233,6 +236,9 @@ CONVERT_UI_FILE = UI_DIR / "convert_files.ui"
 COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
 ABOUT_UI_FILE = UI_DIR / "about.ui"
 MINI_PLAYER_UI_FILE = UI_DIR / "mini_player.ui"
+CAST_SCREEN_UI_FILE = UI_DIR / "cast_screen.ui"
+CAST_VIDEO_KEY = "castWithPictures"
+CAST_BROWSER_CODE_KEY = "castBrowserCode"  # the number in the browser page's address
 
 # How long after a track starts before Last.fm is told what is playing.
 NOW_PLAYING_DELAY_MS = 3000
@@ -1069,6 +1075,15 @@ class MusicHive:
         self.player.audio_buffer_ready.connect(self.visualizer.add_buffer)
         self.lyrics_view = LyricsView(w.nowPlayingLyrics)
         self.lyrics_view.set_style(load_lyrics_settings(self.settings))
+        # What a TV shows while casting with pictures: its own visualiser and lyrics.
+        self.cast_screen = CastScreen(load_ui(CAST_SCREEN_UI_FILE), w.styleSheet())
+        self.player.audio_buffer_ready.connect(self.cast_screen.visualizer.add_buffer)
+        self.cast_screen.lyrics.set_style(load_lyrics_settings(self.settings))
+        # What a browser page cast to is told about the look and the lyrics.
+        self.current_lyrics: str | None = None  # the song's, as stored; None: not a song
+        self.current_lyrics_style = load_lyrics_settings(self.settings)
+        self.current_visualiser_style = VisualiserSettings()
+        self.current_cover_colours = None
         w.nowPlayingLyrics.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         w.nowPlayingLyrics.customContextMenuRequested.connect(self.show_lyrics_menu)
         for widget in (
@@ -1778,7 +1793,10 @@ class MusicHive:
     def set_lyrics_style(self, style: LyricsSettings) -> None:
         """The text shadow (lyrics and mini player) and the "No lyrics" fade."""
         self.lyrics_view.set_style(style)
+        self.cast_screen.lyrics.set_style(style)
         self.mini_player.set_text_shadow(style)
+        self.current_lyrics_style = style
+        self.send_screen_style()
 
     def set_find_reset(self, seconds: float) -> None:
         set_reset_seconds(seconds)
@@ -1790,12 +1808,19 @@ class MusicHive:
         colours = colours_of(cover)  # worked out once, then kept (cover_colours.py)
         self.visualizer.set_cover(cover, colours)
         self.mini_visualizer.set_cover(cover, colours)
+        self.cast_screen.visualizer.set_cover(cover, colours)
         self.lyrics_view.set_cover_colour(colours.lyrics if colours is not None else None)
+        self.cast_screen.lyrics.set_cover_colour(colours.lyrics if colours is not None else None)
+        self.current_cover_colours = colours
+        self.send_screen_style()
 
     def set_visualiser_style(self, style: VisualiserSettings) -> None:
         """How the bars of both visualisers look (Settings, Visualiser)."""
         self.visualizer.set_style(style)
         self.mini_visualizer.set_style(for_mini_player(style))  # its own bars and background
+        self.cast_screen.set_visualiser_style(style)
+        self.current_visualiser_style = style
+        self.send_screen_style()
 
     def on_minimize_to_tray_toggled(self, enabled: bool) -> None:
         self.settings.setValue("minimizeToTray", enabled)
@@ -2392,6 +2417,9 @@ class MusicHive:
         self.mpris_art_url = cover_file_url(details.cover) if details.cover else ""
         self.lyrics_view.set_lyrics(details.lyrics)
         self.lyrics_view.set_position(self.position_ms)
+        self.cast_screen.lyrics.set_lyrics(details.lyrics)
+        self.current_lyrics = details.lyrics
+        self.cast_screen.lyrics.set_position(self.position_ms)
         self.adopt_file_rating(details.rating)
         self.show_current_rating()
         self.cover_view.set_image(cover)
@@ -2547,6 +2575,8 @@ class MusicHive:
         self.track_audio_format = ""
         self.mpris_art_url = ""
         self.lyrics_view.set_lyrics("")
+        self.cast_screen.lyrics.set_lyrics("")
+        self.current_lyrics = ""
         self.rating_stars.set_rating(0, enabled=False)
         self.cover_view.set_image(None)
         self.update_window_title()
@@ -5437,6 +5467,8 @@ class MusicHive:
         self.full_cover_data = data
         self.mpris_art_url = cover_file_url(data) if data else ""
         self.lyrics_view.clear()
+        self.cast_screen.lyrics.clear()
+        self.current_lyrics = None
         self.rating_stars.set_rating(0, enabled=False)
         self.cover_view.set_image(cover)
 
@@ -5760,6 +5792,8 @@ class MusicHive:
         self.full_cover_data = data
         self.mpris_art_url = cover_file_url(data) if data else ""
         self.lyrics_view.clear()
+        self.cast_screen.lyrics.clear()
+        self.current_lyrics = None
         self.rating_stars.set_rating(0, enabled=False)
         self.cover_view.set_image(logo)
 
@@ -5795,16 +5829,26 @@ class MusicHive:
         self.cast_devices: list[CastDevice] = []
         self.cast_actions: list[QAction] = []
         self.cast_searched = False
+        w.actionCastVideo.setChecked(self.settings.value(CAST_VIDEO_KEY, False, type=bool))
+        w.actionCastVideo.toggled.connect(self.on_cast_video_toggled)
         self.local_volume: int | None = None  # this computer's volume, kept while casting
         self.cast_group = QActionGroup(w)
         self.cast_group.setExclusive(True)
         self.cast_group.addAction(w.actionCastComputer)
+        self.cast_group.addAction(w.actionCastBrowser)
+        w.actionCastBrowser.triggered.connect(lambda _checked=False: self.cast_to_browser())
+        w.actionCastBrowserAddress.setVisible(False)
+        w.actionCastBrowserAddress.triggered.connect(
+            lambda _checked=False: QApplication.clipboard().setText(self.player.browser_address)
+        )
         w.actionCastComputer.triggered.connect(lambda _checked=False: self.cast_to(None))
         w.actionCastSearch.triggered.connect(lambda _checked=False: self.search_cast_devices())
         w.menuCast.aboutToShow.connect(self.on_cast_menu_shown)
         w.castButton.clicked.connect(lambda _checked=False: self.show_cast_menu())
         self.player.cast_volume.connect(self.on_cast_volume)
         self.player.cast_ended.connect(self.on_cast_ended)
+        self.player.skip_requested.connect(self.on_cast_skip)
+        self.player.cast_request.connect(self.on_cast_request)
 
     def show_cast_menu(self) -> None:
         w = self.window
@@ -5825,7 +5869,11 @@ class MusicHive:
         w = self.window
         w.actionCastSearch.setEnabled(True)
         current = self.player.cast_device
-        if current is not None and all(d.id != current.id for d in devices):
+        if (
+            current is not None
+            and current.kind != BROWSER
+            and all(d.id != current.id for d in devices)
+        ):
             devices = [current, *devices]  # still in use, even if it did not answer now
         for action in self.cast_actions:
             self.cast_group.removeAction(action)
@@ -5851,28 +5899,88 @@ class MusicHive:
             message += " (Chromecasts need the PyChromecast package)"
         self.show_status(message)
 
-    def cast_to(self, device: CastDevice | None) -> None:
-        """Play on `device`, or on this computer again for None."""
+    def cast_to(self, device: CastDevice | None, again: bool = False) -> None:
+        """Play on `device`, or on this computer again for None. `again`: start
+        over on the same device (the "with pictures" choice changed)."""
         w = self.window
         player = self.player
         current = player.cast_device
         if device is None:
             if current is not None:
                 player.stop_casting()
+                self.cast_screen.stop()
                 self.back_on_computer()
                 self.show_status(f"Stopped casting to {current.name}")
-        elif current is None or current.id != device.id:
+        elif again or current is None or current.id != device.id:
+            video = w.actionCastVideo.isChecked() and device.kind != BROWSER
+            try:
+                player.start_casting(device, video=video)
+            except CastError as error:
+                if not player.casting_video:
+                    self.cast_screen.stop()
+                if current is not None and not player.casting:  # it was ended on the way
+                    self.back_on_computer()
+                self.show_status(f"Cannot cast to {device.name}: {error}")
+                self.update_cast_ui()
+                return
             if current is None:
                 self.local_volume = w.volumeSlider.value()
-            player.start_casting(device)
+            if video:
+                self.cast_screen.start(player.push_video_frame)
+            else:
+                self.cast_screen.stop()
             if w.muteButton.isChecked():
                 player.set_muted(True)
             kind = "Chromecast" if device.kind == CHROMECAST else "DLNA"
-            self.show_status(
-                f"Casting to {device.name} ({kind}). The equaliser, crossfade and "
-                "visualiser only work on this computer."
-            )
+            if device.kind == BROWSER:
+                self.send_screen_style()
+                self.prepare_next_bars()
+                self.show_status(
+                    f"Open {player.browser_address} in the TV's browser "
+                    "(click the address in the Cast To menu to copy it)"
+                )
+            elif video:
+                self.show_status(
+                    f"Casting to {device.name} ({kind}) with the visualiser and lyrics. "
+                    "Pausing and skipping take a few seconds to reach the TV."
+                )
+            else:
+                self.show_status(
+                    f"Casting to {device.name} ({kind}). The equaliser, crossfade and "
+                    "visualiser only work on this computer."
+                )
         self.update_cast_ui()
+
+    def cast_to_browser(self) -> None:
+        """Play in a web page that a TV's browser (or any browser) opens."""
+        code = self.settings.value(CAST_BROWSER_CODE_KEY, "", type=str)
+        if not (len(code) == 6 and code.isdigit()):
+            code = f"{100000 + secrets.randbelow(900000)}"  # short, to type on a TV remote
+            self.settings.setValue(CAST_BROWSER_CODE_KEY, code)
+        self.cast_to(CastDevice(kind=BROWSER, id="browser", name="the web browser", host="", code=code))
+
+    def prepare_next_bars(self) -> None:
+        """While casting to a browser: the next song's bar map is made meanwhile,
+        so the page has bars from the moment that song starts."""
+        if not self.player.casting_to_browser or self.away_from_music:
+            return
+        upcoming = self.play_order.upcoming_rows()
+        if len(upcoming) > 1 and 0 <= upcoming[1] < len(self.tracks):
+            self.player.prepare_bars(self.tracks[upcoming[1]])
+
+    def send_screen_style(self) -> None:
+        """Tell a browser page cast to how the visualiser and lyrics look."""
+        if self.player.casting:
+            self.player.send_screen_style(screen_style(
+                self.current_visualiser_style, self.current_lyrics_style, self.current_cover_colours
+            ))
+
+    def on_cast_video_toggled(self, video: bool) -> None:
+        """Casting with pictures or without: start over if a device is in use."""
+        self.settings.setValue(CAST_VIDEO_KEY, video)
+        device = self.player.cast_device
+        if device is not None and device.kind != BROWSER and video != self.player.casting_video:
+            self.cast_to(device, again=True)
 
     def back_on_computer(self) -> None:
         """Casting ended: this computer's own volume and mute again."""
@@ -5892,6 +6000,11 @@ class MusicHive:
             f"Casting to {device.name}." if device is not None else "Cast to a TV or speaker."
         )
         w.actionCastComputer.setChecked(device is None)
+        browser = device is not None and device.kind == BROWSER
+        w.actionCastBrowser.setChecked(browser)
+        address = self.player.browser_address if browser else ""
+        w.actionCastBrowserAddress.setVisible(bool(address))
+        w.actionCastBrowserAddress.setText(address)
         for action, found in zip(self.cast_actions, self.cast_devices):
             action.setChecked(device is not None and found.id == device.id)
 
@@ -5904,7 +6017,27 @@ class MusicHive:
         self.update_volume_ui()
         self.update_mpris()
 
+    def on_cast_skip(self, steps: int) -> None:
+        """Previous or next, pressed on the TV, its phone notification or Google Home."""
+        for _ in range(abs(steps)):
+            if steps > 0:
+                self.play_next()
+            else:
+                self.play_previous()
+
+    def on_cast_request(self, action: str, value: int) -> None:
+        """A button on the browser page cast to: the same as MusicHive's own."""
+        if action == "playpause":
+            self.on_play_pause()
+        elif action == "next":
+            self.play_next()
+        elif action == "previous":
+            self.play_previous()
+        elif action == "seek" and self.station_id is None:  # live radio cannot be seeked
+            self.player.seek(max(0, value))
+
     def on_cast_ended(self, reason: str) -> None:
+        self.cast_screen.stop()
         self.back_on_computer()
         self.update_cast_ui()
         self.show_status(reason)
@@ -5915,7 +6048,10 @@ class MusicHive:
         title = metadata.get("xesam:title", ("s", ""))[1]
         artist = ", ".join(metadata.get("xesam:artist", ("as", []))[1])
         album = metadata.get("xesam:album", ("s", ""))[1]
-        self.player.set_cast_details(title, artist, album, self.full_cover_data)
+        self.player.set_cast_details(
+            title, artist, album, self.full_cover_data, self.current_lyrics
+        )
+        self.cast_screen.set_details(title, artist)
 
     def setup_sleep_timer(self) -> None:
         w = self.window
@@ -6121,6 +6257,7 @@ class MusicHive:
         self.discord.request_update()
         self.update_mpris()
         self.send_cast_details()
+        self.prepare_next_bars()
 
     def apply_sound_presets(self, track: Path | None = None) -> None:
         """Use the equaliser and visualiser presets of the playing song and its playlist.
@@ -6239,6 +6376,7 @@ class MusicHive:
             self.save_episode_position()
         self.mpris.set_position(position_ms)
         self.lyrics_view.set_position(position_ms)
+        self.cast_screen.lyrics.set_position(position_ms)
         slider = self.window.progressSlider
         if slider.isSliderDown():  # the user is dragging; don't fight them
             return

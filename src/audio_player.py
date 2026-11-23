@@ -31,6 +31,7 @@ from PySide6.QtCore import (  # noqa: E402
 from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat  # noqa: E402
 
 from src.cast import (  # noqa: E402
+    CHROMECAST,
     CastDevice,
     CastError,
     CastMedia,
@@ -39,6 +40,8 @@ from src.cast import (  # noqa: E402
     audio_type,
     open_session,
 )
+from src.cast_bars import BarMaps, describe as describe_bar_map  # noqa: E402
+from src.cast_video import AUDIO_CAPS, VideoStream  # noqa: E402
 from src.equaliser import BAND_FREQUENCIES, BAND_OCTAVES, MAX_BANDS, EqSettings  # noqa: E402
 from src.sound_settings import SoundSettings  # noqa: E402
 from src.track_metadata import read_track_gain  # noqa: E402
@@ -84,6 +87,13 @@ _OUTPUT_CHAIN = (
     f"! audio/x-raw,format=S16LE,rate={_VISUAL_RATE},channels=1 "
     "! appsink name=samples sync=false async=false max-buffers=64 drop=true"
 )
+# Casting with pictures: the same, but the sound goes to the video (cast_video.py)
+# instead of the speakers, as it plays (sync=true), so the deck keeps time as before.
+_CAST_OUTPUT_CHAIN = _OUTPUT_CHAIN.replace(
+    "! autoaudiosink ",
+    f"! {AUDIO_CAPS} ! appsink name=cast sync=true emit-signals=true max-buffers=8 ",
+)
+assert _CAST_OUTPUT_CHAIN != _OUTPUT_CHAIN
 _SCAN_RATE = 16000  # samples per second; enough to tell silence from sound
 _SCAN_CHAIN = (
     "audioconvert ! audioresample "
@@ -191,7 +201,11 @@ class _Fade:
 class _Deck:
     """One complete player: a pipeline, its equaliser and its volume controls."""
 
-    def __init__(self) -> None:
+    def __init__(self, index: int) -> None:
+        self.index = index  # 0 or 1, for telling the decks apart in a cast video
+        self._volume = 0.7
+        self._muted = False
+        self._cast_push: Callable[[int, bytes], None] | None = None
         filters = Gst.parse_bin_from_description(_FILTER_CHAIN, True)
         output = Gst.parse_bin_from_description(_OUTPUT_CHAIN, True)
         self._preamp = filters.get_by_name("preamp")
@@ -287,14 +301,50 @@ class _Deck:
     # ----- volume -----
 
     def set_volume(self, volume: float) -> None:
-        self._master.set_property("volume", volume)
+        self._volume = volume
+        if self._cast_push is None:  # a cast video is at full volume; the TV sets it
+            self._master.set_property("volume", volume)
 
     def set_track_gain(self, gain_db: float) -> None:
         """Level this song, from its own tag. The element goes up to 10 times (+20 dB)."""
         self._track_gain.set_property("volume", min(10 ** (gain_db / 20), 10.0))
 
     def set_muted(self, muted: bool) -> None:
-        self._master.set_property("mute", muted)
+        self._muted = muted
+        if self._cast_push is None:
+            self._master.set_property("mute", muted)
+
+    def use_output(self, push: Callable[[int, bytes], None] | None) -> None:
+        """Play to the speakers (None), or hand the sound to `push` as it plays
+        (casting with pictures). Stops the pipeline; open the track again after."""
+        self.halt(Gst.State.NULL)
+        self._cast_push = push
+        track_gain = self._track_gain.get_property("volume")
+        output = Gst.parse_bin_from_description(
+            _OUTPUT_CHAIN if push is None else _CAST_OUTPUT_CHAIN, True
+        )
+        self._track_gain = output.get_by_name("trackgain")
+        self._fader = output.get_by_name("fade")
+        self._master = output.get_by_name("master")
+        self.samples = output.get_by_name("samples")
+        self._track_gain.set_property("volume", track_gain)
+        self._fader.set_property("volume", self._gain)
+        self._master.set_property("volume", self._volume if push is None else 1.0)
+        self._master.set_property("mute", self._muted if push is None else False)
+        if push is not None:
+            output.get_by_name("cast").connect("new-sample", self._on_cast_sound)
+        self.pipeline.set_property("audio-sink", output)
+
+    def _on_cast_sound(self, sink) -> Gst.FlowReturn:
+        """Sound that is due now goes to the cast video (on GStreamer's thread)."""
+        sample = sink.emit("pull-sample")
+        push = self._cast_push
+        if sample is None:
+            return Gst.FlowReturn.EOS
+        if push is not None:
+            buffer = sample.get_buffer()
+            push(self.index, buffer.extract_dup(0, buffer.get_size()))
+        return Gst.FlowReturn.OK
 
     def set_gain(self, gain: float) -> None:
         self._gain = gain
@@ -361,6 +411,7 @@ class _CastDetails:
     artist: str = ""
     album: str = ""
     cover: bytes | None = None
+    lyrics: str | None = None  # for a browser page; None for episodes and radio
 
 
 class AudioPlayer(QObject):
@@ -383,11 +434,17 @@ class AudioPlayer(QObject):
     audio_buffer_ready = Signal(object)  # a QAudioBuffer of the sound, for the visualiser
     cast_volume = Signal(int)  # the volume (0-100) of the device cast to, once known
     cast_ended = Signal(str)  # casting stopped by itself; the reason, for the user
+    # Previous (negative) or next (positive) pressed on the device cast to: on a
+    # TV, in its phone notification or in Google Home. The app picks the song.
+    skip_requested = Signal(int)
+    # A button on a browser page cast to: "playpause", "next", "previous", or
+    # "seek" with a position in ms. The app does what its own button does.
+    cast_request = Signal(str, int)
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
-        self._active = _Deck()
-        self._other = _Deck()  # idle, or fading out the previous track
+        self._active = _Deck(0)
+        self._other = _Deck(1)  # idle, or fading out the previous track
         self._sound = SoundSettings()
         self._level_offset_db = 0.0  # brings tagged songs to the library's own volume
         self._level_enabled = True  # False plays every song at its own volume
@@ -429,6 +486,14 @@ class AudioPlayer(QObject):
         self._cast_loaded = False  # the device has the current track
         self._cast_duration = 0
         self._cast_clock = 0.0  # time.monotonic() of the last look, for radio's position
+        # Casting with pictures: the decks play as usual, into this video.
+        self._video: VideoStream | None = None
+        self._video_session: CastSession | None = None
+        self._video_media: CastMedia | None = None  # what the device was given
+        self._paused_by_device = False  # paused with the TV's remote, not here
+        # Bar maps, so a browser page shows the visualiser from a song's start.
+        self._bar_maps = BarMaps(self)
+        self._bar_maps.done.connect(self._on_bar_map_done)
 
     def _decks(self) -> tuple[_Deck, _Deck]:
         return self._active, self._other
@@ -546,6 +611,11 @@ class AudioPlayer(QObject):
             else:
                 self._cast_load(autoplay=True)
             return
+        if self._paused_by_device:
+            # The TV still holds the sound from before the pause; start it afresh.
+            self._paused_by_device = False
+            if self._video_session is not None and self._video_media is not None:
+                self._video_session.load(self._video_media)
         previous = self._state
         self._set_state("playing")
         if self._waiting_for_head is not None:
@@ -603,9 +673,11 @@ class AudioPlayer(QObject):
         if self._cast is not None:
             if self._active.track is None:
                 return
+            self._report_position(position_ms)
             if self._cast_loaded:
                 self._cast.seek(position_ms)
-            self._report_position(position_ms)
+            elif self._state == "playing":  # the device plays a stand-in: start afresh
+                self._cast_load(autoplay=True, position_ms=position_ms)
             return
         self._cancel_overlap()
         deck = self._active
@@ -622,16 +694,18 @@ class AudioPlayer(QObject):
 
     def set_volume(self, percent: int) -> None:
         """Set the volume from 0 to 100. While casting, it is the device's volume."""
-        if self._cast is not None:
-            self._cast.set_volume(percent)
+        session = self._cast or self._video_session
+        if session is not None:
+            session.set_volume(percent)
             return
         for deck in self._decks():
             deck.set_volume(max(0, min(100, percent)) / 100)
 
     def set_muted(self, muted: bool) -> None:
         """Silence or restore the sound without changing the volume."""
-        if self._cast is not None:
-            self._cast.set_muted(muted)
+        session = self._cast or self._video_session
+        if session is not None:
+            session.set_muted(muted)
             return
         for deck in self._decks():
             deck.set_muted(muted)
@@ -686,9 +760,14 @@ class AudioPlayer(QObject):
     def shutdown(self) -> None:
         """Release everything. Call before the app exits."""
         self.unload()
-        if self._cast is not None:
-            self._cast.close(wait=3.0)
-            self._cast = None
+        self._bar_maps.shutdown()
+        for session in (self._cast, self._video_session):
+            if session is not None:
+                session.close(wait=3.0)
+        self._cast = self._video_session = None
+        if self._video is not None:
+            self._video.stop()
+            self._video = None
         self._cast_server.stop()
         self._scan_pool.waitForDone(3000)
 
@@ -696,23 +775,55 @@ class AudioPlayer(QObject):
 
     @property
     def casting(self) -> bool:
-        return self._cast is not None
+        return self._cast is not None or self._video is not None
+
+    @property
+    def casting_video(self) -> bool:
+        return self._video is not None
 
     @property
     def cast_device(self) -> CastDevice | None:
-        return self._cast.device if self._cast is not None else None
+        session = self._cast or self._video_session
+        return session.device if session is not None else None
+
+    def push_video_frame(self, image) -> None:
+        """A picture for the TV while casting with pictures (see cast_screen.py)."""
+        if self._video is not None:
+            self._video.push_frame(image)
 
     def set_cast_details(
-        self, title: str, artist: str, album: str, cover: bytes | None
+        self,
+        title: str,
+        artist: str,
+        album: str,
+        cover: bytes | None,
+        lyrics: str | None = None,
     ) -> None:
         """What a device should show for the track that just started (also while
         not casting, for when casting begins mid-track)."""
-        self._cast_details = _CastDetails(title, artist, album, cover or None)
+        self._cast_details = _CastDetails(title, artist, album, cover or None, lyrics)
 
-    def start_casting(self, device: CastDevice) -> None:
-        """Play on `device` from now on, carrying on where the computer was."""
-        if self._cast is not None:
-            self._end_cast_session()
+    @property
+    def browser_address(self) -> str:
+        """The address of the browser page, while casting to a browser."""
+        return getattr(self._cast, "address", "")
+
+    def send_screen_style(self, style: dict) -> None:
+        """How a browser page cast to should look (cast_browser.screen_style)."""
+        if self._cast is not None and hasattr(self._cast, "set_style"):
+            self._cast.set_style(style)
+
+    def start_casting(self, device: CastDevice, video: bool = False) -> None:
+        """Play on `device` from now on, carrying on where the computer was.
+
+        With `video`, the TV gets a live video: the sound as this computer plays
+        it, with the pictures given to push_video_frame(). Raises CastError if
+        that video cannot be made here (a missing encoder).
+        """
+        if video:
+            self._start_video(device)
+            return
+        self._leave_cast()
         track = self._active.track
         self._cancel_overlap()
         self._cancel_scan()
@@ -720,7 +831,11 @@ class AudioPlayer(QObject):
         for deck in self._decks():
             deck.halt(Gst.State.READY)
         self._visual_held.clear()
-        self._cast = open_session(device)
+        self._cast = open_session(device, self._cast_server)
+        # A device keeps its own volume; a browser page starts at full volume (the
+        # TV sets how loud that is), and only takes this computer's mute.
+        if hasattr(self._cast, "set_style"):  # a browser page
+            self._cast.set_muted(self._active._muted)
         self._cast_duration = 0
         self._cast_clock = time.monotonic()
         self._timer.start()
@@ -729,9 +844,48 @@ class AudioPlayer(QObject):
 
     def stop_casting(self) -> None:
         """Play on this computer again, from where the device was."""
-        if self._cast is None:
+        if not self.casting:
             return
-        self._end_cast_session()
+        self._leave_cast()
+        self._resume_here()
+
+    def _leave_cast(self) -> None:
+        """End casting of either kind. The decks are left halted, on the speakers."""
+        if self._cast is not None:
+            self._end_cast_session()
+        if self._video is not None:
+            session, stream = self._video_session, self._video
+            self._video = self._video_session = self._video_media = None
+            self._paused_by_device = False
+            session.close()
+            for deck in self._decks():
+                deck.use_output(None)
+            stream.stop()
+            self._cast_server.stop()
+
+    def _start_video(self, device: CastDevice) -> None:
+        stream = VideoStream(device)  # first: if it cannot be made, nothing changes
+        self._leave_cast()
+        self._cancel_overlap()
+        for deck in self._decks():
+            deck.use_output(stream.push_audio)
+        stream.start()
+        session = open_session(device)
+        self._video, self._video_session = stream, session
+        try:
+            url = self._cast_server.url(
+                self._cast_server.share_stream(stream, stream.kind), device.host
+            )
+        except (CastError, OSError) as error:
+            self.stop_casting()
+            raise CastError(str(error)) from None
+        self._video_media = CastMedia(url=url, kind=stream.kind, title="MusicHive", live=True)
+        self._paused_by_device = False
+        session.load(self._video_media)
+        self._resume_here()
+
+    def _resume_here(self) -> None:
+        """Open the current track on the active deck where it was, as it was."""
         deck = self._active
         track = deck.track
         if track is None:
@@ -757,6 +911,39 @@ class AudioPlayer(QObject):
         self._cast_loaded = False
         session.close()  # the device stops playing
         self._cast_server.stop()  # and nothing is offered on the network any more
+
+    def _video_tick(self) -> None:
+        """Keep an eye on the device showing the video, and on the video itself."""
+        session, stream = self._video_session, self._video
+        reason = session.lost
+        if not reason:
+            problem = stream.take_error()
+            if problem:
+                reason = f"The video for {session.device.name} stopped: {problem}"
+        if not reason and (session.take_finished() or session.take_interrupted()):
+            reason = f"{session.device.name} stopped playing"
+        if reason:
+            if self._state == "playing":
+                self.pause()  # never burst out of the computer's speakers
+            self.stop_casting()
+            self.cast_ended.emit(reason)
+            return
+        for message in session.take_errors():
+            self.error_occurred.emit(message)
+        volume = session.take_volume()
+        if volume is not None:
+            self.cast_volume.emit(volume)
+        jumps = session.take_jumps()
+        if jumps:
+            self.skip_requested.emit(jumps)  # the video goes on; the app changes the song
+        state, _position, _duration, settled = session.status()
+        if not settled:
+            return
+        if state == "paused" and self._state == "playing":
+            self._paused_by_device = True  # paused with the TV's remote: pause here too
+            self.pause()
+        elif state == "playing" and self._paused_by_device:
+            self.play()
 
     def _cast_open(self, track: Path | str, position_ms: int, state: str) -> None:
         """Start a track on the device, telling the app as playing it here would."""
@@ -792,7 +979,7 @@ class AudioPlayer(QObject):
                 if stream is None:
                     return
                 kind = stream.content_type or "audio/mpeg"
-                url = server.url(server.share_radio(stream, kind), host)
+                url = server.url(server.share_stream(stream, kind), host)
                 live, position = True, 0
             elif isinstance(track, Path):
                 kind = audio_type(track.name)
@@ -803,6 +990,19 @@ class AudioPlayer(QObject):
                 url = track
                 live = kind == "application/x-mpegURL"
             cover = server.url(server.share_image(details.cover), host) if details.cover else ""
+            stand_in = (
+                server.url(server.share_silence(), host)
+                if session.device.kind == CHROMECAST
+                else ""
+            )
+            bars, bars_coming = None, False
+            if self.casting_to_browser and isinstance(track, Path):
+                bar_map = self._bar_maps.get(track)
+                if bar_map is not None:
+                    shared = server.share_bytes(bar_map, "application/octet-stream", "bars")
+                    bars = describe_bar_map(server.url(shared, host))
+                else:
+                    bars_coming = self._bar_maps.make(track, urgent=True)
         except (CastError, OSError) as error:
             self.error_occurred.emit(f"Cannot cast: {error}")
             return
@@ -817,9 +1017,39 @@ class AudioPlayer(QObject):
             live=live,
             position_ms=position,
             autoplay=autoplay,
+            stand_in_url=stand_in,
+            lyrics=details.lyrics,
+            gain_db=self._gain_for(track),  # 0 for streams and with Level Volume off
+            bars=bars,
+            bars_coming=bars_coming,
         ))
         self._cast_loaded = True
         self._cast_clock = time.monotonic()
+
+    @property
+    def casting_to_browser(self) -> bool:
+        return self._cast is not None and hasattr(self._cast, "send_bars")
+
+    def prepare_bars(self, track: Path) -> None:
+        """Make the bar map of a song that comes later, while casting to a browser."""
+        if self.casting_to_browser and isinstance(track, Path):
+            self._bar_maps.make(track)
+
+    def _on_bar_map_done(self, track: Path, made: bool) -> None:
+        """A bar map was made (or could not be): the page playing that song gets it."""
+        session = self._cast
+        if not self.casting_to_browser or self._active.track != track or not self._cast_loaded:
+            return
+        bar_map = self._bar_maps.get(track) if made else None
+        bars = None
+        if bar_map is not None:
+            server = self._cast_server
+            try:
+                shared = server.share_bytes(bar_map, "application/octet-stream", "bars")
+                bars = describe_bar_map(server.url(shared, session.device.host))
+            except (CastError, OSError):
+                bars = None
+        session.send_bars(bars)
 
     def _cast_tick(self) -> None:
         """Keep up with the device: its position, its end and its troubles."""
@@ -838,6 +1068,15 @@ class AudioPlayer(QObject):
         volume = session.take_volume()
         if volume is not None:
             self.cast_volume.emit(volume)
+        for action, value in session.take_requests():
+            self.cast_request.emit(action, value)
+            if self._cast is not session:
+                return  # the request ended casting meanwhile
+        jumps = session.take_jumps()
+        if jumps:
+            self._cast_loaded = False  # the device plays a stand-in meanwhile
+            self.skip_requested.emit(jumps)
+            return
         if not self._cast_loaded:
             return
         radio = self._active.track == RADIO_URI
@@ -986,6 +1225,8 @@ class AudioPlayer(QObject):
         if self._cast is not None:
             self._cast_tick()
             return
+        if self._video is not None:
+            self._video_tick()
         now = time.monotonic()
         for deck in self._decks():
             deck.advance_fade(now)

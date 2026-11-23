@@ -4057,6 +4057,10 @@ QWidget {
      <addaction name="separator"/>
      <addaction name="actionCastNoDevices"/>
      <addaction name="separator"/>
+     <addaction name="actionCastBrowser"/>
+     <addaction name="actionCastBrowserAddress"/>
+     <addaction name="separator"/>
+     <addaction name="actionCastVideo"/>
      <addaction name="actionCastSearch"/>
     </widget>
     <addaction name="actionPlayPause"/>
@@ -5587,6 +5591,57 @@ QWidget {
    </property>
    <property name="text">
     <string>No TVs or Speakers Found Yet</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCastBrowser">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/globe.svg</normaloff>../assets/globe.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Web Browser</string>
+   </property>
+   <property name="toolTip">
+    <string>Play in a web page that you open in your TV's browser (or any browser), with the visualiser and lyrics.</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCastBrowserAddress">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/clipboard-copy.svg</normaloff>../assets/clipboard-copy.svg</iconset>
+   </property>
+   <property name="text">
+    <string notr="true">http://…</string>
+   </property>
+   <property name="toolTip">
+    <string>Open this address in the browser. Click to copy it.</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCastVideo">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/audio-lines.svg</normaloff>../assets/audio-lines.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Show Visualiser and Lyrics on the TV</string>
+   </property>
+   <property name="toolTip">
+    <string>Cast a video with the visualiser and lyrics. The equaliser and crossfade work too, but pausing and skipping take a few seconds to reach the TV.</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

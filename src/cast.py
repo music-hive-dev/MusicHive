@@ -15,12 +15,14 @@ Chromecasts need the optional PyChromecast package; DLNA needs nothing extra.
 """
 
 import html
+import json
 import mimetypes
 import os
 import queue
 import re
 import secrets
 import socket
+import sys
 import threading
 import time
 import urllib.error
@@ -43,6 +45,7 @@ except ImportError:  # Chromecasts are optional; DLNA devices still work
 
 CHROMECAST = "chromecast"
 DLNA = "dlna"
+BROWSER = "browser"  # a web page MusicHive serves, opened in a TV's (or any) browser
 
 SEARCH_SECONDS = 4.0  # how long a search listens for devices
 POLL_SECONDS = 1.0  # how often a device is asked what it is doing
@@ -51,8 +54,18 @@ LOAD_TIMEOUT_SECONDS = 20  # a Chromecast that has not started by then will not
 LOST_AFTER_FAILURES = 5  # this many failed polls in a row: the device is gone
 NETWORK_TIMEOUT = 5
 SERVER_PORTS = range(8471, 8481)  # tried in turn, so a firewall rule can name them
-KEEP_SHARED = 6  # files and pictures the server keeps offering (current, previous…)
+KEEP_SHARED = 9  # files and pictures the server keeps offering (current, previous…)
+QUEUE_SLOTS = 10  # stand-ins on each side of what plays, so a Chromecast offers skipping
+SILENCE_SECONDS = 60  # the stand-in for songs: quiet, and long enough to be replaced
 COPY_BYTES = 64 * 1024
+PAGE_FOLDER = Path(__file__).parent.parent / "assets" / "tv"  # the browser page's files
+PAGE_FILES = {
+    "": ("index.html", "text/html; charset=utf-8"),
+    "tv.js": ("tv.js", "text/javascript; charset=utf-8"),
+    "tv.css": ("tv.css", "text/css; charset=utf-8"),
+}
+WRONG_GUESSES_ALLOWED = 20  # an address that tries this many wrong page codes is ignored
+MAX_STATUS_BYTES = 64 * 1024
 
 AUDIO_TYPES = {
     ".mp3": "audio/mpeg",
@@ -72,6 +85,14 @@ _RENDERER = "urn:schemas-upnp-org:device:MediaRenderer:1"
 _DEVICE_NS = "{urn:schemas-upnp-org:device-1-0}"
 # DLNA TVs look for these on the sound they fetch; some refuse to play without them.
 _DLNA_FEATURES = "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000"
+_DLNA_LIVE_FEATURES = (  # no seeking: it is made as it plays
+    "DLNA.ORG_OP=00;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01700000000000000000000000000000"
+)
+
+
+def log(message: str) -> None:
+    """A line in the terminal about casting, to see where it goes wrong."""
+    print(f"MusicHive cast: {message}", file=sys.stderr, flush=True)
 
 
 class CastError(Exception):
@@ -95,7 +116,7 @@ def image_type(data: bytes) -> str:
 class CastDevice:
     """A TV, speaker or Chromecast found on the network."""
 
-    kind: str  # CHROMECAST or DLNA
+    kind: str  # CHROMECAST, DLNA or BROWSER
     id: str  # stays the same for the device between searches
     name: str
     host: str  # its network address
@@ -107,6 +128,8 @@ class CastDevice:
     # Chromecast: what discovery found, and the discovery it belongs to
     cast_info: object = field(default=None, repr=False, compare=False)
     zeroconf: object = field(default=None, repr=False, compare=False)
+    # Browser: the number in the page's address (kept, so a bookmark keeps working)
+    code: str = ""
 
 
 class CastFinder(QObject):
@@ -265,6 +288,11 @@ def _read_description(location: str) -> CastDevice | None:
 # ----- the web server the devices fetch from -----
 
 
+def lan_address() -> str:
+    """This computer's address on its main network (no packet is sent)."""
+    return _local_address("10.254.254.254")
+
+
 def _local_address(device_host: str) -> str:
     """This computer's address as the device sees it (no packet is sent)."""
     with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
@@ -279,8 +307,12 @@ class _Server(ThreadingHTTPServer):
     daemon_threads = True
 
     def verify_request(self, request, client_address) -> bool:
-        """Anyone but the device cast to is hung up on before a word is read."""
-        return self.media.allows(client_address[0])
+        """Anyone but the device cast to is hung up on before a word is read
+        (while a browser page is offered, anyone who may know its code is heard)."""
+        if self.media.hears(client_address[0]):
+            return True
+        log(f"refused a connection from {client_address[0]} (not the device cast to)")
+        return False
 
 
 class MediaServer:
@@ -288,18 +320,54 @@ class MediaServer:
     hard-to-guess address.
 
     It runs only while casting, listens only on the network the device is on,
-    and answers only that device.
+    and answers only that device. While a browser page is offered, a browser
+    that opens the page's address (with its code) is let in as well.
     """
 
     def __init__(self) -> None:
         self._server: _Server | None = None
         self._shared: OrderedDict[str, tuple[object, str]] = OrderedDict()
         self._lock = threading.Lock()
-        self._allowed = ""  # the address of the device cast to
+        self._allowed: set[str] = set()  # the addresses of the devices cast to
+        self._browser = None  # the BrowserSession whose page is offered
+        self._code = ""  # the number in that page's address
+        self._wrong_guesses: dict[str, int] = {}
 
     def allows(self, address: str) -> bool:
         with self._lock:
-            return bool(self._allowed) and address == self._allowed
+            return address in self._allowed
+
+    def hears(self, address: str) -> bool:
+        with self._lock:
+            if address in self._allowed:
+                return True
+            return bool(self._code) and self._wrong_guesses.get(address, 0) < WRONG_GUESSES_ALLOWED
+
+    def browser_for(self, code: str, address: str):
+        """The BrowserSession whose page has this code, letting `address` in; or None
+        (and a wrong guess counted)."""
+        with self._lock:
+            if self._code and secrets.compare_digest(code, self._code):
+                self._allowed.add(address)
+                return self._browser
+            if address not in self._allowed:
+                self._wrong_guesses[address] = self._wrong_guesses.get(address, 0) + 1
+            return None
+
+    def open_browser(self, session, code: str) -> str:
+        """Offer the browser page at /<code>/; returns its address."""
+        local = lan_address()
+        server = self._start(local)
+        with self._lock:
+            self._browser, self._code = session, code
+        return f"http://{local}:{server.server_address[1]}/{code}/"
+
+    def page_address(self) -> str:
+        server = self._server
+        if server is None or not self._code:
+            return ""
+        host, port = server.server_address[:2]
+        return f"http://{host}:{port}/{self._code}/"
 
     def _start(self, local_address: str) -> _Server:
         server = self._server
@@ -325,7 +393,9 @@ class MediaServer:
         server, self._server = self._server, None
         with self._lock:
             self._shared.clear()
-            self._allowed = ""
+            self._allowed = set()
+            self._browser, self._code = None, ""
+            self._wrong_guesses.clear()
         if server is not None:
             self._close(server)
 
@@ -340,13 +410,23 @@ class MediaServer:
     def share_file(self, path: Path) -> str:
         return self._share(path, audio_type(path.name), path.name)
 
+    def share_silence(self) -> str:
+        """The quiet stand-in a Chromecast's previous and next buttons lead to."""
+        if not hasattr(self, "_silence"):
+            self._silence = silence_wav()
+        return self._share(self._silence, "audio/wav", "silence.wav")
+
+    def share_bytes(self, data: bytes, kind: str, name: str) -> str:
+        return self._share(data, kind, name)
+
     def share_image(self, data: bytes) -> str:
         kind = image_type(data)
         return self._share(data, kind, "cover.png" if kind == "image/png" else "cover.jpg")
 
-    def share_radio(self, stream, kind: str) -> str:
-        """`stream` has serve(write): it writes the station's sound until told to stop."""
-        return self._share(stream, kind, "radio")
+    def share_stream(self, stream, kind: str) -> str:
+        """`stream` has serve(write): it writes live sound or video until told to
+        stop (a radio station, or a cast video)."""
+        return self._share(stream, kind, "live")
 
     def _share(self, source: object, kind: str, name: str) -> str:
         token = secrets.token_urlsafe(12)
@@ -362,11 +442,15 @@ class MediaServer:
 
     def url(self, path: str, device_host: str) -> str:
         """The full address of something shared, for `device_host` (the only
-        device that will be answered from now on)."""
+        device that will be answered from now on). An empty `device_host` is a
+        browser page: the browsers that opened it are answered."""
+        if not device_host:
+            server = self._start(lan_address())
+            return f"http://{server.server_address[0]}:{server.server_address[1]}{path}"
         device = socket.gethostbyname(device_host)
         local = _local_address(device)
         with self._lock:
-            self._allowed = device
+            self._allowed = {device}
         server = self._start(local)
         return f"http://{local}:{server.server_address[1]}{path}"
 
@@ -384,37 +468,144 @@ class _MediaHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         self._answer(with_body=True)
 
-    def _answer(self, with_body: bool) -> None:
+    def do_POST(self) -> None:
         parts = urllib.parse.urlparse(self.path).path.split("/")
-        entry = self.server.media.lookup(parts[1]) if len(parts) > 2 else None
+        session = self._browser(parts)
+        if session is None or parts[2:] not in (["status"], ["control"]):
+            self.send_error(404)
+            return
+        length = int(self.headers.get("Content-Length") or 0)
+        if not 0 < length <= MAX_STATUS_BYTES:
+            self.send_error(400)
+            return
+        try:
+            message = json.loads(self.rfile.read(length))
+            if parts[2] == "status":
+                session.receive(message)
+            else:  # a button on the page: {action, value}
+                session.request(str(message["action"]), int(message.get("value") or 0))
+        except (ValueError, TypeError, KeyError):
+            self.send_error(400)
+            return
+        self.send_response(204)
+        self.send_header("Content-Length", "0")
+        self.end_headers()
+
+    def _browser(self, parts: list[str]):
+        """The BrowserSession for a page address (/<code>/…), or None."""
+        if len(parts) < 2 or not parts[1].isdigit():
+            return None
+        return self.server.media.browser_for(parts[1], self.client_address[0])
+
+    def _answer(self, with_body: bool) -> None:
+        media = self.server.media
+        parts = urllib.parse.urlparse(self.path).path.split("/")
+        session = self._browser(parts)
+        if session is not None:
+            self._answer_page(session, parts, with_body)
+            return
+        if not media.allows(self.client_address[0]):
+            self.send_error(404)
+            return
+        entry = media.lookup(parts[1]) if len(parts) > 2 else None
         if entry is None:
             self.send_error(404)
             return
         source, kind = entry
+        log(f"{self.client_address[0]} asked for {kind} ({self.command}, "
+            f"range {self.headers.get('Range') or 'none'})")
         if hasattr(source, "serve"):
-            self._send_radio(source, kind, with_body)
+            self._send_live(source, kind, with_body)
         else:
             self._send_bytes(source, kind, with_body)
 
-    def _common_headers(self, kind: str) -> None:
+    def _answer_page(self, session, parts: list[str], with_body: bool) -> None:
+        """The browser page: its files, its events and (POST) its status."""
+        if len(parts) == 2:  # /<code>: on to /<code>/, so the page's own links work
+            self.send_response(301)
+            self.send_header("Location", f"/{parts[1]}/")
+            self.send_header("Content-Length", "0")
+            self.end_headers()
+            return
+        rest = "/".join(parts[2:])
+        if rest == "events":
+            self._send_events(session)
+            return
+        if rest not in PAGE_FILES:
+            self.send_error(404)
+            return
+        name, kind = PAGE_FILES[rest]
+        try:
+            data = (PAGE_FOLDER / name).read_bytes()
+        except OSError:
+            self.send_error(404)
+            return
+        self.send_response(200)
+        self.send_header("Content-Type", kind)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        if with_body:
+            self.wfile.write(data)
+
+    def _send_events(self, session) -> None:
+        """What MusicHive tells the page, as it happens (server-sent events)."""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/event-stream")
+        self.send_header("Cache-Control", "no-cache")
+        self.send_header("Connection", "close")
+        self.end_headers()
+        self.close_connection = True
+        log(f"a browser at {self.client_address[0]} opened the page")
+        events = session.attach()
+        try:
+            while True:
+                try:
+                    event = events.get(timeout=15)
+                except queue.Empty:
+                    self.wfile.write(b": still here\n\n")  # keeps the connection open
+                    continue
+                if event is None:
+                    break
+                name, data = event
+                self.wfile.write(f"event: {name}\ndata: {json.dumps(data)}\n\n".encode())
+        except OSError:
+            pass  # the page was closed or reloaded
+        finally:
+            session.detach(events)
+            log(f"the browser at {self.client_address[0]} left the page")
+
+    def _common_headers(self, kind: str, live: bool = False) -> None:
         self.send_header("Content-Type", kind)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("transferMode.dlna.org", "Streaming")
-        if kind.startswith("audio/"):
-            self.send_header("contentFeatures.dlna.org", _DLNA_FEATURES)
+        if kind.startswith(("audio/", "video/")):
+            features = _DLNA_LIVE_FEATURES if live else _DLNA_FEATURES
+            self.send_header("contentFeatures.dlna.org", features)
 
-    def _send_radio(self, stream, kind: str, with_body: bool) -> None:
+    def _send_live(self, stream, kind: str, with_body: bool) -> None:
         self.send_response(200)
-        self._common_headers(kind)
+        self._common_headers(kind, live=True)
         self.send_header("Connection", "close")  # no length: the end is the hang-up
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.close_connection = True
         if with_body:
+            sent = 0
+
+            def write(data: bytes) -> None:
+                nonlocal sent
+                self.wfile.write(data)
+                if sent == 0:
+                    log(f"started sending {kind}")
+                sent += len(data)
+
             try:
-                stream.serve(self.wfile.write)
-            except OSError:
-                pass  # the device hung up
+                stream.serve(write)
+            except OSError as error:
+                log(f"the device hung up after {sent // 1024} KB ({error})")
+            else:
+                log(f"stopped sending {kind} after {sent // 1024} KB")
 
     def _send_bytes(self, source, kind: str, with_body: bool) -> None:
         try:
@@ -481,6 +672,28 @@ class CastMedia:
     live: bool = False
     position_ms: int = 0
     autoplay: bool = True
+    # Where a Chromecast's previous/next buttons lead: a silent clip, replaced as
+    # soon as MusicHive hears of the skip. Empty: the media itself (a live video,
+    # which simply goes on while MusicHive changes the song inside it).
+    stand_in_url: str = ""
+    lyrics: str | None = None  # for a browser page; None: not a song (no "No lyrics")
+    gain_db: float = 0.0  # for a browser page: Level Volume's change for this song
+    bars: dict | None = None  # for a browser page: the song's bar map (cast_bars.describe)
+    bars_coming: bool = False  # …or it is being made, and follows when it is ready
+
+
+def silence_wav(seconds: int = SILENCE_SECONDS) -> bytes:
+    """A quiet WAV file: 8 kHz, 8 bits, mono."""
+    rate = 8000
+    size = rate * seconds
+    header = (
+        b"RIFF" + (36 + size).to_bytes(4, "little") + b"WAVEfmt "
+        + (16).to_bytes(4, "little") + (1).to_bytes(2, "little") + (1).to_bytes(2, "little")
+        + rate.to_bytes(4, "little") + rate.to_bytes(4, "little")
+        + (1).to_bytes(2, "little") + (8).to_bytes(2, "little")
+        + b"data" + size.to_bytes(4, "little")
+    )
+    return header + b"\x80" * size  # 128 is silence for 8-bit sound
 
 
 class CastSession:
@@ -503,6 +716,8 @@ class CastSession:
         self._stopping = False  # an idle device was asked to be
         self._finished = 0  # times the loaded media played to its end
         self._interrupted = 0  # times something else stopped it
+        self._jumps = 0  # previous (-1) and next (+1) pressed on the device itself
+        self._requests: list[tuple[str, int]] = []  # buttons pressed on a browser page
         self._errors: list[str] = []
         self._lost = ""  # the reason, once the device cannot be reached any more
         self._volume: int | None = None  # the device's volume, once read
@@ -565,6 +780,18 @@ class CastSession:
         with self._lock:
             finished, self._finished = self._finished, 0
         return finished > 0
+
+    def take_requests(self) -> list[tuple[str, int]]:
+        """Buttons pressed on the device: ("playpause" | "next" | "previous" | "seek", ms)."""
+        with self._lock:
+            requests, self._requests = self._requests, []
+        return requests
+
+    def take_jumps(self) -> int:
+        """How many songs the device's own controls asked to skip (negative: back)."""
+        with self._lock:
+            jumps, self._jumps = self._jumps, 0
+        return jumps
 
     def take_interrupted(self) -> bool:
         with self._lock:
@@ -740,9 +967,14 @@ def _describe(error: Exception) -> str:
     return str(error) or type(error).__name__
 
 
-def open_session(device: CastDevice) -> CastSession:
+def open_session(device: CastDevice, server: MediaServer | None = None) -> CastSession:
+    """`server` is needed for a browser: it offers the page."""
     if device.kind == CHROMECAST:
         return ChromecastSession(device)
+    if device.kind == BROWSER:
+        from src.cast_browser import BrowserSession  # it needs this module first
+
+        return BrowserSession(device, server)
     return DlnaSession(device)
 
 
@@ -761,6 +993,9 @@ class ChromecastSession(CastSession):
         self._disconnected_since: float | None = None
         self._loaded_url = ""
         self._media_session: int | None = None  # the device's number for what we loaded
+        self._slots: dict[str, int] = {}  # each queue item's address, and its place
+        self._slot = QUEUE_SLOTS  # the place playing now
+        self._loaded: CastMedia | None = None
 
     def _disconnect(self) -> None:
         self._cast.disconnect(timeout=2)
@@ -769,26 +1004,73 @@ class ChromecastSession(CastSession):
         self._cast.quit_app()
 
     def _do_load(self, media: CastMedia) -> None:
+        """Load a queue: the media in the middle, stand-ins on both sides. The
+        receiver only offers previous and next when there is something to go to."""
         self._starting_new_media()
-        self._loaded_url = media.url
+        self._loaded = media
         self._media_session = None
         self._loaded_at = time.monotonic()
-        metadata = {"metadataType": 3, "title": media.title or "MusicHive"}
+        video = media.kind.startswith("video/")
+        # A music track gets the receiver's music layout, which hides any video.
+        metadata = {"metadataType": 0 if video else 3, "title": media.title or "MusicHive"}
         if media.artist:
             metadata["artist"] = media.artist
         if media.album:
             metadata["albumName"] = media.album
         if media.cover_url:
             metadata["images"] = [{"url": media.cover_url}]
-        self._media.play_media(
-            media.url,
-            media.kind,
-            current_time=media.position_ms / 1000 if media.position_ms > 0 else None,
-            autoplay=media.autoplay,
-            stream_type="LIVE" if media.live else "BUFFERED",
-            metadata=metadata,
-        )
+        stream_type = "LIVE" if media.live else "BUFFERED"
+        items = []
+        self._slots = {}
+        for slot in range(2 * QUEUE_SLOTS + 1):
+            if slot == QUEUE_SLOTS:
+                url, kind = media.url, media.kind
+            elif media.stand_in_url:
+                url, kind = media.stand_in_url, "audio/wav"
+            else:
+                url, kind = media.url, media.kind
+            # Each item needs its own address to be told apart (the server ignores this).
+            url = f"{url}{'&' if '?' in url else '?'}slot={slot}"
+            self._slots[url] = slot
+            items.append({
+                "media": {
+                    "contentId": url,
+                    "contentType": kind,
+                    "streamType": stream_type if kind == media.kind else "BUFFERED",
+                    "metadata": metadata,
+                },
+                "autoplay": True,
+            })
+        self._slot = QUEUE_SLOTS
+        self._loaded_url = items[QUEUE_SLOTS]["media"]["contentId"]
+        message = {
+            "type": "QUEUE_LOAD",
+            "items": items,
+            "startIndex": QUEUE_SLOTS,
+            "repeatMode": "REPEAT_OFF",
+        }
+        if media.position_ms > 0:
+            message["currentTime"] = media.position_ms / 1000
+        self._media.send_message(message, inc_session_id=True)
         self._media.block_until_active(timeout=15)
+        if not media.autoplay:
+            self._media.pause()
+
+    def _jumped(self, slot: int) -> None:
+        """The receiver moved to another queue item: its own previous or next, or
+        (for a song) the end of the song, after which it goes on to the next item."""
+        steps = slot - self._slot
+        self._slot = slot
+        media = self._loaded
+        with self._lock:
+            near_end = 0 < self._duration_ms - self._position_ms < 4000
+            if steps == 1 and media is not None and media.stand_in_url and near_end:
+                self._finished += 1  # it played to its end
+            else:
+                self._jumps += steps
+                log(f"{self.device.name} asked to skip {steps:+d}")
+        if media is not None and not media.stand_in_url and not 1 <= slot < 2 * QUEUE_SLOTS:
+            self._do_load(media)  # out of stand-ins on that side: a fresh queue
 
     def _do_play(self) -> None:
         self._media.play()
@@ -823,10 +1105,17 @@ class ChromecastSession(CastSession):
         # Statuses about the media played before (it is told it was interrupted
         # when the next one loads) must not count for the new one.
         if status.player_state in ("PLAYING", "PAUSED", "BUFFERING"):
-            if status.content_id != self._loaded_url:
+            slot = self._slots.get(status.content_id or "")
+            if slot is None:
                 self._check_load_failed()
                 return
             self._media_session = status.media_session_id
+            if slot != self._slot:
+                self._jumped(slot)
+                return
+            media = self._loaded
+            if media is not None and media.stand_in_url and slot != QUEUE_SLOTS:
+                return  # a stand-in plays until MusicHive loads what comes next
         elif self._media_session is None or status.media_session_id != self._media_session:
             self._check_load_failed()
             return
@@ -842,6 +1131,11 @@ class ChromecastSession(CastSession):
             "INTERRUPTED": "interrupted",
         }.get(status.idle_reason or "", "")
         position = status.adjusted_current_time or 0.0
+        seen = (status.player_state, status.idle_reason)
+        if seen != getattr(self, "_last_seen", None):
+            self._last_seen = seen
+            log(f"{self.device.name} says {status.player_state}"
+                + (f" ({status.idle_reason})" if status.idle_reason else ""))
         self._update(state, int(position * 1000), int((status.duration or 0) * 1000), ended)
 
 
@@ -987,7 +1281,9 @@ def _didl(media: CastMedia) -> str:
     escape = html.escape
     parts = [
         f"<dc:title>{escape(media.title or 'MusicHive')}</dc:title>",
-        "<upnp:class>object.item.audioItem.musicTrack</upnp:class>",
+        "<upnp:class>object.item.videoItem</upnp:class>"
+        if media.kind.startswith("video/")
+        else "<upnp:class>object.item.audioItem.musicTrack</upnp:class>",
     ]
     if media.artist:
         parts.append(f"<upnp:artist>{escape(media.artist)}</upnp:artist>")

@@ -26,6 +26,7 @@ optdepends=(
     'udisks2: ejecting portable devices'
     'dolphin: opening portable devices'
     'python-pychromecast: casting to Chromecasts'
+    'gst-plugin-openh264: casting the visualiser and lyrics to DLNA TVs'
 )
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')

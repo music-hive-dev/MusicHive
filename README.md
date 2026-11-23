@@ -11,6 +11,10 @@ music player: proper playlists, lyrics that follow the song, a real equaliser,
 Last.fm scrobbling and syncing to a portable player (my beloved iPod lol). It's written in Python with Qt for the interface and GStreamer for the sound, and I run it on Fedora KDE
 Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.com/).
 
+<p align="center">
+  <img src="promo_images/1.png" alt="The Now Playing tab: a rainbow visualiser behind lyrics that follow the song, with the library on the left and the upcoming songs and cover on the right" width="900">
+</p>
+
 ## What it does
 
 ### Your library
@@ -82,19 +86,54 @@ its position.
 
 ### Casting
 
-Play to a Chromecast, a TV with Chromecast built in, or a DLNA TV or speaker on
-your network, from the cast button next to the equaliser or Playback → Cast To.
-Songs, podcasts and radio all work, and the TV shows the title, artist and cover.
-The play button, seek bar and volume control the TV while you're casting, and
-going back to This Computer carries on where the TV was.
+Send the music to your TV, from the cast button next to the equaliser or
+Playback → Cast To. Songs, podcasts and radio all work, and going back to This
+Computer carries on where the TV was. There are three ways to do it:
 
-The TV fetches the music from MusicHive itself, over ports 8471 to 8480, so a
-firewall has to let those through. MusicHive only listens there while you're
-casting, and only answers the device you're casting to. The equaliser, crossfade and visualiser only
-work on the computer. Chromecasts need the PyChromecast package; DLNA needs nothing
-extra.
+**Chromecasts and DLNA TVs or speakers.** MusicHive finds them on your network.
+The TV shows the title, artist and cover, and the play button, seek bar and
+volume in MusicHive control it. On a Chromecast, previous and next also work
+from the TV, the phone notification and Google Home.
+
+**With the visualiser and lyrics.** Turn on *Show Visualiser and Lyrics on the
+TV* and MusicHive sends a video instead: your visualiser and the lyrics, with the
+title and artist underneath. The sound goes through your equaliser, crossfade and
+Level Volume, and the pictures are made together with it, so they stay in time
+however long the TV buffers. Pausing and skipping take a few seconds to reach the
+TV, though.
+
+**In a web browser.** Pick *Web Browser* and open the address it shows (something
+like `http://192.168.1.20:8471/482913/`) in your TV's browser, or any other
+browser on your network. This is the nicest way to have the visualiser and lyrics
+on a TV:
+
+- The page plays the music itself and draws your visualiser and the lyrics at the
+  TV's own resolution, in your colours and style, with the title, artist, cover
+  and a progress bar.
+- MusicHive works out each song's bars in advance (the next song while one plays),
+  so the visualiser runs from the very first moment, and the TV doesn't have to
+  do any of the work.
+- Previous, play/pause and next buttons on the page work with the TV remote's
+  arrows and OK, and with its media keys. They do the same as MusicHive's own
+  buttons, so shuffle and the queue still decide what comes next.
+- Level Volume applies on the page too, and the volume slider controls the page
+  while you're casting.
+- The address stays the same, so you can bookmark it. The browser asks for one
+  press of OK before it plays sound.
+
+The TV fetches the music from MusicHive itself, over ports 8471 to 8480. On
+Fedora that works out of the box; with a stricter firewall, let those ports
+through for your home network. MusicHive only listens there while you're
+casting, and only answers the device you're casting to (or, for the browser page,
+whoever has its address). Chromecasts need the PyChromecast package; DLNA TVs need
+an H.264 encoder such as openh264 for the video mode; the browser page needs
+nothing extra.
 
 ### Playlists
+
+<p align="center">
+  <img src="promo_images/2.png" alt="A playlist with its own picture and description, its songs in a table, and the upcoming songs and cover on the right" width="900">
+</p>
 
 - Normal playlists with their own image and description. Animated GIFs work as playlist images.
 - Auto-playlists that fill themselves from rules such as "Genre contains Rock", "Year is greater than 1999" or a play count. A new one starts with every song.

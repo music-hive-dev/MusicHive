@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.4.3
+Version:        1.5.0
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -24,6 +24,8 @@ Recommends:     gstreamer1-plugin-libav
 Recommends:     gstreamer1-plugins-ugly-free
 # For casting to Chromecasts (DLNA TVs and speakers work without it).
 Recommends:     python3-pychromecast
+# For casting the visualiser and lyrics to a DLNA TV (H.264 video).
+Recommends:     gstreamer1-plugin-openh264
 # For ejecting and opening portable devices.
 Recommends:     udisks2
 Recommends:     dolphin
@@ -64,6 +66,12 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Mon Nov 23 2026 MusicHive - 1.5.0-1
+- Casting to Chromecasts and DLNA TVs and speakers, with previous and next on Chromecasts
+- Casting with the visualiser and lyrics as a video
+- Casting to a web browser on a TV, with the visualiser, lyrics and buttons for the remote
+- Screenshots and the new casting features in the README
+
 * Mon Nov 23 2026 MusicHive - 1.4.3-1
 - Updated logos and requirements
 
