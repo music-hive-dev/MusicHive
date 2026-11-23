@@ -74,6 +74,7 @@ from PySide6.QtWidgets import (
 from src import library_db, theme
 from src.artist_info import ArtistInfoService
 from src.audio_player import AudioPlayer
+from src.cast import CHROMECAST, CastDevice, CastFinder
 from src.cover_view import SquareCover
 from src.drag_label import LabelDragUiLoader
 from src.formatting import format_long_duration, format_size, format_time
@@ -1200,6 +1201,7 @@ class MusicHive:
         self.setup_radio()
         self.setup_pinned_media()
         self.setup_sleep_timer()
+        self.setup_casting()
         self.type_ahead = add_type_ahead(w)  # typing in a list or table finds a song
         set_reset_seconds(self.settings.value(FIND_RESET_KEY, DEFAULT_RESET_SECONDS, type=float))
 
@@ -1866,6 +1868,7 @@ class MusicHive:
         self.discord_covers.shutdown()
         self.lastfm.shutdown()
         self.player.shutdown()
+        self.cast_finder.shutdown()
 
     def show_status(self, text: str) -> None:
         self.window.statusBar().showMessage(text)
@@ -1881,7 +1884,8 @@ class MusicHive:
         """The volume slider moved (dragged, clicked, scrolled or by keyboard)."""
         w = self.window
         self.player.set_volume(value)
-        self.settings.setValue("volume", value)
+        if not self.player.casting:  # a TV's volume is not this computer's
+            self.settings.setValue("volume", value)
         if w.muteButton.isChecked():
             w.muteButton.setChecked(False)  # changing the volume unmutes
         self.update_volume_ui()
@@ -5781,6 +5785,138 @@ class MusicHive:
 
     # ----- sleep timer -----
 
+    # ----- casting -----
+
+    def setup_casting(self) -> None:
+        """The Cast To menu and button: play on a Chromecast or a DLNA TV or speaker."""
+        w = self.window
+        self.cast_finder = CastFinder(w)
+        self.cast_finder.found.connect(self.on_cast_devices_found)
+        self.cast_devices: list[CastDevice] = []
+        self.cast_actions: list[QAction] = []
+        self.cast_searched = False
+        self.local_volume: int | None = None  # this computer's volume, kept while casting
+        self.cast_group = QActionGroup(w)
+        self.cast_group.setExclusive(True)
+        self.cast_group.addAction(w.actionCastComputer)
+        w.actionCastComputer.triggered.connect(lambda _checked=False: self.cast_to(None))
+        w.actionCastSearch.triggered.connect(lambda _checked=False: self.search_cast_devices())
+        w.menuCast.aboutToShow.connect(self.on_cast_menu_shown)
+        w.castButton.clicked.connect(lambda _checked=False: self.show_cast_menu())
+        self.player.cast_volume.connect(self.on_cast_volume)
+        self.player.cast_ended.connect(self.on_cast_ended)
+
+    def show_cast_menu(self) -> None:
+        w = self.window
+        w.castButton.setChecked(self.player.casting)  # the click toggled it; the menu decides
+        w.menuCast.exec(w.castButton.mapToGlobal(w.castButton.rect().bottomLeft()))
+
+    def on_cast_menu_shown(self) -> None:
+        if not self.cast_searched:  # the first time, look without being asked
+            self.search_cast_devices()
+
+    def search_cast_devices(self) -> None:
+        self.cast_searched = True
+        if self.cast_finder.search():
+            self.window.actionCastSearch.setEnabled(False)
+            self.show_status("Looking for TVs and speakers…")
+
+    def on_cast_devices_found(self, devices: list[CastDevice]) -> None:
+        w = self.window
+        w.actionCastSearch.setEnabled(True)
+        current = self.player.cast_device
+        if current is not None and all(d.id != current.id for d in devices):
+            devices = [current, *devices]  # still in use, even if it did not answer now
+        for action in self.cast_actions:
+            self.cast_group.removeAction(action)
+            w.menuCast.removeAction(action)
+            action.deleteLater()
+        self.cast_actions = []
+        for device in devices:
+            action = QAction(device.name, w.menuCast)
+            action.setCheckable(True)
+            action.triggered.connect(lambda _checked=False, d=device: self.cast_to(d))
+            self.cast_group.addAction(action)
+            w.menuCast.insertAction(w.actionCastNoDevices, action)
+            self.cast_actions.append(action)
+        self.cast_devices = devices
+        w.actionCastNoDevices.setVisible(not devices)
+        self.update_cast_ui()
+        if devices:
+            count = len(devices)
+            message = f"Found {count} TV{'s' if count != 1 else ''} or speaker{'s' if count != 1 else ''}"
+        else:
+            message = "No TVs or speakers found. Are they switched on and on the same network?"
+        if not self.cast_finder.chromecast_support:
+            message += " (Chromecasts need the PyChromecast package)"
+        self.show_status(message)
+
+    def cast_to(self, device: CastDevice | None) -> None:
+        """Play on `device`, or on this computer again for None."""
+        w = self.window
+        player = self.player
+        current = player.cast_device
+        if device is None:
+            if current is not None:
+                player.stop_casting()
+                self.back_on_computer()
+                self.show_status(f"Stopped casting to {current.name}")
+        elif current is None or current.id != device.id:
+            if current is None:
+                self.local_volume = w.volumeSlider.value()
+            player.start_casting(device)
+            if w.muteButton.isChecked():
+                player.set_muted(True)
+            kind = "Chromecast" if device.kind == CHROMECAST else "DLNA"
+            self.show_status(
+                f"Casting to {device.name} ({kind}). The equaliser, crossfade and "
+                "visualiser only work on this computer."
+            )
+        self.update_cast_ui()
+
+    def back_on_computer(self) -> None:
+        """Casting ended: this computer's own volume and mute again."""
+        w = self.window
+        volume, self.local_volume = self.local_volume, None
+        if volume is not None and volume != w.volumeSlider.value():
+            w.volumeSlider.setValue(volume)  # sets the player's volume too
+        else:
+            self.player.set_volume(w.volumeSlider.value())
+        self.player.set_muted(w.muteButton.isChecked())
+
+    def update_cast_ui(self) -> None:
+        w = self.window
+        device = self.player.cast_device
+        w.castButton.setChecked(device is not None)
+        w.castButton.setToolTip(
+            f"Casting to {device.name}." if device is not None else "Cast to a TV or speaker."
+        )
+        w.actionCastComputer.setChecked(device is None)
+        for action, found in zip(self.cast_actions, self.cast_devices):
+            action.setChecked(device is not None and found.id == device.id)
+
+    def on_cast_volume(self, volume: int) -> None:
+        """The device's own volume: the slider shows it, without changing it."""
+        w = self.window
+        w.volumeSlider.blockSignals(True)
+        w.volumeSlider.setValue(volume)
+        w.volumeSlider.blockSignals(False)
+        self.update_volume_ui()
+        self.update_mpris()
+
+    def on_cast_ended(self, reason: str) -> None:
+        self.back_on_computer()
+        self.update_cast_ui()
+        self.show_status(reason)
+
+    def send_cast_details(self) -> None:
+        """Tell the player what a TV or speaker cast to should show for this track."""
+        metadata = self.mpris_metadata()
+        title = metadata.get("xesam:title", ("s", ""))[1]
+        artist = ", ".join(metadata.get("xesam:artist", ("as", []))[1])
+        album = metadata.get("xesam:album", ("s", ""))[1]
+        self.player.set_cast_details(title, artist, album, self.full_cover_data)
+
     def setup_sleep_timer(self) -> None:
         w = self.window
         self.sleep_timer = SleepTimer(w)
@@ -5984,6 +6120,7 @@ class MusicHive:
         self.begin_listening()
         self.discord.request_update()
         self.update_mpris()
+        self.send_cast_details()
 
     def apply_sound_presets(self, track: Path | None = None) -> None:
         """Use the equaliser and visualiser presets of the playing song and its playlist.

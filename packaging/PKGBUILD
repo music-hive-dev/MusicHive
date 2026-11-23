@@ -25,6 +25,7 @@ optdepends=(
     'gst-plugins-ugly: more audio formats'
     'udisks2: ejecting portable devices'
     'dolphin: opening portable devices'
+    'python-pychromecast: casting to Chromecasts'
 )
 source=("$pkgname-$pkgver.tar.gz")
 sha256sums=('SKIP')

@@ -80,6 +80,20 @@ On Wayland, those last three things depend on KDE's window manager. On other
 Wayland desktops the mini player still works, but it won't stay on top or keep
 its position.
 
+### Casting
+
+Play to a Chromecast, a TV with Chromecast built in, or a DLNA TV or speaker on
+your network, from the cast button next to the equaliser or Playback → Cast To.
+Songs, podcasts and radio all work, and the TV shows the title, artist and cover.
+The play button, seek bar and volume control the TV while you're casting, and
+going back to This Computer carries on where the TV was.
+
+The TV fetches the music from MusicHive itself, over ports 8471 to 8480, so a
+firewall has to let those through. MusicHive only listens there while you're
+casting, and only answers the device you're casting to. The equaliser, crossfade and visualiser only
+work on the computer. Chromecasts need the PyChromecast package; DLNA needs nothing
+extra.
+
 ### Playlists
 
 - Normal playlists with their own image and description. Animated GIFs work as playlist images.
@@ -183,13 +197,15 @@ On Fedora, the libraries are all available as system packages:
 
 ```
 sudo dnf install python3-pyside6 python3-mutagen python3-gobject \
-    gstreamer1-plugins-good gstreamer1-plugins-bad-free rsms-inter-fonts
+    gstreamer1-plugins-good gstreamer1-plugins-bad-free rsms-inter-fonts \
+    python3-pychromecast
 python3 main.py
 ```
 
 On another distribution you'll need the equivalent packages. Python 3 with
 PySide6, Mutagen and PyGObject, plus GStreamer and its good plugins, should be
-enough. The interface uses the Inter font if it's installed.
+enough. The interface uses the Inter font if it's installed, and PyChromecast
+is only needed for casting to Chromecasts.
 
 ## Last.fm setup
 
@@ -227,5 +243,6 @@ of the current song is uploaded to a file host:
 - [GStreamer](https://gstreamer.freedesktop.org/), LGPL-2.1
 - [PyGObject](https://pygobject.gnome.org/), LGPL-2.1
 - [Mutagen](https://mutagen.readthedocs.io/), GPL-2.0-or-later
+- [PyChromecast](https://github.com/home-assistant-libs/pychromecast), MIT License
 - Icons from [Lucide](https://lucide.dev/), ISC License, some derived from Feather, MIT License
 - Emoji from [Twemoji](https://github.com/twitter/twemoji), CC BY 4.0, in the Twemoji Mozilla font

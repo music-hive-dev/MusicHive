@@ -4045,6 +4045,20 @@ QWidget {
      <addaction name="separator"/>
      <addaction name="actionSleepEndOfTrack"/>
     </widget>
+    <widget class="QMenu" name="menuCast">
+     <property name="title">
+      <string>Cast To</string>
+     </property>
+     <property name="icon">
+      <iconset>
+       <normaloff>../assets/cast.svg</normaloff>../assets/cast.svg</iconset>
+     </property>
+     <addaction name="actionCastComputer"/>
+     <addaction name="separator"/>
+     <addaction name="actionCastNoDevices"/>
+     <addaction name="separator"/>
+     <addaction name="actionCastSearch"/>
+    </widget>
     <addaction name="actionPlayPause"/>
     <addaction name="actionPrevious"/>
     <addaction name="actionNext"/>
@@ -4059,6 +4073,7 @@ QWidget {
     <addaction name="actionCrossfade"/>
     <addaction name="actionMiniPlayer"/>
     <addaction name="separator"/>
+    <addaction name="menuCast"/>
     <addaction name="menuSleepTimer"/>
    </widget>
    <widget class="QMenu" name="menuHelp">
@@ -4911,6 +4926,29 @@ QWidget {
              </property>
             </widget>
            </item>
+           <item>
+            <widget class="QPushButton" name="castButton">
+             <property name="sizePolicy">
+              <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+               <horstretch>0</horstretch>
+               <verstretch>0</verstretch>
+              </sizepolicy>
+             </property>
+             <property name="toolTip">
+              <string>Cast to a TV or speaker.</string>
+             </property>
+             <property name="text">
+              <string/>
+             </property>
+             <property name="icon">
+              <iconset>
+               <normaloff>../assets/cast.svg</normaloff>../assets/cast.svg</iconset>
+             </property>
+             <property name="checkable">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
          <item>
@@ -5524,6 +5562,46 @@ QWidget {
    </property>
    <property name="text">
     <string>Scrobble</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCastComputer">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="text">
+    <string>This Computer</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCastNoDevices">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>No TVs or Speakers Found Yet</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCastSearch">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/refresh-cw.svg</normaloff>../assets/refresh-cw.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Search for TVs and Speakers</string>
+   </property>
+   <property name="toolTip">
+    <string>Look for Chromecasts and DLNA TVs and speakers on your network.</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

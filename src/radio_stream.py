@@ -397,6 +397,34 @@ class RadioStream(QObject):
                 end = self._feed_position
             self._after_feeding(start, data, end)
 
+    def serve(self, write: Callable[[bytes], object]) -> None:
+        """Hand the sound to a device that is cast to, instead of to the player.
+
+        Carries on from where the listener is, until the station is stopped, the
+        player takes the sound back (attach) or `write` fails (the device hung up).
+        Titles and taping follow what is sent, as they do for the player.
+        """
+        with self._lock:
+            self._feed_generation += 1
+            generation = self._feed_generation
+            self._appsrc = None
+        while self._running.is_set():
+            with self._lock:
+                if generation != self._feed_generation:
+                    return
+                position = self._feed_position
+            data, start = self.buffer.read(position, FEED_BYTES, wait=0.5)
+            if not data:
+                continue
+            write(data)  # waits while the device does not take more (paused)
+            with self._lock:
+                if generation != self._feed_generation:
+                    return
+                if self._feed_position == position:  # not moved by go_live meanwhile
+                    self._feed_position = start + len(data)
+                end = self._feed_position
+            self._after_feeding(start, data, end)
+
     def _after_feeding(self, start: int, data: bytes, end: int) -> None:
         heard = self.buffer.title_at(end)
         title = heard[1] if heard else ""

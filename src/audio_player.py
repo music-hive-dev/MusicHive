@@ -30,6 +30,15 @@ from PySide6.QtCore import (  # noqa: E402
 )
 from PySide6.QtMultimedia import QAudioBuffer, QAudioFormat  # noqa: E402
 
+from src.cast import (  # noqa: E402
+    CastDevice,
+    CastError,
+    CastMedia,
+    CastSession,
+    MediaServer,
+    audio_type,
+    open_session,
+)
 from src.equaliser import BAND_FREQUENCIES, BAND_OCTAVES, MAX_BANDS, EqSettings  # noqa: E402
 from src.sound_settings import SoundSettings  # noqa: E402
 from src.track_metadata import read_track_gain  # noqa: E402
@@ -344,6 +353,16 @@ class _Deck:
                 band.set_property("gain", 0.0)  # a band not in use leaves the sound alone
 
 
+@dataclass
+class _CastDetails:
+    """What a device cast to shows for the track: the app fills it in at each start."""
+
+    title: str = ""
+    artist: str = ""
+    album: str = ""
+    cover: bytes | None = None
+
+
 class AudioPlayer(QObject):
     """Plays one track at a time, overlapping two during a crossfade.
 
@@ -362,6 +381,8 @@ class AudioPlayer(QObject):
     error_occurred = Signal(str)  # human-readable error message
     stream_title = Signal(str)  # a title the stream itself announced (radio played directly)
     audio_buffer_ready = Signal(object)  # a QAudioBuffer of the sound, for the visualiser
+    cast_volume = Signal(int)  # the volume (0-100) of the device cast to, once known
+    cast_ended = Signal(str)  # casting stopped by itself; the reason, for the user
 
     def __init__(self, parent: QObject | None = None) -> None:
         super().__init__(parent)
@@ -401,6 +422,14 @@ class AudioPlayer(QObject):
         self._timer.setInterval(_TICK_MS)
         self._timer.timeout.connect(self._tick)
 
+        # Casting: while a session is open, the device plays and the decks rest.
+        self._cast: CastSession | None = None
+        self._cast_server = MediaServer()
+        self._cast_details = _CastDetails()
+        self._cast_loaded = False  # the device has the current track
+        self._cast_duration = 0
+        self._cast_clock = 0.0  # time.monotonic() of the last look, for radio's position
+
     def _decks(self) -> tuple[_Deck, _Deck]:
         return self._active, self._other
 
@@ -432,6 +461,9 @@ class AudioPlayer(QObject):
         if not track.is_file():
             self.error_occurred.emit(f"File not found: {track.name}")
             return False
+        if self._cast is not None:
+            self._cast_open(track, 0, "playing")
+            return True
 
         overlap = self._crossfade_length()
         self._cancel_overlap()
@@ -455,6 +487,9 @@ class AudioPlayer(QObject):
         if isinstance(source, Path) and not source.is_file():
             self.error_occurred.emit(f"File not found: {source.name}")
             return False
+        if self._cast is not None:
+            self._cast_open(source, position_ms, "playing")
+            return True
         self._cancel_overlap()
         self._active.halt(Gst.State.READY)
         self._set_state("stopped")  # to the app, this is a track change like any other
@@ -464,6 +499,10 @@ class AudioPlayer(QObject):
 
     def play_radio(self, stream) -> None:
         """Play a radio station through its RadioStream (which allows time-shift)."""
+        if self._cast is not None:
+            self._active.radio_stream = stream
+            self._cast_open(RADIO_URI, 0, "playing")
+            return
         self._cancel_overlap()
         self._active.halt(Gst.State.READY)
         self._set_state("stopped")
@@ -481,6 +520,11 @@ class AudioPlayer(QObject):
         if not track.is_file():
             self.error_occurred.emit(f"File not found: {track.name}")
             return False
+        if self._cast is not None:
+            self._cast_open(track, position_ms, "paused")
+            if duration_ms > 0:
+                self.duration_changed.emit(duration_ms)
+            return True
 
         self._cancel_overlap()
         self._halt_active()
@@ -494,6 +538,13 @@ class AudioPlayer(QObject):
         """Resume a paused track, or restart a stopped one."""
         deck = self._active
         if deck.track is None:
+            return
+        if self._cast is not None:
+            self._set_state("playing")
+            if self._cast_loaded:
+                self._cast.play()
+            else:
+                self._cast_load(autoplay=True)
             return
         previous = self._state
         self._set_state("playing")
@@ -517,6 +568,11 @@ class AudioPlayer(QObject):
         deck = self._active
         if deck.track is None:
             return
+        if self._cast is not None:
+            self._set_state("paused")
+            if self._cast_loaded:
+                self._cast.pause()
+            return
         previous = self._state
         self._cancel_overlap()
         self._set_state("paused")
@@ -528,6 +584,13 @@ class AudioPlayer(QObject):
             deck.set_paused()
 
     def stop(self) -> None:
+        if self._cast is not None:
+            if self._cast_loaded:
+                self._cast.stop()
+                self._cast_loaded = False
+            self._set_state("stopped")
+            self._report_position(0)
+            return
         self._cancel_overlap()
         deck = self._active
         if self._state == "playing" and self._sound.fade_on_pause and deck.ready:
@@ -537,6 +600,13 @@ class AudioPlayer(QObject):
             self._halt_active()
 
     def seek(self, position_ms: int) -> None:
+        if self._cast is not None:
+            if self._active.track is None:
+                return
+            if self._cast_loaded:
+                self._cast.seek(position_ms)
+            self._report_position(position_ms)
+            return
         self._cancel_overlap()
         deck = self._active
         if deck.track is None:
@@ -551,12 +621,18 @@ class AudioPlayer(QObject):
             deck.set_playing()
 
     def set_volume(self, percent: int) -> None:
-        """Set the volume from 0 to 100."""
+        """Set the volume from 0 to 100. While casting, it is the device's volume."""
+        if self._cast is not None:
+            self._cast.set_volume(percent)
+            return
         for deck in self._decks():
             deck.set_volume(max(0, min(100, percent)) / 100)
 
     def set_muted(self, muted: bool) -> None:
         """Silence or restore the sound without changing the volume."""
+        if self._cast is not None:
+            self._cast.set_muted(muted)
+            return
         for deck in self._decks():
             deck.set_muted(muted)
 
@@ -594,6 +670,9 @@ class AudioPlayer(QObject):
 
     def unload(self) -> None:
         """Stop playback and forget the current track."""
+        if self._cast is not None and self._cast_loaded:
+            self._cast.stop()
+        self._cast_loaded = False
         self._timer.stop()
         self._cancel_scan()
         self._waiting_for_head = None
@@ -607,7 +686,189 @@ class AudioPlayer(QObject):
     def shutdown(self) -> None:
         """Release everything. Call before the app exits."""
         self.unload()
+        if self._cast is not None:
+            self._cast.close(wait=3.0)
+            self._cast = None
+        self._cast_server.stop()
         self._scan_pool.waitForDone(3000)
+
+    # ----- casting -----
+
+    @property
+    def casting(self) -> bool:
+        return self._cast is not None
+
+    @property
+    def cast_device(self) -> CastDevice | None:
+        return self._cast.device if self._cast is not None else None
+
+    def set_cast_details(
+        self, title: str, artist: str, album: str, cover: bytes | None
+    ) -> None:
+        """What a device should show for the track that just started (also while
+        not casting, for when casting begins mid-track)."""
+        self._cast_details = _CastDetails(title, artist, album, cover or None)
+
+    def start_casting(self, device: CastDevice) -> None:
+        """Play on `device` from now on, carrying on where the computer was."""
+        if self._cast is not None:
+            self._end_cast_session()
+        track = self._active.track
+        self._cancel_overlap()
+        self._cancel_scan()
+        self._waiting_for_head = None
+        for deck in self._decks():
+            deck.halt(Gst.State.READY)
+        self._visual_held.clear()
+        self._cast = open_session(device)
+        self._cast_duration = 0
+        self._cast_clock = time.monotonic()
+        self._timer.start()
+        if track is not None and self._state != "stopped":
+            self._cast_load(autoplay=self._state == "playing")
+
+    def stop_casting(self) -> None:
+        """Play on this computer again, from where the device was."""
+        if self._cast is None:
+            return
+        self._end_cast_session()
+        deck = self._active
+        track = deck.track
+        if track is None:
+            return
+        radio = track == RADIO_URI
+        if radio and deck.radio_stream is None:
+            deck.track = None
+            self._set_state("stopped")
+            return
+        position = self._position
+        deck.open(track, position if position > 0 and not radio else None)
+        deck.set_track_gain(self._gain_for(track))
+        if isinstance(track, Path) and track in self._tails:
+            deck.tail_ms = self._tails[track]
+        self._timer.start()
+        if self._state == "playing":
+            deck.set_playing()
+        elif self._state == "paused":
+            deck.set_paused()  # ready to go on at once
+
+    def _end_cast_session(self) -> None:
+        session, self._cast = self._cast, None
+        self._cast_loaded = False
+        session.close()  # the device stops playing
+        self._cast_server.stop()  # and nothing is offered on the network any more
+
+    def _cast_open(self, track: Path | str, position_ms: int, state: str) -> None:
+        """Start a track on the device, telling the app as playing it here would."""
+        self._cancel_scan()
+        self._waiting_for_head = None
+        deck = self._active
+        deck.track = track
+        deck.duration_ms = 0
+        if track != RADIO_URI:
+            deck.radio_stream = None
+        self._cast_loaded = False
+        self._cast_duration = 0
+        self._timer.start()
+        self._set_state("stopped")  # to the app, this is a track change like any other
+        self._report_position(position_ms)
+        self.track_started.emit(track)  # the app answers with set_cast_details()
+        self._set_state(state)
+        self._cast_load(autoplay=state == "playing", position_ms=position_ms)
+
+    def _cast_load(self, autoplay: bool, position_ms: int | None = None) -> None:
+        """Send the current track to the device."""
+        session = self._cast
+        track = self._active.track
+        if session is None or track is None:
+            return
+        position = self._position if position_ms is None else position_ms
+        server = self._cast_server
+        host = session.device.host
+        details = self._cast_details
+        try:
+            if track == RADIO_URI:
+                stream = self._active.radio_stream
+                if stream is None:
+                    return
+                kind = stream.content_type or "audio/mpeg"
+                url = server.url(server.share_radio(stream, kind), host)
+                live, position = True, 0
+            elif isinstance(track, Path):
+                kind = audio_type(track.name)
+                url = server.url(server.share_file(track), host)
+                live = False
+            else:  # a web address: the device fetches it itself
+                kind = audio_type(track)
+                url = track
+                live = kind == "application/x-mpegURL"
+            cover = server.url(server.share_image(details.cover), host) if details.cover else ""
+        except (CastError, OSError) as error:
+            self.error_occurred.emit(f"Cannot cast: {error}")
+            return
+        title = details.title or (track.stem if isinstance(track, Path) else "")
+        session.load(CastMedia(
+            url=url,
+            kind=kind,
+            title=title,
+            artist=details.artist,
+            album=details.album,
+            cover_url=cover,
+            live=live,
+            position_ms=position,
+            autoplay=autoplay,
+        ))
+        self._cast_loaded = True
+        self._cast_clock = time.monotonic()
+
+    def _cast_tick(self) -> None:
+        """Keep up with the device: its position, its end and its troubles."""
+        session = self._cast
+        now = time.monotonic()
+        elapsed_ms = int((now - self._cast_clock) * 1000)
+        self._cast_clock = now
+        if session.lost:
+            if self._state == "playing":
+                self._set_state("paused")  # never burst out of the computer's speakers
+            self.stop_casting()
+            self.cast_ended.emit(session.lost)
+            return
+        for message in session.take_errors():
+            self.error_occurred.emit(message)
+        volume = session.take_volume()
+        if volume is not None:
+            self.cast_volume.emit(volume)
+        if not self._cast_loaded:
+            return
+        radio = self._active.track == RADIO_URI
+        if not radio and session.take_finished():
+            self._cast_loaded = False
+            self._set_state("stopped")
+            self._report_position(0)
+            self.track_finished.emit()
+            return
+        if session.take_interrupted() or (radio and session.take_finished()):
+            # Stopped on the device itself, or by another app: wait, paused.
+            self._cast_loaded = False
+            if self._state == "playing":
+                self._set_state("paused")
+            return
+        state, position, duration, settled = session.status()
+        if radio:  # a live stream has no position of its own: count the time heard
+            if self._state == "playing":
+                self._report_position(self._position + elapsed_ms)
+            return
+        self._ticks += 1
+        if not settled or self._ticks % _TICKS_PER_POSITION:
+            return
+        if duration > 0 and duration != self._cast_duration:
+            self._cast_duration = duration
+            self._active.duration_ms = duration
+            self.duration_changed.emit(duration)
+        if state in ("playing", "paused"):
+            self._report_position(position)
+            if self._state != "stopped" and state != self._state:
+                self._set_state(state)  # paused or played with the device's own remote
 
     # ----- starting a track -----
 
@@ -722,6 +983,9 @@ class AudioPlayer(QObject):
             self.position_changed.emit(position_ms)
 
     def _tick(self) -> None:
+        if self._cast is not None:
+            self._cast_tick()
+            return
         now = time.monotonic()
         for deck in self._decks():
             deck.advance_fade(now)

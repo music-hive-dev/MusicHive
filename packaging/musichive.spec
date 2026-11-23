@@ -22,6 +22,8 @@ Recommends:     gstreamer1-plugins-bad-free
 # More audio formats, such as AAC.
 Recommends:     gstreamer1-plugin-libav
 Recommends:     gstreamer1-plugins-ugly-free
+# For casting to Chromecasts (DLNA TVs and speakers work without it).
+Recommends:     python3-pychromecast
 # For ejecting and opening portable devices.
 Recommends:     udisks2
 Recommends:     dolphin
