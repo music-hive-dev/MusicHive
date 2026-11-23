@@ -8,6 +8,7 @@ expiring. A host that refuses is left alone for a while, longer each time.
 """
 
 import json
+import os
 import subprocess
 import sys
 import time
@@ -63,12 +64,16 @@ def _as_png(data: bytes) -> bytes:
     return bytes(buffer.data())
 
 
+# Keeps curl's console window from flashing up on Windows.
+_NO_WINDOW = {"creationflags": subprocess.CREATE_NO_WINDOW} if sys.platform == "win32" else {}
+
+
 def _curl(png: bytes, url: str, *fields: str) -> str:
     """Send the PNG as a form to `url`; returns the server's answer."""
     command = ["curl", "--silent", "--show-error", "--max-time", str(UPLOAD_TIMEOUT)]
     for form_field in fields:
         command += ["-F", form_field]
-    result = subprocess.run([*command, url], input=png, capture_output=True)
+    result = subprocess.run([*command, url], input=png, capture_output=True, **_NO_WINDOW)
     if result.returncode != 0:
         raise ValueError(result.stderr.decode("utf-8", errors="replace").strip())
     return result.stdout.decode("utf-8", errors="replace").strip()
@@ -129,9 +134,10 @@ class _Signals(QObject):
 def _is_gone(address: str) -> bool:
     """Whether Litterbox has deleted the file. Doubtful answers count as still there."""
     result = subprocess.run(
-        ["curl", "--silent", "--head", "--output", "/dev/null", "--write-out", "%{http_code}",
+        ["curl", "--silent", "--head", "--output", os.devnull, "--write-out", "%{http_code}",
          "--max-time", str(CHECK_TIMEOUT), address],
         capture_output=True,
+        **_NO_WINDOW,
     )
     return result.stdout.decode("ascii", errors="replace").strip() in ("404", "410")
 

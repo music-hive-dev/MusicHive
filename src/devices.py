@@ -1,12 +1,14 @@
 """Finding the storage devices that are plugged in, such as an iPod or a USB drive."""
 
 import getpass
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
-from PySide6.QtCore import QObject, QProcess, QRunnable, QStorageInfo, QThreadPool, Signal
+from PySide6.QtCore import QObject, QProcess, QRunnable, QStorageInfo, QThreadPool, QUrl, Signal
+from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QWidget
 
 from src.formatting import format_size
@@ -15,6 +17,19 @@ BATTERY_NOT_REPORTED = "Not reported by the device"
 SCSI_VENDOR_LENGTH = 8  # a name that fills this field runs on into the model field
 BATTERY_CHECK_SECONDS = 60
 BATTERY_RETRY_SECONDS = 300  # for a device that has not been answering
+WINDOWS = sys.platform == "win32"
+_DRIVE_REMOVABLE = 2  # what Windows' GetDriveTypeW says about USB sticks and music players
+
+# Windows' own "Eject" from Explorer's right-click menu, for a drive such as "E:".
+_WINDOWS_EJECT = (
+    "(New-Object -ComObject Shell.Application).Namespace(17).ParseName('{drive}').InvokeVerb('Eject')"
+)
+
+
+def _is_removable(root: str) -> bool:
+    import ctypes
+
+    return ctypes.windll.kernel32.GetDriveTypeW(root) == _DRIVE_REMOVABLE
 
 
 def connected_devices() -> list[tuple[str, str]]:
@@ -25,16 +40,22 @@ def connected_devices() -> list[tuple[str, str]]:
     """
     user = getpass.getuser()
     mount_folders = (f"/run/media/{user}/", f"/media/{user}/")
+
+    def is_device(root: str) -> bool:
+        return _is_removable(root) if WINDOWS else root.startswith(mount_folders)
+
     devices = [
         (volume.displayName(), volume.rootPath())
         for volume in QStorageInfo.mountedVolumes()
-        if volume.isValid() and volume.isReady() and volume.rootPath().startswith(mount_folders)
+        if volume.isValid() and volume.isReady() and is_device(volume.rootPath())
     ]
     return sorted(devices, key=lambda device: device[0].casefold())
 
 
 def open_in_dolphin(folder: str) -> bool:
-    """Open a folder in Dolphin. Returns False if Dolphin could not be started."""
+    """Open a folder in Dolphin (Explorer on Windows). Returns False if that failed."""
+    if WINDOWS:
+        return QDesktopServices.openUrl(QUrl.fromLocalFile(folder))
     result = QProcess.startDetached("dolphin", [folder])
     return result[0] if isinstance(result, tuple) else bool(result)
 
@@ -59,10 +80,16 @@ class DeviceEjector(QObject):
             return
         self._busy = True
         self._name = name
+        if WINDOWS:
+            self._eject_on_windows(folder)
+            return
         self._node = bytes(QStorageInfo(folder).device()).decode()
         self._run(["unmount", "--block-device", self._node], self._on_unmounted)
 
     def _run(self, arguments: list[str], then: Callable[[bool, str], None]) -> None:
+        self._start("udisksctl", arguments, then)
+
+    def _start(self, program: str, arguments: list[str], then: Callable[[bool, str], None]) -> None:
         process = QProcess(self)
 
         def on_finished(exit_code: int, exit_status: QProcess.ExitStatus) -> None:
@@ -73,11 +100,21 @@ class DeviceEjector(QObject):
         def on_error(error: QProcess.ProcessError) -> None:
             if error == QProcess.ProcessError.FailedToStart:  # finished is not sent then
                 process.deleteLater()
-                then(False, "udisksctl could not be started")
+                then(False, f"{program} could not be started")
 
         process.finished.connect(on_finished)
         process.errorOccurred.connect(on_error)
-        process.start("udisksctl", arguments)
+        process.start(program, arguments)
+
+    def _eject_on_windows(self, folder: str) -> None:
+        def on_done(succeeded: bool, error: str) -> None:
+            if succeeded:
+                self._finish(f"Asked Windows to safely remove {self._name}")
+            else:
+                self._finish(f"Could not safely remove {self._name}: {error}")
+
+        command = _WINDOWS_EJECT.format(drive=folder[:2])  # the root is "E:/"
+        self._start("powershell", ["-NoProfile", "-Command", command], on_done)
 
     def _on_unmounted(self, succeeded: bool, error: str) -> None:
         if succeeded:
@@ -133,9 +170,11 @@ def _usb_connection(usb_folder: Path) -> str:
 
 def read_device_details(folder: str) -> DeviceDetails:
     storage = QStorageInfo(folder)
-    node = bytes(storage.device()).decode().rsplit("/", 1)[-1]
-    block = Path("/sys/class/block", node).resolve()
-    parents = [block, *block.parents]
+    parents: list[Path] = []
+    if not WINDOWS:  # Linux describes the hardware in /sys
+        node = bytes(storage.device()).decode().rsplit("/", 1)[-1]
+        block = Path("/sys/class/block", node).resolve()
+        parents = [block, *block.parents]
     drive = next((path for path in parents if (path / "model").is_file()), None)
     usb = next((path for path in parents if (path / "idVendor").is_file()), None)
 

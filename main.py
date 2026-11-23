@@ -5,6 +5,7 @@ import hashlib
 import html
 import os
 import sqlite3
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -340,6 +341,8 @@ M3U_FILTER = "M3U playlist (*.m3u)"
 SETTINGS_FILTER = "MusicHive settings (*.ini)"
 DAYS_FILE = Path(__file__).parent / "days.json"
 EMOJI_FONT_FILE = Path(__file__).parent / "assets" / "fonts" / "Twemoji.Mozilla.ttf"
+APP_ICON_FILE = Path(__file__).parent / "musichive_colour.svg"
+WINDOWS = sys.platform == "win32"
 EMOJI_FONTS = ["Twemoji Mozilla", "Segoe UI Emoji", "Noto Emoji"]  # the first with the emoji is used
 NOTHING_TO_PASTE = "There are no songs from this library on the clipboard"
 
@@ -3994,7 +3997,7 @@ class MusicHive:
 
     def open_device(self, folder: str) -> None:
         if not open_in_dolphin(folder):
-            self.show_status("Could not start Dolphin")
+            self.show_status(f"Could not open {folder}" if WINDOWS else "Could not start Dolphin")
 
     def safely_remove_device(self, folder: str) -> None:
         if self.device_sync.is_running:
@@ -4226,6 +4229,10 @@ class MusicHive:
         existing = [path for path in paths if path.exists()]
         if not existing:
             self.show_status("The file no longer exists")
+            return
+        if WINDOWS:
+            # Explorer selects one file; it wants the command line exactly like this.
+            subprocess.Popen(f'explorer /select,"{existing[0]}"')
             return
         call = QDBusMessage.createMethodCall(
             "org.freedesktop.FileManager1",
@@ -6403,9 +6410,18 @@ def main() -> int:
     app.setStyle(AssetIconStyle())
     # Qt draws nothing with this system's Noto Color Emoji, so use a font it can draw.
     QFontDatabase.addApplicationFont(str(EMOJI_FONT_FILE))
+    # The Windows build brings Inter along; on Linux it comes with the system.
+    for font_file in (Path(__file__).parent / "bundled_fonts").glob("*.ttf"):
+        QFontDatabase.addApplicationFont(str(font_file))
     QFontDatabase.setApplicationEmojiFontFamilies(EMOJI_FONTS)
     app.setApplicationName("MusicHive")
     app.setDesktopFileName("musichive")  # must match musichive.desktop
+    if WINDOWS:
+        # Without its own id the taskbar groups MusicHive under Python, with Python's icon.
+        import ctypes
+
+        ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MusicHive.MusicHive")
+        app.setWindowIcon(QIcon(str(APP_ICON_FILE)))
     # Dark or light mode and the highlight colour, before any window is loaded.
     theme.setup(QSettings("MusicHive", "MusicHive"), UI_DIR)
     music_hive = MusicHive()
@@ -6453,9 +6469,25 @@ def main() -> int:
         music_hive.settings.sync()
         sys.stdout.flush()
         sys.stderr.flush()
-        os.execv(sys.executable, [sys.executable, *sys.argv])
+        # A built program is its own executable; otherwise Python runs this file.
+        arguments = sys.argv[1:] if getattr(sys, "frozen", False) else sys.argv
+        if WINDOWS:
+            # Windows has no real exec: it would start the new copy before this one has quit.
+            subprocess.Popen([sys.executable, *arguments], close_fds=True)
+        else:
+            os.execv(sys.executable, [sys.executable, *arguments])
     return exit_code
 
 
+def log_to_file() -> None:
+    """The Windows build has no console, so keep what would be printed in a log file."""
+    folder = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "MusicHive"
+    folder.mkdir(parents=True, exist_ok=True)
+    log = open(folder / "musichive.log", "w", encoding="utf-8", buffering=1)
+    sys.stdout = sys.stderr = log
+
+
 if __name__ == "__main__":
+    if sys.stdout is None or sys.stderr is None:
+        log_to_file()
     sys.exit(main())

@@ -230,6 +230,22 @@ It runs on 64-bit PCs with a distribution at least as new as Debian 12 (Fedora
 37, Ubuntu 23.04 and Arch all qualify). Unlike the packages, it doesn't add
 MusicHive to your application menu by itself.
 
+### Windows
+
+Each GitHub release has a Windows installer (`MusicHive-*-windows-x64-setup.exe`)
+and a portable zip. Like the AppImage, they carry their own Python, Qt and
+GStreamer. They're built on GitHub Actions with MSYS2 and PyInstaller; to build
+one yourself, run this in an [MSYS2](https://www.msys2.org) UCRT64 shell (the
+installer also needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)):
+
+```
+./packaging/windows/build.sh
+```
+
+Desktop widgets and media keys talk to MusicHive through MPRIS, which Windows
+doesn't have, so those don't work there yet. On Windows, settings are kept in the
+registry and the log in `%LOCALAPPDATA%\MusicHive\musichive.log`.
+
 ## Running from source
 
 On Fedora, the libraries are all available as system packages:

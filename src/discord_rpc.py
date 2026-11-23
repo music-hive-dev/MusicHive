@@ -101,6 +101,8 @@ def _socket_paths() -> list[str]:
     override = os.environ.get("DISCORD_IPC_PATH")  # lets you point at one socket
     if override:
         return [override]
+    if sys.platform == "win32":  # named pipes; Qt adds the \\.\pipe\ in front
+        return [f"discord-ipc-{number}" for number in range(10)]
 
     bases: list[str] = []
     for variable in ("XDG_RUNTIME_DIR", "TMPDIR", "TMP", "TEMP"):

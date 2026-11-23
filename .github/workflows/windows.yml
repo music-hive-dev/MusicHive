@@ -1,0 +1,51 @@
+# Builds the Windows installer and portable zip. On a published release they are
+# added to it; a manual run (Actions > Windows build > Run workflow) keeps them
+# as a downloadable artifact of the run.
+name: Windows build
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref }}
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: git
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          git config --global --add safe.directory "$PWD"
+          packaging/windows/build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicHive-windows
+          path: dist/MusicHive-*-windows-x64*
+
+      - name: Add to the release
+        if: github.event_name == 'release'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" dist/MusicHive-*-windows-x64* --clobber
