@@ -1,12 +1,20 @@
-# Builds the Windows installer and portable zip. On a published release they are
-# added to it; a manual run (Actions > Windows build > Run workflow) keeps them
-# as a downloadable artifact of the run.
+# Builds the Windows installer and portable zip after every push to master or
+# windows-build, and on a manual run (Actions > Windows build > Run workflow);
+# they are kept as a downloadable artifact of the run. On a published release
+# they are also added to the release.
 name: Windows build
 
 on:
+  push:
+    branches: [master, windows-build]
   release:
     types: [published]
   workflow_dispatch:
+
+# A newer push makes an unfinished build of the same branch pointless.
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: write

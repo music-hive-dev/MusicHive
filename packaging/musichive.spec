@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.6.0
+Version:        1.6.1
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -66,6 +66,9 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Mon Nov 23 2026 MusicHive - 1.6.1-1
+- The Windows version is built after every push
+
 * Mon Nov 23 2026 MusicHive - 1.6.0-1
 - A Windows version: an installer and a portable zip, built on GitHub Actions
 
