@@ -18,8 +18,10 @@ name="MusicHive-$version-windows-x64"
 p=$MINGW_PACKAGE_PREFIX
 
 echo "Installing Python, Qt and GStreamer..."
+# PySide6 only suggests the Qt parts beyond the basics, so those are named here.
 pacman -S --needed --noconfirm \
     "$p-python" "$p-python-pip" "$p-pyside6" "$p-python-gobject" "$p-python-mutagen" \
+    "$p-qt6-multimedia" "$p-qt6-tools" "$p-qt6-svg" "$p-qt6-imageformats" \
     "$p-python-zeroconf" "$p-python-protobuf" "$p-python-requests" \
     "$p-gstreamer" "$p-gst-plugins-base" "$p-gst-plugins-good" "$p-gst-plugins-bad" \
     "$p-gst-plugins-ugly" "$p-gst-libav" "$p-libsoup3" "$p-glib-networking" \
