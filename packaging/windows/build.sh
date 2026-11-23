@@ -36,7 +36,7 @@ gi.require_version("Gst", "1.0")
 gi.require_version("GstApp", "1.0")
 gi.require_version("GstVideo", "1.0")
 from gi.repository import Gst, GstApp, GstVideo  # noqa: F401
-from PySide6 import QtDBus, QtMultimedia, QtNetwork, QtUiTools  # noqa: F401
+from PySide6 import QtMultimedia, QtNetwork, QtUiTools  # noqa: F401
 import mutagen, pychromecast  # noqa: F401, E401
 Gst.init(None)
 missing = [name for name in ("playbin", "autoaudiosink", "equalizer-nbands", "spectrum",

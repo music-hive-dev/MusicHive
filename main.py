@@ -48,7 +48,8 @@ from PySide6.QtGui import (
     QPixmap,
     QTextDocumentFragment,
 )
-from PySide6.QtDBus import QDBus, QDBusConnection, QDBusMessage
+if sys.platform != "win32":  # the Windows build's Qt has no D-Bus, and nothing there uses it
+    from PySide6.QtDBus import QDBus, QDBusConnection, QDBusMessage
 from PySide6.QtWidgets import (
     QAbstractItemView,
     QAbstractSlider,

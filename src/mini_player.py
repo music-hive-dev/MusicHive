@@ -1,16 +1,19 @@
 """The mini player: a small window with the basic controls that stays on top."""
 
+import sys
 from collections.abc import Callable
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QObject, QSettings, QStandardPaths, Qt, QTimer, Slot
-from PySide6.QtDBus import QDBusConnection, QDBusMessage
 from PySide6.QtGui import QAction, QGuiApplication, QIcon
 from PySide6.QtWidgets import QSlider, QWidget
 
 from src.elided_label import ElidedLabel
 from src.lyrics_settings import LyricsSettings
 from src.now_playing import set_text_shadow
+
+if sys.platform != "win32":  # the Windows build's Qt has no D-Bus; only KWin needs it
+    from PySide6.QtDBus import QDBusConnection, QDBusMessage
 
 POSITION_KEY = "miniPlayerPosition"  # saved as "x,y"
 SCRIPT_NUMBER_KEY = "miniPlayerScriptNumber"
