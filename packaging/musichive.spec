@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.4.2
+Version:        1.4.3
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -62,6 +62,9 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Mon Nov 23 2026 MusicHive - 1.4.3-1
+- Updated logos and requirements
+
 * Mon Nov 23 2026 MusicHive - 1.4.2-1
 - The Last.fm window can open the secrets file and explains how to set up Last.fm
 - Tests for the parts that do not need the window (run with pytest)
