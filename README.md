@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="musichive_colour.svg" alt="MusicHive logo" width="128">
+  <img src="musichive_colour.ssvg" alt="MusicHive logo" width="128">
 </p>
 
 <h1 align="center">MusicHive</h1>
