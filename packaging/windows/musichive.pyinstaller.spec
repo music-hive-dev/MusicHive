@@ -17,6 +17,24 @@ datas.append((str(here / "fonts"), "bundled_fonts"))
 # cannot see that it is needed. Its own libraries are then found as usual.
 binaries = [(str(path), ".") for path in (prefix / "bin").glob("libsoup-3.0-*.dll")]
 
+# Only the GStreamer plugins MusicHive uses, instead of all few hundred.
+GSTREAMER_PLUGINS = [
+    # playing: playbin, typefinding, the filters and the speakers
+    "coreelements", "typefindfunctions", "playback", "app", "pbtypes", "audioconvert",
+    "audioresample", "volume", "equalizer", "audiofx", "spectrum", "replaygain",
+    "audiobuffersplit", "autodetect", "wasapi2", "wasapi", "directsound",
+    # MP3, FLAC, Ogg Vorbis and Opus, WAV, and the AAC/MP4 of podcasts and radio
+    "audioparsers", "mpg123", "id3demux", "apetag", "flac", "ogg", "vorbis", "opus",
+    "wavparse", "isomp4", "faad", "fdkaac",
+    # podcasts and radio over the internet
+    "soup", "icydemux", "adaptivedemux2",
+    # converting files: MP3 (lamemp3enc, xingmux); Ogg, Opus and FLAC are above
+    "lame", "xingmux",
+    # casting with pictures: WebM for Chromecasts, MPEG-TS with H.264 for DLNA TVs
+    "audiotestsrc", "audiomixer", "videoconvertscale", "vpx", "matroska",
+    "x264", "openh264", "videoparsersbad", "mpegtsmux",
+]
+
 a = Analysis(
     [str(root / "main.py")],
     pathex=[str(root)],
@@ -25,6 +43,8 @@ a = Analysis(
     # Gio brings GLib's TLS module along, which HTTPS radio streams and podcasts need.
     hiddenimports=["gi.repository.Gio"],
     runtime_hooks=[str(here / "runtime_environment.py")],
+    hookspath=[str(here / "hooks")],  # leaves Qt's media backends out
+    hooksconfig={"gstreamer": {"include_plugins": GSTREAMER_PLUGINS}},
     excludes=["tkinter"],
 )
 pyz = PYZ(a.pure)

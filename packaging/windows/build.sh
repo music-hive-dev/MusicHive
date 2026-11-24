@@ -24,7 +24,7 @@ pacman -S --needed --noconfirm \
     "$p-qt6-multimedia" "$p-qt6-tools" "$p-qt6-svg" "$p-qt6-imageformats" \
     "$p-python-zeroconf" "$p-python-protobuf" "$p-python-requests" \
     "$p-gstreamer" "$p-gst-plugins-base" "$p-gst-plugins-good" "$p-gst-plugins-bad" \
-    "$p-gst-plugins-ugly" "$p-gst-libav" "$p-libsoup3" "$p-glib-networking" \
+    "$p-gst-plugins-ugly" "$p-libsoup3" "$p-glib-networking" \
     "$p-pyinstaller" "$p-pyinstaller-hooks-contrib" git unzip zip
 # MSYS2 does not package these two; both are plain Python.
 python -m pip install -q --no-deps --break-system-packages "PyChromecast>=14" casttube
@@ -60,6 +60,18 @@ echo "Bundling with PyInstaller..."
 python -m PyInstaller --noconfirm --clean \
     --distpath "$top/dist" --workpath "$top/work" \
     "$top/src/packaging/windows/musichive.pyinstaller.spec"
+
+# Only what MusicHive uses belongs in the bundle; FFmpeg and its AI libraries
+# (Whisper, ggml) come in when a plugin that needs them slips through.
+unwanted=$(find "$top/dist/MusicHive" -iname 'avcodec-*.dll' -o -iname 'whisper*.dll' \
+    -o -iname '*ggml*.dll' -o -iname 'llama*.dll')
+if [ -n "$unwanted" ]; then
+    echo "These should not be in the bundle:" >&2
+    echo "$unwanted" >&2
+    exit 1
+fi
+echo "Bundle: $(du -sh "$top/dist/MusicHive" | cut -f1)," \
+    "$(find "$top/dist/MusicHive" -path '*gst_plugins*' -name '*.dll' | wc -l) GStreamer plugins"
 
 echo "Packing the portable zip..."
 rm -f "dist/$name.zip"

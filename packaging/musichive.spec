@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.6.7
+Version:        1.6.8
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -66,6 +66,9 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Nov 24 2026 MusicHive - 1.6.8-1
+- Windows: only the GStreamer plugins and Qt parts MusicHive uses are bundled, without FFmpeg
+
 * Tue Nov 24 2026 MusicHive - 1.6.7-1
 - Windows: no longer aborts at startup when GStreamer loads FFmpeg's Whisper library twice
 
