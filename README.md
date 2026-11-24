@@ -6,7 +6,7 @@
 
 <p align="center">A desktop music player for people who still keep their music in folders.</p>
 
-MusicHive plays your local library on Linux. It has the things I wanted from a
+MusicHive plays your local library on Linux and Windows. It has the things I wanted from a
 music player: proper playlists, lyrics that follow the song, a real equaliser,
 Last.fm scrobbling and syncing to a portable player (my beloved iPod lol). It's written in Python with Qt for the interface and GStreamer for the sound, and I run it on Fedora KDE
 Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.com/).
@@ -45,7 +45,7 @@ Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.
 
 - 10 or 15 band equaliser with a pre-amp, built-in presets and your own saved ones.
 - Left and right balance.
-- Songs, albums and playlists can have their own equaliser preset. A song's own preset wins over its playlist's.
+- Songs, albums and playlists can have their own equaliser preset. When a song plays from a playlist, the playlist's preset wins, unless the song is set to override it.
 - Level Volume measures how loud your songs are and stores the result as standard ReplayGain tags, so a whole library plays at one volume and other players can use the numbers too.
 
 ### Now Playing
@@ -53,7 +53,7 @@ Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.
 - A live spectrum visualiser that follows the sound you actually hear, at up to 60 frames a second. You can set the number of bars, the gap, opacity, fall speed and glow, and colour them yourself, as a rainbow, as a pride flag, or from the album cover. The background can be a blurred copy of the cover.
 - Visualiser presets, with a built-in Default. Like equaliser presets, they can be given to songs, albums and playlists.
 - Pride flags are plain JSON files, so you can add your own to the `flags` folder in the data folder.
-- Timed lyrics in LRC format, read from your files. The current line is highlighted and centred, and plain lyrics work too.
+- Timed lyrics in LRC format, read from your files or from a `.lrc` file next to the song. The current line is highlighted and centred, and plain lyrics work too.
 - Lyrics can have a text shadow, take a colour from the cover and grow with the window, which is nice on a TV.
 - Scrolling moves one line per wheel click. After you scroll, the lyrics stay put for a few seconds before following the song again.
 
@@ -123,11 +123,12 @@ on a TV:
 
 The TV fetches the music from MusicHive itself, over ports 8471 to 8480. On
 Fedora that works out of the box; with a stricter firewall, let those ports
-through for your home network. MusicHive only listens there while you're
+through for your home network. Windows asks once whether MusicHive may use the
+network: allow it for private networks. MusicHive only listens there while you're
 casting, and only answers the device you're casting to (or, for the browser page,
 whoever has its address). Chromecasts need the PyChromecast package; DLNA TVs need
 an H.264 encoder such as openh264 for the video mode; the browser page needs
-nothing extra.
+nothing extra. The AppImage and the Windows version have all of that built in.
 
 ### Playlists
 
@@ -161,11 +162,16 @@ Devices tab, and the plays in a `.scrobbler.log` can be sent to Last.fm. Last.fm
 limits how many scrobbles it accepts in a day, so a big log goes out a day's worth
 at a time.
 
+On Windows, MusicHive lists drives that Windows calls removable (USB sticks and
+most music players; some external hard drives count as fixed and don't show up).
+It can't read the hardware details or battery there, only what a Rockbox player
+writes about itself.
+
 ### Connected to your desktop
 
 - Last.fm scrobbling, now playing updates, and downloading your play counts.
 - Discord Rich Presence with the album cover.
-- MPRIS support, so desktop widgets and media keys can see and control it.
+- MPRIS support, so desktop widgets and media keys can see and control it (Linux only).
 - A tray icon, minimizing to the tray and starting hidden in the tray.
 
 ### Small things
@@ -177,7 +183,14 @@ at a time.
 
 ## Installing
 
-MusicHive is packaged as an RPM for Fedora. Build it from a clone of this repository:
+Each [release](https://github.com/music-hive-dev/MusicHive/releases) has ready-made
+packages: an RPM for Fedora, a `.deb` for Debian and Ubuntu, an Arch package, an
+AppImage and a Windows installer. The sections below also show how to build each of
+them yourself.
+
+### Fedora
+
+Build the RPM from a clone of this repository:
 
 ```
 sudo dnf install rpm-build python3-devel
@@ -232,19 +245,29 @@ MusicHive to your application menu by itself.
 
 ### Windows
 
-Each GitHub release has a Windows installer (`MusicHive-*-windows-x64-setup.exe`)
-and a portable zip. Like the AppImage, they carry their own Python, Qt and
-GStreamer. They're built on GitHub Actions with MSYS2 and PyInstaller; to build
-one yourself, run this in an [MSYS2](https://www.msys2.org) UCRT64 shell (the
+Each release has a Windows installer (`MusicHive-*-windows-x64-setup.exe`) and a
+portable zip for 64-bit Windows 10 and 11. Like the AppImage, they carry their own
+Python, Qt and GStreamer, but only the parts MusicHive uses. The installer isn't
+signed, so Windows warns about it the first time: choose *More info*, then *Run
+anyway*.
+
+They're built on GitHub Actions with MSYS2 and PyInstaller. To
+build one yourself, run this in an [MSYS2](https://www.msys2.org) UCRT64 shell (the
 installer also needs [Inno Setup 6](https://jrsoftware.org/isinfo.php)):
 
 ```
 ./packaging/windows/build.sh
 ```
 
-Desktop widgets and media keys talk to MusicHive through MPRIS, which Windows
-doesn't have, so those don't work there yet. On Windows, settings are kept in the
-registry and the log in `%LOCALAPPDATA%\MusicHive\musichive.log`.
+Differences from Linux:
+
+- Media keys and desktop widgets don't work, as they go through MPRIS, which
+  Windows doesn't have.
+- Show in File Manager and opening a device use Explorer.
+- The first start takes a little longer while GStreamer looks at its plugins.
+- If MusicHive doesn't start, `MusicHive-debug.exe` next to it shows what goes
+  wrong in a console window, and `%LOCALAPPDATA%\MusicHive\musichive.log` keeps
+  what it printed the last time it ran.
 
 ## Running from source
 
@@ -279,12 +302,15 @@ Restart MusicHive and log in from the Last.fm window.
 
 ## Where your data lives
 
-Libraries, playlists and cached images are kept in `~/Music/.musichive`, unless
-you've moved that folder in the settings. Other settings are in
-`~/.config/MusicHive`. Uninstalling the app leaves both of them alone.
+Libraries, playlists and cached images are kept in `~/Music/.musichive`
+(`%USERPROFILE%\Music\.musichive` on Windows), unless you've moved that folder in
+the settings. Other settings are in `~/.config/MusicHive`, and on Windows in the
+registry under `HKEY_CURRENT_USER\Software\MusicHive`. Uninstalling the app leaves
+all of them alone.
 
 MusicHive is a local player, but a few features do use the internet. Artist
-pictures and album searches go to Deezer and iTunes, lyrics come from
+pictures and album searches go to Deezer and iTunes, artist descriptions come
+from Last.fm, lyrics come from
 [LRCLIB](https://lrclib.net), podcasts from Apple Podcasts and radio stations from
 Radio Browser, and Last.fm gets your plays if you've turned scrobbling on.
 Discord can only show images that are online, so with Rich Presence on, the cover
@@ -301,3 +327,4 @@ of the current song is uploaded to a file host:
 - [PyChromecast](https://github.com/home-assistant-libs/pychromecast), MIT License
 - Icons from [Lucide](https://lucide.dev/), ISC License, some derived from Feather, MIT License
 - Emoji from [Twemoji](https://github.com/twitter/twemoji), CC BY 4.0, in the Twemoji Mozilla font
+- The [Inter](https://rsms.me/inter/) font, SIL Open Font License 1.1, included in the Windows version
