@@ -235,7 +235,8 @@ class DiscordPresence(QObject):
         socket = self._socket
         socket.abort()
         for path in _socket_paths():
-            if not os.path.exists(path):
+            # Windows' named pipes are not files; connecting tells at once if one is there.
+            if sys.platform != "win32" and not os.path.exists(path):
                 continue
             socket.connectToServer(path)
             if socket.waitForConnected(300):

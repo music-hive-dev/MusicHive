@@ -22,7 +22,9 @@ GSTREAMER_PLUGINS = [
     # playing: playbin, typefinding, the filters and the speakers
     "coreelements", "typefindfunctions", "playback", "app", "pbtypes", "audioconvert",
     "audioresample", "volume", "equalizer", "audiofx", "spectrum", "replaygain",
-    "audiobuffersplit", "autodetect", "wasapi2", "wasapi", "directsound",
+    # Not wasapi2: its wasapi2sink tells Windows not to remember MusicHive's volume
+    # in the volume mixer (AUDCLNT_STREAMFLAGS_NOPERSIST); wasapisink does not.
+    "audiobuffersplit", "autodetect", "wasapi", "directsound",
     # MP3, FLAC, Ogg Vorbis and Opus, WAV, and the AAC/MP4 of podcasts and radio
     "audioparsers", "mpg123", "id3demux", "apetag", "flac", "ogg", "vorbis", "opus",
     "wavparse", "isomp4", "faad", "fdkaac",

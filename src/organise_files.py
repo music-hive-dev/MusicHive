@@ -5,6 +5,7 @@ each song's tags. Only a "/" typed in the template makes a folder; one inside a
 tag, as in "AC/DC", is replaced like any other character a file name cannot hold.
 """
 
+import errno
 import os
 import re
 import shutil
@@ -32,6 +33,7 @@ _TAG = re.compile(r"<([^<>]*)>")
 
 PREVIEW_DELAY_MS = 250
 MOVES_PER_BATCH = 50  # the window and the music get a turn between batches
+_WINDOWS_FILE_IN_USE = 32  # ERROR_SHARING_VIOLATION: another program has the file open
 
 TEMPLATE_KEY = "organise/template"
 SKIP_MISSING_KEY = "organise/skipMissing"
@@ -168,17 +170,37 @@ def make_plan(
     return Plan(rows, unchanged)
 
 
+def _move_file(source: Path, target: Path) -> None:
+    """Move a file. Raises OSError, and then the file is only where it was.
+
+    Not shutil.move: when a rename fails, that copies and then deletes, and on
+    Windows the delete fails for a file that is open (the song playing), which
+    leaves a copy behind.
+    """
+    try:
+        os.rename(source, target)
+    except OSError as error:
+        if error.errno != errno.EXDEV:
+            raise
+        shutil.copy2(source, target)  # another drive: copy, then delete
+        try:
+            source.unlink()
+        except OSError:
+            target.unlink(missing_ok=True)
+            raise
+
+
 def move_song(root: Path, move: FileMove) -> None:
     """Move one song and its .lrc lyrics. Raises OSError if the song cannot be moved."""
     source, target = root / move.old, root / move.new
     if os.path.lexists(target):  # it appeared after the preview was made
         raise FileExistsError(f"{move.new} already exists")
     target.parent.mkdir(parents=True, exist_ok=True)
-    shutil.move(source, target)
+    _move_file(source, target)
     lyrics, new_lyrics = source.with_suffix(".lrc"), target.with_suffix(".lrc")
     if lyrics.exists() and not os.path.lexists(new_lyrics):
         try:
-            shutil.move(lyrics, new_lyrics)
+            _move_file(lyrics, new_lyrics)
         except OSError:
             pass  # the song has moved; its lyrics file is still safe where it was
 
@@ -366,7 +388,11 @@ class OrganiseDialog:
                 try:
                     move_song(self._root, move)
                 except OSError as error:
-                    result.failures.append((move.old, str(error)))
+                    if getattr(error, "winerror", None) == _WINDOWS_FILE_IN_USE:
+                        reason = "it is open, maybe playing; try again once it is not"
+                    else:
+                        reason = str(error)
+                    result.failures.append((move.old, reason))
                 else:
                     moved.append(move)
             result.moved.extend(moved)
