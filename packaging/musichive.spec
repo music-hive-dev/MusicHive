@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.6.8
+Version:        1.6.9
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -66,6 +66,9 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Nov 24 2026 MusicHive - 1.6.9-1
+- Every package is built on GitHub, and pushing a version tag makes the release
+
 * Tue Nov 24 2026 MusicHive - 1.6.8-1
 - Windows: only the GStreamer plugins and Qt parts MusicHive uses are bundled, without FFmpeg
 

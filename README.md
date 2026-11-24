@@ -285,6 +285,20 @@ PySide6, Mutagen and PyGObject, plus GStreamer and its good plugins, should be
 enough. The interface uses the Inter font if it's installed, and PyChromecast
 is only needed for casting to Chromecasts.
 
+## Making a release
+
+GitHub builds every package after each push to `master` (Actions → Build, under
+Artifacts). To publish a release, raise the version in `packaging/musichive.spec`,
+add a `%changelog` entry, then push a tag with that version:
+
+```
+git tag 1.6.9
+git push origin 1.6.9
+```
+
+GitHub then builds all packages and makes the release, with the changelog entries
+since the previous release as its text.
+
 ## Last.fm setup
 
 Last.fm needs an API key, which isn't included in this repository. Get one from

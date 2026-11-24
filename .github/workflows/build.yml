@@ -1,0 +1,139 @@
+# Builds every package: the Windows installer and zip, the Fedora RPM, the
+# Debian/Ubuntu .deb, the Arch package and the AppImage.
+#
+# - After every push to master or windows-build, and on a manual run (Actions >
+#   Build > Run workflow): the packages are kept as downloadable artifacts of the run.
+# - After pushing a tag with the version, such as 1.6.8 or v1.6.8: the same, and
+#   then a GitHub release is made with all of them, its text taken from the
+#   %changelog in musichive.spec since the previous release.
+name: Build
+
+on:
+  push:
+    branches: [master, windows-build]
+    tags: ["[0-9]*", "v[0-9]*"]
+  workflow_dispatch:
+
+# A newer push makes an unfinished build of the same branch pointless.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.read.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Read the version, and check the tag against it
+        id: read
+        run: |
+          version=$(awk '/^Version:/ {print $2}' packaging/musichive.spec)
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [ "$GITHUB_REF_TYPE" = tag ] && [ "${GITHUB_REF_NAME#v}" != "$version" ]; then
+            echo "::error::The tag $GITHUB_REF_NAME does not match version $version in musichive.spec"
+            exit 1
+          fi
+
+  windows:
+    needs: version
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe")) {
+            choco install innosetup --no-progress -y
+          }
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: git
+
+      - name: Build
+        shell: msys2 {0}
+        run: |
+          git config --global --add safe.directory "$PWD"
+          packaging/windows/build.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicHive-windows
+          path: dist/MusicHive-*-windows-x64*
+
+  rpm:
+    needs: version
+    runs-on: ubuntu-latest
+    container: registry.fedoraproject.org/fedora:latest
+    steps:
+      # Git first, so that the checkout is a real repository for git archive.
+      - name: Install the tools
+        run: dnf install -y -q git rpm-build python3-devel
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          packaging/build-rpm.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicHive-rpm
+          path: dist/musichive-*.rpm
+
+  linux:
+    needs: version
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - package: deb
+            script: packaging/build-deb.sh
+            files: dist/musichive_*_all.deb
+          - package: arch
+            script: packaging/build-arch.sh
+            files: dist/musichive-*.pkg.tar.zst
+          - package: appimage
+            script: packaging/build-appimage.sh
+            files: dist/MusicHive-*-x86_64.AppImage
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: ${{ matrix.script }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MusicHive-${{ matrix.package }}
+          path: ${{ matrix.files }}
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: [version, windows, rpm, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Make the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          # The newest release before this one; its changelog entry is where the notes stop.
+          previous=$(gh release list --exclude-drafts --json tagName --jq '.[].tagName' |
+              grep -vx "$GITHUB_REF_NAME" | head -n 1)
+          packaging/release-notes.sh "${previous#v}" > notes.md
+          ls -l dist
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+              gh release upload "$GITHUB_REF_NAME" dist/* --clobber
+          else
+              gh release create "$GITHUB_REF_NAME" dist/* --title "v$VERSION" --notes-file notes.md
+          fi
