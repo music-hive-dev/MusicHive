@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.6.10
+Version:        1.6.11
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -66,6 +66,9 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Tue Nov 24 2026 MusicHive - 1.6.11-1
+- The builds on GitHub use the current versions of GitHub's actions
+
 * Tue Nov 24 2026 MusicHive - 1.6.10-1
 - Windows: Discord Rich Presence connects
 - Windows: organising no longer leaves a copy of a song that is playing; it is skipped with a note

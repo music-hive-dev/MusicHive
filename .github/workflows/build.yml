@@ -1,7 +1,7 @@
 # Builds every package: the Windows installer and zip, the Fedora RPM, the
 # Debian/Ubuntu .deb, the Arch package and the AppImage.
 #
-# - After every push to master or windows-build, and on a manual run (Actions >
+# - After every push to master, and on a manual run (Actions >
 #   Build > Run workflow): the packages are kept as downloadable artifacts of the run.
 # - After pushing a tag with the version, such as 1.6.8 or v1.6.8: the same, and
 #   then a GitHub release is made with all of them, its text taken from the
@@ -10,7 +10,7 @@ name: Build
 
 on:
   push:
-    branches: [master, windows-build]
+    branches: [master]
     tags: ["[0-9]*", "v[0-9]*"]
   workflow_dispatch:
 
@@ -28,7 +28,7 @@ jobs:
     outputs:
       version: ${{ steps.read.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Read the version, and check the tag against it
         id: read
         run: |
@@ -43,7 +43,7 @@ jobs:
     needs: version
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       - name: Install Inno Setup
         shell: pwsh
@@ -64,7 +64,7 @@ jobs:
           git config --global --add safe.directory "$PWD"
           packaging/windows/build.sh
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MusicHive-windows
           path: dist/MusicHive-*-windows-x64*
@@ -77,12 +77,12 @@ jobs:
       # Git first, so that the checkout is a real repository for git archive.
       - name: Install the tools
         run: dnf install -y -q git rpm-build python3-devel
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: |
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           packaging/build-rpm.sh
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MusicHive-rpm
           path: dist/musichive-*.rpm
@@ -104,10 +104,10 @@ jobs:
             script: packaging/build-appimage.sh
             files: dist/MusicHive-*-x86_64.AppImage
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Build
         run: ${{ matrix.script }}
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: MusicHive-${{ matrix.package }}
           path: ${{ matrix.files }}
@@ -117,8 +117,8 @@ jobs:
     needs: [version, windows, rpm, linux]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           path: dist
           merge-multiple: true
