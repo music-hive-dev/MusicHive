@@ -54,6 +54,40 @@
               </property>
              </widget>
             </item>
+            <item row="2" column="0">
+             <widget class="QLabel" name="generalTrayIconLabel">
+              <property name="text">
+               <string>Tray icon:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="1">
+             <widget class="QComboBox" name="generalTrayIcon">
+              <property name="toolTip">
+               <string>Automatic follows the desktop's dark or light mode</string>
+              </property>
+              <item>
+               <property name="text">
+                <string>Automatic</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Dark</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Light</string>
+               </property>
+              </item>
+              <item>
+               <property name="text">
+                <string>Colour</string>
+               </property>
+              </item>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>

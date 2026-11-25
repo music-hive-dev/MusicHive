@@ -1429,6 +1429,10 @@ class MusicHive:
         )
         d.generalStartMinimized.setEnabled(w.actionMinimizeToTray.isChecked())
         w.actionMinimizeToTray.toggled.connect(d.generalStartMinimized.setEnabled)
+        style = self.settings.value("trayIcon", TrayMinimizer.AUTOMATIC)
+        if style in TrayMinimizer.STYLES:
+            d.generalTrayIcon.setCurrentIndex(TrayMinimizer.STYLES.index(style))
+        d.generalTrayIcon.activated.connect(self.on_tray_icon_chosen)
         for button, action in (
             (d.librariesAddButton, w.actionAddLibrary),
             (d.librariesRescanButton, w.actionRescanLibrary),
@@ -1785,11 +1789,15 @@ class MusicHive:
         folder = Path(__file__).parent
         self.tray = TrayMinimizer(
             w,
-            QIcon(str(folder / "musichive_dark.svg")),
-            QIcon(str(folder / "musichive_light.svg")),
+            {  # the files are named for the desktop mode they suit
+                "dark": QIcon(str(folder / "musichive_light.svg")),
+                "light": QIcon(str(folder / "musichive_dark.svg")),
+                "colour": QIcon(str(folder / "musichive_colour.svg")),
+            },
             menu,
             self.raise_window,
         )
+        self.tray.set_icon_style(self.settings.value("trayIcon", TrayMinimizer.AUTOMATIC))
 
         action = w.actionMinimizeToTray
         if not TrayMinimizer.is_available():
@@ -1888,6 +1896,11 @@ class MusicHive:
         self.cast_screen.set_visualiser_style(style)
         self.current_visualiser_style = style
         self.send_screen_style()
+
+    def on_tray_icon_chosen(self, index: int) -> None:
+        style = TrayMinimizer.STYLES[index]
+        self.settings.setValue("trayIcon", style)
+        self.tray.set_icon_style(style)
 
     def on_minimize_to_tray_toggled(self, enabled: bool) -> None:
         self.settings.setValue("minimizeToTray", enabled)

@@ -42,6 +42,7 @@ from src.cast import (  # noqa: E402
 )
 from src.cast_bars import BarMaps, describe as describe_bar_map  # noqa: E402
 from src.cast_video import AUDIO_CAPS, VideoStream  # noqa: E402
+from src.default_output import default_output_id  # noqa: E402
 from src.equaliser import BAND_FREQUENCIES, BAND_OCTAVES, MAX_BANDS, EqSettings  # noqa: E402
 from src.sound_settings import SoundSettings  # noqa: E402
 from src.track_metadata import read_track_gain  # noqa: E402
@@ -110,6 +111,8 @@ _BUS_MESSAGES = (
     | Gst.MessageType.DURATION_CHANGED
     | Gst.MessageType.TAG
 )
+# How often to ask Windows which device to play to (see default_output.py).
+_OUTPUT_CHECK_MS = 2000
 RADIO_URI = "appsrc://"  # the player's sound comes from a RadioStream
 
 PAUSE_FADE_SECONDS = 0.5
@@ -497,6 +500,14 @@ class AudioPlayer(QObject):
         # Bar maps, so a browser page shows the visualiser from a song's start.
         self._bar_maps = BarMaps(self)
         self._bar_maps.done.connect(self._on_bar_map_done)
+
+        # Windows: follow the default sound device when it changes.
+        self._output_id = default_output_id()
+        if self._output_id is not None:
+            self._output_timer = QTimer(self)
+            self._output_timer.setInterval(_OUTPUT_CHECK_MS)
+            self._output_timer.timeout.connect(self._check_default_output)
+            self._output_timer.start()
 
     def _decks(self) -> tuple[_Deck, _Deck]:
         return self._active, self._other
@@ -1135,6 +1146,37 @@ class AudioPlayer(QObject):
     def _cancel_overlap(self) -> None:
         self._overlap_seconds = 0.0
         self._other.halt(Gst.State.READY)
+
+    def _check_default_output(self) -> None:
+        current = default_output_id()
+        if current is None or current == self._output_id:
+            return
+        self._output_id = current
+        self._move_to_new_output()
+
+    def _move_to_new_output(self) -> None:
+        """Windows plays to another device now: reopen the speakers there.
+
+        wasapisink keeps to the device it opened, and autoaudiosink only looks
+        again when it is started afresh, so the decks go all the way down to NULL.
+        """
+        if self._cast is not None or self._video is not None:
+            return  # the decks do not play to the speakers; they reopen after casting
+        self._cancel_overlap()  # a song still fading out at a crossfade just ends
+        self._other.halt(Gst.State.NULL)
+        deck = self._active
+        if deck.track is None or self._state == "stopped" or self._waiting_for_head is not None:
+            # Nothing is heard yet; the next start opens the new device.
+            pending = deck.pending_seek
+            deck.halt(Gst.State.NULL)
+            deck.pending_seek = pending
+            return
+        if deck.ready:
+            position = deck.position_ms()
+            if position is not None:
+                self._position = position
+        deck.halt(Gst.State.NULL)
+        self._resume_here()  # where it was, playing or paused as before
 
     def _halt_active(self) -> None:
         self._waiting_for_head = None

@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.7.0
+Version:        1.7.1
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -66,6 +66,10 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Wed Nov 25 2026 MusicHive - 1.7.1-1
+- The tray icon can be chosen in Settings: automatic, dark, light or colour
+- Windows: switching the sound output moves playback to the new device straight away
+
 * Wed Nov 25 2026 MusicHive - 1.7.0-1
 - New Tools > Check Covers: lists albums whose cover is missing, unreadable, not square, too small, very large or not shared by all their songs
 - From that list: edit an album's tags, search for its cover straight away, open its folder, or copy or save the list

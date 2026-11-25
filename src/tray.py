@@ -14,19 +14,21 @@ class TrayMinimizer(QObject):
     does not tell programs about minimizing, so closing the window hides it too.
     """
 
+    AUTOMATIC = "automatic"
+    STYLES = (AUTOMATIC, "dark", "light", "colour")  # in the order of the settings list
+
     def __init__(
         self,
         window: QMainWindow,
-        dark_mode_icon: QIcon,
-        light_mode_icon: QIcon,
+        icons: dict[str, QIcon],
         menu: QMenu,
         restore: Callable[[], None],
     ) -> None:
         super().__init__(window)
         self._window = window
         self._restore = restore
-        self._dark_mode_icon = dark_mode_icon
-        self._light_mode_icon = light_mode_icon
+        self._icons = icons  # by how the icon looks: "dark", "light" and "colour"
+        self._style = self.AUTOMATIC
         self._enabled = False
         self._tray = QSystemTrayIcon(self)
         self._update_icon()
@@ -36,14 +38,22 @@ class TrayMinimizer(QObject):
         QGuiApplication.styleHints().colorSchemeChanged.connect(self._update_icon)
         window.installEventFilter(self)
 
+    def set_icon_style(self, style: str) -> None:
+        """Use the chosen icon, or with AUTOMATIC the one that suits the desktop."""
+        self._style = style if style in self._icons else self.AUTOMATIC
+        self._update_icon()
+
     def _update_icon(self, _scheme=None) -> None:
-        """Use the icon that suits the desktop's dark or light mode."""
+        """Show the chosen icon, or the one that suits the desktop's dark or light mode."""
+        if self._style != self.AUTOMATIC:
+            self._tray.setIcon(self._icons[self._style])
+            return
         scheme = QGuiApplication.styleHints().colorScheme()
         if scheme == Qt.ColorScheme.Unknown:  # judge by the colours in use
             dark = QGuiApplication.palette().window().color().lightness() < 128
         else:
             dark = scheme == Qt.ColorScheme.Dark
-        self._tray.setIcon(self._dark_mode_icon if dark else self._light_mode_icon)
+        self._tray.setIcon(self._icons["light" if dark else "dark"])
 
     @staticmethod
     def is_available() -> bool:
