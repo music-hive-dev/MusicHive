@@ -71,6 +71,9 @@ install -Dm644 packaging/musichive.desktop \
 - From that list: edit an album's tags, search for its cover straight away, open its folder, or copy or save the list
 - Shows every different cover of an album; one can be stretched to a square or used for the whole album
 - Songs can be marked to skip the cover check, with a tag saved in the files
+- New Tools > Check Tags: missing tags, duplicate or missing track numbers, albums whose songs disagree, and artists written more than one way; a tag can be made the same for a whole album, and tracks numbered again
+- Albums can be looked up on MusicBrainz, one or all in a row, choosing which tags to take over; dates can be written as just the year
+- New Tools > Find Duplicates: songs in the library more than once, with their quality side by side; keeping one moves the others to the Trash and passes on their plays, rating and places in playlists
 
 * Tue Nov 24 2026 MusicHive - 1.6.11-1
 - The builds on GitHub use the current versions of GitHub's actions

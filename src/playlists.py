@@ -304,6 +304,25 @@ class PlaylistStore:
                 playlist.tracks = [moves.get(track, track) for track in playlist.tracks]
                 self.save(playlist)
 
+    def replace_tracks(self, replacements: dict[str, str]) -> None:
+        """Songs were removed in favour of others ({removed: kept}): every playlist
+        gets the kept song instead, unless it already has it."""
+        for name in self.names():
+            playlist = self.load(name)
+            if not any(track in replacements for track in playlist.tracks):
+                continue
+            present = set(playlist.tracks)
+            tracks = []
+            for track in playlist.tracks:
+                if track in replacements:
+                    track = replacements[track]
+                    if track in present:
+                        continue
+                    present.add(track)
+                tracks.append(track)
+            playlist.tracks = tracks
+            self.save(playlist)
+
     def set_description(self, name: str, description: str) -> None:
         playlist = self.load(name)
         playlist.description = description

@@ -1,0 +1,571 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>checkTagsDialog</class>
+ <widget class="QDialog" name="checkTagsDialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>980</width>
+    <height>760</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Check Tags</string>
+  </property>
+  <layout class="QVBoxLayout" name="checkTagsLayout">
+   <item>
+    <widget class="QLabel" name="checkTagsIntro">
+     <property name="text">
+      <string>Looks through the tags of the library and lists the albums and artists that need tidying up. Choose one to see its songs, with the tags that are wrong marked. Albums you are happy with can be marked to skip: that is saved in their songs' tags.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QGridLayout" name="checkTagsOptions">
+     <item row="0" column="0">
+      <widget class="QLabel" name="checkTagsMissingLabel">
+       <property name="text">
+        <string>Songs without:</string>
+       </property>
+      </widget>
+     </item>
+     <item row="0" column="1" colspan="3">
+      <layout class="QHBoxLayout" name="checkTagsMissingRow">
+       <item>
+        <widget class="QCheckBox" name="checkTagsMissingTitle">
+         <property name="text">
+          <string>Title</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkTagsMissingArtist">
+         <property name="text">
+          <string>Artist</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkTagsMissingAlbum">
+         <property name="text">
+          <string>Album</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkTagsMissingYear">
+         <property name="text">
+          <string>Year</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkTagsMissingGenre">
+         <property name="text">
+          <string>Genre</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QCheckBox" name="checkTagsMissingTrack">
+         <property name="text">
+          <string>Track number</string>
+         </property>
+         <property name="toolTip">
+          <string>Only songs that belong to an album</string>
+         </property>
+         <property name="checked">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <spacer name="checkTagsMissingSpacer">
+         <property name="orientation">
+          <enum>Qt::Orientation::Horizontal</enum>
+         </property>
+         <property name="sizeHint" stdset="0">
+          <size>
+           <width>20</width>
+           <height>10</height>
+          </size>
+         </property>
+        </spacer>
+       </item>
+      </layout>
+     </item>
+     <item row="1" column="0" colspan="2">
+      <widget class="QCheckBox" name="checkTagsDuplicates">
+       <property name="text">
+        <string>Duplicate or impossible track numbers</string>
+       </property>
+       <property name="toolTip">
+        <string>Two songs of one disc with the same number, or a number above the disc's track total</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="2" colspan="2">
+      <widget class="QCheckBox" name="checkTagsGaps">
+       <property name="text">
+        <string>Gaps in track numbers</string>
+       </property>
+       <property name="toolTip">
+        <string>Numbers missing between 1 and the highest one: a song may be missing, or numbered wrongly</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="0" colspan="2">
+      <widget class="QCheckBox" name="checkTagsMixed">
+       <property name="text">
+        <string>Albums whose songs disagree on year, album artist or album name</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="2" column="2" colspan="2">
+      <widget class="QCheckBox" name="checkTagsMixedGenre">
+       <property name="text">
+        <string>Albums whose songs have different genres</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="0" colspan="2">
+      <widget class="QCheckBox" name="checkTagsSpellings">
+       <property name="text">
+        <string>Artists written more than one way</string>
+       </property>
+       <property name="toolTip">
+        <string>Such as “The Beatles” and “Beatles”, or “Simon &amp; Garfunkel” and “Simon and Garfunkel”</string>
+       </property>
+       <property name="checked">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item row="3" column="2" colspan="2">
+      <widget class="QCheckBox" name="checkTagsShowSkipped">
+       <property name="text">
+        <string>Include songs marked to skip</string>
+       </property>
+       <property name="toolTip">
+        <string>Also check the songs whose tag problems were marked to be skipped, so the mark can be taken off again</string>
+       </property>
+       <property name="checked">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QSplitter" name="checkTagsSplitter">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="childrenCollapsible">
+      <bool>false</bool>
+     </property>
+     <widget class="QTableWidget" name="checkTagsList">
+      <property name="editTriggers">
+       <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+      </property>
+      <property name="alternatingRowColors">
+       <bool>true</bool>
+      </property>
+      <property name="selectionMode">
+       <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+      </property>
+      <property name="selectionBehavior">
+       <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+      </property>
+      <property name="textElideMode">
+       <enum>Qt::TextElideMode::ElideRight</enum>
+      </property>
+      <property name="showGrid">
+       <bool>false</bool>
+      </property>
+      <property name="wordWrap">
+       <bool>false</bool>
+      </property>
+      <property name="sortingEnabled">
+       <bool>true</bool>
+      </property>
+      <attribute name="verticalHeaderVisible">
+       <bool>false</bool>
+      </attribute>
+      <column>
+       <property name="text">
+        <string>Album</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Artist</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Songs</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>Problems</string>
+       </property>
+      </column>
+     </widget>
+     <widget class="QWidget" name="checkTagsSongsPane">
+      <layout class="QVBoxLayout" name="checkTagsSongsLayout">
+       <property name="leftMargin">
+        <number>0</number>
+       </property>
+       <property name="topMargin">
+        <number>0</number>
+       </property>
+       <property name="rightMargin">
+        <number>0</number>
+       </property>
+       <property name="bottomMargin">
+        <number>0</number>
+       </property>
+       <item>
+        <widget class="QLabel" name="checkTagsSongsLabel">
+         <property name="text">
+          <string>Songs (the marked tags need a look; double-click a song to edit it):</string>
+         </property>
+        </widget>
+       </item>
+       <item>
+        <widget class="QTableWidget" name="checkTagsSongs">
+         <property name="editTriggers">
+          <set>QAbstractItemView::EditTrigger::NoEditTriggers</set>
+         </property>
+         <property name="alternatingRowColors">
+          <bool>true</bool>
+         </property>
+         <property name="selectionMode">
+          <enum>QAbstractItemView::SelectionMode::SingleSelection</enum>
+         </property>
+         <property name="selectionBehavior">
+          <enum>QAbstractItemView::SelectionBehavior::SelectRows</enum>
+         </property>
+         <property name="textElideMode">
+          <enum>Qt::TextElideMode::ElideRight</enum>
+         </property>
+         <property name="showGrid">
+          <bool>false</bool>
+         </property>
+         <property name="wordWrap">
+          <bool>false</bool>
+         </property>
+         <attribute name="verticalHeaderVisible">
+          <bool>false</bool>
+         </attribute>
+         <column>
+          <property name="text">
+           <string>Disc</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Track</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Title</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Artist</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Album artist</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Album</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Year</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>Genre</string>
+          </property>
+         </column>
+         <column>
+          <property name="text">
+           <string>File</string>
+          </property>
+         </column>
+        </widget>
+       </item>
+       <item>
+        <layout class="QHBoxLayout" name="checkTagsFixRow">
+         <item>
+          <widget class="QLabel" name="checkTagsFieldLabel">
+           <property name="text">
+            <string>Make the same:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="checkTagsField">
+           <property name="toolTip">
+            <string>The tag to give one value in all of these songs</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="checkTagsValue">
+           <property name="minimumSize">
+            <size>
+             <width>260</width>
+             <height>0</height>
+            </size>
+           </property>
+           <property name="toolTip">
+            <string>Choose a value the songs already have, or type a new one</string>
+           </property>
+           <property name="editable">
+            <bool>true</bool>
+           </property>
+           <property name="insertPolicy">
+            <enum>QComboBox::InsertPolicy::NoInsert</enum>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="checkTagsApplyButton">
+           <property name="text">
+            <string>Use for All</string>
+           </property>
+           <property name="toolTip">
+            <string>Save this value in every song here that has another one or none</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="checkTagsFixSpacer">
+           <property name="orientation">
+            <enum>Qt::Orientation::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>20</width>
+             <height>10</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QPushButton" name="checkTagsLookUpButton">
+           <property name="text">
+            <string>Look Up on MusicBrainz…</string>
+           </property>
+           <property name="toolTip">
+            <string>Find this album on MusicBrainz and choose which of its tags to take over: names, year, track and disc numbers</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QPushButton" name="checkTagsNumberButton">
+           <property name="text">
+            <string>Number Tracks…</string>
+           </property>
+           <property name="toolTip">
+            <string>Number the songs of each disc again: from the numbers their file names start with, or else in file name order</string>
+           </property>
+           <property name="autoDefault">
+            <bool>false</bool>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </item>
+      </layout>
+     </widget>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="checkTagsListButtonRow">
+     <item>
+      <widget class="QPushButton" name="checkTagsEditButton">
+       <property name="text">
+        <string>Edit Tags…</string>
+       </property>
+       <property name="toolTip">
+        <string>Open the tag editor for all of these songs</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="checkTagsOpenFolderButton">
+       <property name="text">
+        <string>Open Folder</string>
+       </property>
+       <property name="toolTip">
+        <string>Show the songs' folder in the file manager</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="checkTagsListButtonSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>10</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="checkTagsLookUpAllButton">
+       <property name="text">
+        <string>Look Up All Albums…</string>
+       </property>
+       <property name="toolTip">
+        <string>Go through every album in the list on MusicBrainz, one after another; nothing is written until you save an album</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="checkTagsSkipBox">
+       <property name="text">
+        <string>Skip these songs' tag problems</string>
+       </property>
+       <property name="toolTip">
+        <string>Write a tag to these songs so that their tags are no longer checked</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="checkTagsSummary">
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="checkTagsButtonRow">
+     <item>
+      <widget class="QPushButton" name="checkTagsStartButton">
+       <property name="text">
+        <string>Check Tags</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="checkTagsButtonSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>20</width>
+         <height>10</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="checkTagsCopyButton">
+       <property name="text">
+        <string>Copy List</string>
+       </property>
+       <property name="toolTip">
+        <string>Copy the list as text, to paste it somewhere else</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="checkTagsSaveButton">
+       <property name="text">
+        <string>Save List…</string>
+       </property>
+       <property name="toolTip">
+        <string>Save the list as a CSV file, which spreadsheets can open</string>
+       </property>
+       <property name="autoDefault">
+        <bool>false</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QDialogButtonBox" name="checkTagsButtonBox">
+       <property name="standardButtons">
+        <set>QDialogButtonBox::StandardButton::Close</set>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

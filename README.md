@@ -325,7 +325,8 @@ all of them alone.
 MusicHive is a local player, but a few features do use the internet. Artist
 pictures and album searches go to Deezer and iTunes, artist descriptions come
 from Last.fm, lyrics come from
-[LRCLIB](https://lrclib.net), podcasts from Apple Podcasts and radio stations from
+[LRCLIB](https://lrclib.net), album details for Check Tags from
+[MusicBrainz](https://musicbrainz.org), podcasts from Apple Podcasts and radio stations from
 Radio Browser, and Last.fm gets your plays if you've turned scrobbling on.
 Discord can only show images that are online, so with Rich Presence on, the cover
 of the current song is uploaded to a file host:
@@ -341,4 +342,5 @@ of the current song is uploaded to a file host:
 - [PyChromecast](https://github.com/home-assistant-libs/pychromecast), MIT License
 - Icons from [Lucide](https://lucide.dev/), ISC License, some derived from Feather, MIT License
 - Emoji from [Twemoji](https://github.com/twitter/twemoji), CC BY 4.0, in the Twemoji Mozilla font
+- Album data from [MusicBrainz](https://musicbrainz.org), CC0 (public domain)
 - The [Inter](https://rsms.me/inter/) font, SIL Open Font License 1.1, included in the Windows version

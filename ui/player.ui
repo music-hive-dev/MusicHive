@@ -4107,6 +4107,8 @@ QWidget {
     <addaction name="actionAutoTagGenres"/>
     <addaction name="actionAutoLyrics"/>
     <addaction name="actionCheckCovers"/>
+    <addaction name="actionCheckTags"/>
+    <addaction name="actionFindDuplicates"/>
     <addaction name="actionOrganiseFiles"/>
     <addaction name="actionLevelVolume"/>
     <addaction name="actionConvertFiles"/>
@@ -5263,6 +5265,36 @@ QWidget {
    </property>
    <property name="toolTip">
     <string>List the albums whose cover is missing, too small, not square or not shared by all their songs</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCheckTags">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/list-check.svg</normaloff>../assets/list-check.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Check Tags…</string>
+   </property>
+   <property name="toolTip">
+    <string>List the albums and artists whose tags are missing, numbered wrongly or written in different ways</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionFindDuplicates">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/copy.svg</normaloff>../assets/copy.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Find Duplicates…</string>
+   </property>
+   <property name="toolTip">
+    <string>List the songs that are in the library more than once, and keep the best copy</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

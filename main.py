@@ -165,6 +165,8 @@ from src.online_search import (
     ask_auto_tag_count,
 )
 from src.check_covers import CheckCoversTool
+from src.check_tags import CheckTagsTool
+from src.find_duplicates import FindDuplicatesTool
 from src.convert_files import ConvertFilesTool, ConvertSong
 from src.device_sync import DeviceSyncPanel
 from src.devices import DeviceEjector, DevicesTab, connected_devices, open_in_dolphin
@@ -263,6 +265,9 @@ EQUALISER_UI_FILE = UI_DIR / "equaliser.ui"
 LEVEL_VOLUME_UI_FILE = UI_DIR / "level_volume.ui"
 CONVERT_UI_FILE = UI_DIR / "convert_files.ui"
 CHECK_COVERS_UI_FILE = UI_DIR / "check_covers.ui"
+CHECK_TAGS_UI_FILE = UI_DIR / "check_tags.ui"
+FIND_DUPLICATES_UI_FILE = UI_DIR / "find_duplicates.ui"
+MUSICBRAINZ_UI_FILE = UI_DIR / "musicbrainz_lookup.ui"
 COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
 ABOUT_UI_FILE = UI_DIR / "about.ui"
 MINI_PLAYER_UI_FILE = UI_DIR / "mini_player.ui"
@@ -1164,6 +1169,10 @@ class MusicHive:
         w.actionConvertFiles.triggered.connect(lambda _checked=False: self.show_convert_files())
         self.check_covers_tool: CheckCoversTool | None = None  # made when first opened
         w.actionCheckCovers.triggered.connect(lambda _checked=False: self.show_check_covers())
+        self.check_tags_tool: CheckTagsTool | None = None  # made when first opened
+        w.actionCheckTags.triggered.connect(lambda _checked=False: self.show_check_tags())
+        self.duplicates_tool: FindDuplicatesTool | None = None  # made when first opened
+        w.actionFindDuplicates.triggered.connect(lambda _checked=False: self.show_find_duplicates())
         self.tag_writer = TagWriter(w)
         self.tag_writer.rating_failed.connect(self.on_rating_write_failed)
         self.tag_writer.tags_saved.connect(self.on_tags_saved)
@@ -3112,59 +3121,141 @@ class MusicHive:
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
+        if not self.trash_files([path]):
+            return
+        self.forget_songs([path])
+        self.show_status(f"Deleted '{title}'")
 
-        if path.exists():
+    def trash_files(self, paths: list[Path]) -> list[Path]:
+        """Move files to the Trash; where that cannot be done, offer to delete them
+        for good. Returns the files that are gone (a missing file counts as gone)."""
+        gone: list[Path] = []
+        stuck: list[Path] = []
+        for path in paths:
+            if not path.exists():
+                gone.append(path)
+                continue
             result = QFile.moveToTrash(str(path))
             trashed = result[0] if isinstance(result, tuple) else bool(result)
-            if not trashed:
-                answer = QMessageBox.question(
-                    self.window,
-                    "Trash not available",
-                    f"'{path.name}' could not be moved to the Trash.\n\n"
-                    "Delete it permanently instead? This cannot be undone.",
-                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                    QMessageBox.StandardButton.No,
-                )
-                if answer != QMessageBox.StandardButton.Yes:
-                    return
-                try:
-                    path.unlink()
-                except OSError as error:
-                    QMessageBox.warning(self.window, "Cannot delete file", str(error))
-                    return
+            (gone if trashed else stuck).append(path)
+        if not stuck:
+            return gone
+        what = f"'{stuck[0].name}' could" if len(stuck) == 1 else f"{len(stuck)} files could"
+        answer = QMessageBox.question(
+            self.window,
+            "Trash not available",
+            f"{what} not be moved to the Trash.\n\n"
+            "Delete permanently instead? This cannot be undone.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No,
+        )
+        if answer != QMessageBox.StandardButton.Yes:
+            return gone
+        for path in stuck:
+            try:
+                path.unlink()
+                gone.append(path)
+            except OSError as error:
+                QMessageBox.warning(self.window, "Cannot delete file", f"{path.name}: {error}")
+        return gone
 
-        try:
-            library_db.remove_track(library.db_path, self.relative_path(path))
-        except sqlite3.Error:
-            pass  # the next rescan will bring the library data up to date
+    def forget_songs(self, paths: list[Path], replacements: dict[Path, Path] | None = None) -> None:
+        """Drop songs whose files were deleted from the library, its playlists and
+        the play order. With `replacements` ({deleted: kept}), playlists get the kept
+        song instead of the deleted one."""
+        library = self.loaded_library
+        if library is None:
+            return
+        for path in paths:
+            try:
+                library_db.remove_track(library.db_path, self.relative_path(path))
+            except sqlite3.Error:
+                pass  # the next rescan will bring the library data up to date
         self.update_library_stats()
 
         if self.playlist_store is not None:
+            replacements = replacements or {}
             try:
-                self.playlist_store.remove_track_everywhere(self.relative_path(path))
+                self.playlist_store.replace_tracks(
+                    {
+                        self.relative_path(old): self.relative_path(new)
+                        for old, new in replacements.items()
+                    }
+                )
+                for path in paths:
+                    if path not in replacements:
+                        self.playlist_store.remove_track_everywhere(self.relative_path(path))
             except OSError:
                 pass
 
-        was_playing = row == self.current_index
+        row_of = {path: row for row, path in enumerate(self.tracks)}
+        rows = sorted({row_of[path] for path in paths if path in row_of}, reverse=True)
+        if not rows:
+            return
+        was_playing = self.current_index in rows
         table_bar = self.window.libraryList.verticalScrollBar()
         table_scroll = table_bar.value()
 
-        del self.tracks[row]
-        self.library_model.remove_row(row)  # resets the table
+        for row in rows:  # from the last, so the rows still to go keep their numbers
+            del self.tracks[row]
+            self.library_model.remove_row(row)  # resets the table
+            if not was_playing:
+                self.play_order.library_row_removed(row)
+                if self.current_index > row:
+                    self.current_index -= 1
         self.refresh_playlist_list(select=self.current_playlist)
         if was_playing:
             self.player.unload()
             self.show_nothing_playing()
             self.reset_play_order()
         else:
-            self.play_order.library_row_removed(row)
-            if self.current_index > row:
-                self.current_index -= 1
             if self.current_index >= 0:
                 self.select_in_table(self.current_index)
             self.refresh_upcoming(keep_scroll=True)
         QTimer.singleShot(0, lambda: table_bar.setValue(table_scroll))
-        self.show_status(f"Deleted '{title}'")
+
+    def remove_duplicates(self, keep: Path, others: list[Path]) -> int:
+        """Keep one copy of a song: the others go to the Trash, and their plays,
+        rating and places in playlists pass to the kept one. Returns how many went."""
+        library = self.loaded_library
+        if library is None:
+            return 0
+        row_of = {path: row for row, path in enumerate(self.tracks)}
+        keep_row = row_of.get(keep)
+        if keep_row is None:
+            self.show_status("That song is no longer in the library")
+            return 0
+        best_rating = max(
+            (self.library_model.info(row_of[path]).rating for path in others if path in row_of),
+            default=0,
+        )
+        gone = self.trash_files(others)
+        if not gone:
+            return 0
+        try:
+            count, last_played, _added = library_db.merge_plays(
+                library.db_path,
+                self.relative_path(keep),
+                [self.relative_path(path) for path in gone],
+            )
+        except sqlite3.Error as error:
+            self.show_status(f"Could not pass on the play counts: {error}")
+        else:
+            self.library_model.set_play_count(keep_row, count)
+            if last_played is not None:
+                self.library_model.set_last_played(keep_row, last_played)
+        kept_info = self.library_model.info(keep_row)
+        if kept_info is not None and not kept_info.rating and best_rating:
+            try:
+                library_db.set_rating(library.db_path, self.relative_path(keep), best_rating)
+                self.library_model.set_rating(keep_row, best_rating)
+                self.tag_writer.write_rating(keep, best_rating)
+            except sqlite3.Error:
+                pass
+        self.forget_songs(gone, {path: keep for path in gone})
+        self.update_playlists_using("rating")
+        self.update_playlists_using(PLAYS_TAG)
+        return len(gone)
 
     # ----- saving and restoring the session -----
 
@@ -3613,8 +3704,53 @@ class MusicHive:
             )
         self.check_covers_tool.show(library)
 
+    def show_check_tags(self) -> None:
+        library = self.loaded_library
+        if library is None:
+            self.show_status("Open a library first")
+            return
+        if self.check_tags_tool is None:
+            self.check_tags_tool = CheckTagsTool(
+                CHECK_TAGS_UI_FILE,
+                self.window,
+                self.tag_writer,
+                MUSICBRAINZ_UI_FILE,
+                self.check_covers_songs,
+                self.edit_song_paths,
+                self.save_tag_jobs,
+                self.show_status,
+            )
+        self.check_tags_tool.show(library)
+
+    def show_find_duplicates(self) -> None:
+        library = self.loaded_library
+        if library is None:
+            self.show_status("Open a library first")
+            return
+        if self.duplicates_tool is None:
+            self.duplicates_tool = FindDuplicatesTool(
+                FIND_DUPLICATES_UI_FILE,
+                self.window,
+                self.tag_writer,
+                self.check_covers_songs,
+                self.edit_song_paths,
+                self.save_tag_jobs,
+                self.play_song_path,
+                self.remove_duplicates,
+                self.show_status,
+            )
+        self.duplicates_tool.show(library)
+
+    def play_song_path(self, path: Path) -> None:
+        """Play one song of the library, given by its file."""
+        row = next((row for row, track in enumerate(self.tracks) if track == path), None)
+        if row is None:
+            self.show_status("That song is no longer in the library")
+            return
+        self.play_rows([row])
+
     def check_covers_songs(self) -> tuple[LibraryInfo, list[tuple[Path, TrackInfo]]] | None:
-        """The open library and each of its songs, for checking their covers."""
+        """The open library and each of its songs, for the tools that check them."""
         library = self.loaded_library
         if library is None:
             return None

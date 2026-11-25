@@ -794,6 +794,36 @@ def clear_level_target(db_path: Path) -> None:
             conn.execute("DELETE FROM meta WHERE key = 'level_target'")
 
 
+def merge_plays(db_path: Path, keep: str, merged: list[str]) -> tuple[int, float | None, float | None]:
+    """Give one track the plays of others that are about to be removed (copies of
+    the same song): their counts are added, and the latest play and the earliest
+    "added" are kept. Returns the track's (play count, last played, added at)."""
+    rel_paths = [keep, *merged]
+    marks = ", ".join("?" * len(rel_paths))
+    with connect(db_path) as conn:
+        count, last_played = conn.execute(
+            f"SELECT COALESCE(SUM(count), 0), MAX(last_played) FROM plays WHERE rel_path IN ({marks})",
+            rel_paths,
+        ).fetchone()
+        (added_at,) = conn.execute(
+            f"SELECT MIN(added_at) FROM track_added WHERE rel_path IN ({marks})", rel_paths
+        ).fetchone()
+        with conn:
+            if count or last_played is not None:
+                conn.execute(
+                    "INSERT INTO plays (rel_path, count, last_played) VALUES (?, ?, ?) "
+                    "ON CONFLICT(rel_path) DO UPDATE SET "
+                    "count = excluded.count, last_played = excluded.last_played",
+                    (keep, count, last_played),
+                )
+            if added_at is not None:
+                conn.execute(
+                    "INSERT OR REPLACE INTO track_added (rel_path, added_at) VALUES (?, ?)",
+                    (keep, added_at),
+                )
+    return count, last_played, added_at
+
+
 def remove_track(db_path: Path, rel_path: str) -> None:
     """Drop one track from a library (after its file was deleted)."""
     with connect(db_path) as conn:
