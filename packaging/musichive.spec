@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.6.11
+Version:        1.7.0
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        LicenseRef-Proprietary
@@ -66,6 +66,12 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Wed Nov 25 2026 MusicHive - 1.7.0-1
+- New Tools > Check Covers: lists albums whose cover is missing, unreadable, not square, too small, very large or not shared by all their songs
+- From that list: edit an album's tags, search for its cover straight away, open its folder, or copy or save the list
+- Shows every different cover of an album; one can be stretched to a square or used for the whole album
+- Songs can be marked to skip the cover check, with a tag saved in the files
+
 * Tue Nov 24 2026 MusicHive - 1.6.11-1
 - The builds on GitHub use the current versions of GitHub's actions
 

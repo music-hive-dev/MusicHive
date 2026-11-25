@@ -8,7 +8,7 @@ from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 
-from PySide6.QtCore import QSettings, QStandardPaths, Qt
+from PySide6.QtCore import QSettings, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QIcon, QImage, QPixmap
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QTableWidgetItem, QWidget
 
@@ -75,10 +75,13 @@ class TagEditorDialog:
         load_presets: Callable[[list[Path]], dict[Path, SoundPresets]] | None = None,
         equaliser_names: list[str] | None = None,
         visualiser_names: list[str] | None = None,
+        find_cover: bool = False,
     ) -> None:
         """`siblings` are the songs the arrow buttons go through, one song at a time.
         `load_presets` reads songs' presets (the Settings tab); `equaliser_names`
-        and `visualiser_names` are the presets to choose from."""
+        and `visualiser_names` are the presets to choose from. With `find_cover`,
+        the search for a cover starts as soon as the window opens."""
+        self._find_cover_at_start = find_cover
         self._paths = paths
         self._files = files
         self._placeholder = placeholder
@@ -180,6 +183,8 @@ class TagEditorDialog:
         """Show the window. Returns what to write; empty if nothing is to be done.
         The presets to store are in preset_changes afterwards."""
         d = self.dialog
+        if self._find_cover_at_start:
+            QTimer.singleShot(0, self._find_covers)
         if d.exec() != QDialog.DialogCode.Accepted:
             self.preset_changes = {}  # noted while going through songs, then cancelled
         self._online.covers_found.disconnect(self._on_covers_found)

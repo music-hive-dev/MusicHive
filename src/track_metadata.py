@@ -605,6 +605,34 @@ def _find_folder_cover(directory: str) -> str | None:
     return find_folder_cover(directory)
 
 
+def read_cover(path: Path, tag: str | None = None) -> tuple[bytes | None, str, str]:
+    """The song's cover as the files are right now, where it comes from ("embedded",
+    or the name of the image file in its folder; "" if there is none), and the text
+    of the tag called `tag` ("" if there is none)."""
+    audio = None
+    data = None
+    value = ""
+    try:
+        audio = MutagenFile(str(path))
+        data = _embedded_cover(audio) if audio is not None else None
+    except Exception:
+        data = None
+    if tag and audio is not None and audio.tags is not None:
+        try:
+            value = read_all_tags(audio.tags).get(tag, "")
+        except Exception:
+            value = ""
+    if data:
+        return data, "embedded", value
+    found = find_folder_cover(str(path.parent))
+    if found is not None:
+        try:
+            return Path(found).read_bytes(), Path(found).name, value
+        except OSError:
+            pass
+    return None, "", value
+
+
 def forget_folder_covers() -> None:
     """Files were moved: look in the folders again next time."""
     _find_folder_cover.cache_clear()

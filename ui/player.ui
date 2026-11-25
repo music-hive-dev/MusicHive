@@ -4106,6 +4106,7 @@ QWidget {
     <addaction name="actionAudioScrobbleLastFm"/>
     <addaction name="actionAutoTagGenres"/>
     <addaction name="actionAutoLyrics"/>
+    <addaction name="actionCheckCovers"/>
     <addaction name="actionOrganiseFiles"/>
     <addaction name="actionLevelVolume"/>
     <addaction name="actionConvertFiles"/>
@@ -5247,6 +5248,21 @@ QWidget {
    </property>
    <property name="toolTip">
     <string>Measure the songs of this library so that they all play at the same volume</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCheckCovers">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/image.svg</normaloff>../assets/image.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Check Covers…</string>
+   </property>
+   <property name="toolTip">
+    <string>List the albums whose cover is missing, too small, not square or not shared by all their songs</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

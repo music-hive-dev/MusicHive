@@ -164,6 +164,7 @@ from src.online_search import (
     ask_auto_lyrics,
     ask_auto_tag_count,
 )
+from src.check_covers import CheckCoversTool
 from src.convert_files import ConvertFilesTool, ConvertSong
 from src.device_sync import DeviceSyncPanel
 from src.devices import DeviceEjector, DevicesTab, connected_devices, open_in_dolphin
@@ -207,7 +208,7 @@ from src.visualiser_settings import (
 from src.song_settings import SoundPresets, chosen_presets
 from src.star_rating import StarRating
 from src.tray import TrayMinimizer
-from src.track_metadata import TagChanges, read_editable_file, read_track_details
+from src.track_metadata import TagChanges, TrackInfo, read_editable_file, read_track_details
 from src.playlist_models import (
     ClickFilter,
     HistoryTrackModel,
@@ -261,6 +262,7 @@ ORGANISE_UI_FILE = UI_DIR / "organise_files.ui"
 EQUALISER_UI_FILE = UI_DIR / "equaliser.ui"
 LEVEL_VOLUME_UI_FILE = UI_DIR / "level_volume.ui"
 CONVERT_UI_FILE = UI_DIR / "convert_files.ui"
+CHECK_COVERS_UI_FILE = UI_DIR / "check_covers.ui"
 COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
 ABOUT_UI_FILE = UI_DIR / "about.ui"
 MINI_PLAYER_UI_FILE = UI_DIR / "mini_player.ui"
@@ -1160,6 +1162,8 @@ class MusicHive:
         w.actionLevelVolume.triggered.connect(lambda _checked=False: self.show_level_volume())
         self.convert_tool: ConvertFilesTool | None = None  # made when first opened
         w.actionConvertFiles.triggered.connect(lambda _checked=False: self.show_convert_files())
+        self.check_covers_tool: CheckCoversTool | None = None  # made when first opened
+        w.actionCheckCovers.triggered.connect(lambda _checked=False: self.show_check_covers())
         self.tag_writer = TagWriter(w)
         self.tag_writer.rating_failed.connect(self.on_rating_write_failed)
         self.tag_writer.tags_saved.connect(self.on_tags_saved)
@@ -1916,6 +1920,8 @@ class MusicHive:
             self.level_tool.shutdown()
         if self.convert_tool is not None:
             self.convert_tool.shutdown()
+        if self.check_covers_tool is not None:
+            self.check_covers_tool.shutdown()
         self.device_sync.shutdown()
         self.tag_writer.shutdown()
         self.mpris.shutdown()
@@ -3309,10 +3315,13 @@ class MusicHive:
             return context
         return self.play_order.upcoming_rows() if source == "upcoming" else self.display_rows()
 
-    def edit_tags(self, rows: list[int], neighbours: list[int] | None = None) -> None:
+    def edit_tags(
+        self, rows: list[int], neighbours: list[int] | None = None, find_cover: bool = False
+    ) -> None:
         """Open the tag editor for these songs and write what the user changes.
 
-        The editor's arrow buttons go through `neighbours`.
+        The editor's arrow buttons go through `neighbours`. With `find_cover`, it
+        searches the internet for a cover as soon as it opens.
         """
         library = self.loaded_library
         if library is None:
@@ -3331,6 +3340,7 @@ class MusicHive:
             self.load_song_presets,
             equaliser_preset_names(self.settings),
             visualiser_preset_names(self.settings),
+            find_cover=find_cover,
         )
         jobs = editor.run()
         if editor.preset_changes:
@@ -3585,6 +3595,47 @@ class MusicHive:
                 CONVERT_UI_FILE, self.window, self.settings, self.show_status
             )
         self.convert_tool.show(songs, [songs[row] for row in selected_rows])
+
+    def show_check_covers(self) -> None:
+        library = self.loaded_library
+        if library is None:
+            self.show_status("Open a library first")
+            return
+        if self.check_covers_tool is None:
+            self.check_covers_tool = CheckCoversTool(
+                CHECK_COVERS_UI_FILE,
+                self.window,
+                self.tag_writer,
+                self.check_covers_songs,
+                self.edit_song_paths,
+                self.save_tag_jobs,
+                self.show_status,
+            )
+        self.check_covers_tool.show(library)
+
+    def check_covers_songs(self) -> tuple[LibraryInfo, list[tuple[Path, TrackInfo]]] | None:
+        """The open library and each of its songs, for checking their covers."""
+        library = self.loaded_library
+        if library is None:
+            return None
+        return library, [(path, self.library_model.info(row)) for row, path in enumerate(self.tracks)]
+
+    def save_tag_jobs(self, jobs: list[TagJob]) -> None:
+        """Write these tag changes to songs of the open library."""
+        library = self.loaded_library
+        if library is None or not jobs:
+            return
+        self.show_status(f"Saving tags of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
+        self.tag_writer.save_tags(jobs, library.root, library.db_path)
+
+    def edit_song_paths(self, paths: list[Path], find_cover: bool = False) -> None:
+        """Open the tag editor for these songs of the library."""
+        row_of = {path: row for row, path in enumerate(self.tracks)}
+        rows = [row_of[path] for path in paths if path in row_of]
+        if not rows:
+            self.show_status("Those songs are no longer in the library")
+            return
+        self.edit_tags(rows, find_cover=find_cover)
 
     def show_level_volume(self) -> None:
         library = self.loaded_library
