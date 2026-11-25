@@ -2019,6 +2019,13 @@ class MusicHive:
 
     def show_about(self) -> None:
         dialog = load_dialog(ABOUT_UI_FILE, self.window)
+        # The translators are kept apart in about.ui, so that adding one does not
+        # change the translated text; shown in the same label, they get the same
+        # spacing as the other sections.
+        text = dialog.aboutText.text() + dialog.aboutTranslationsTitle.text()
+        dialog.aboutText.setText(text + dialog.aboutTranslators.text())
+        dialog.aboutTranslationsTitle.hide()
+        dialog.aboutTranslators.hide()
         dialog.aboutButtonBox.rejected.connect(dialog.reject)
         dialog.exec()
 

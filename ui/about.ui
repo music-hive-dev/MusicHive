@@ -119,7 +119,9 @@ Lyrics from &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, radio
        <item>
         <widget class="QLabel" name="aboutTranslators">
          <property name="text">
-          <string notr="true">Deutsch: music-hive-dev</string>
+          <string notr="true">&lt;p&gt;
+🇩🇪 Deutsch: music-hive-dev
+&lt;/p&gt;</string>
          </property>
          <property name="textFormat">
           <enum>Qt::TextFormat::RichText</enum>

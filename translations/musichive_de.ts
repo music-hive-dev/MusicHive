@@ -205,12 +205,12 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="+60"/>
-        <location line="+1270"/>
+        <location line="+1277"/>
         <source>Text copied</source>
         <translation>Text kopiert</translation>
     </message>
     <message>
-        <location line="-1256"/>
+        <location line="-1263"/>
         <location line="+8"/>
         <source>Select some songs first</source>
         <translation>Wähle zuerst Lieder aus</translation>
@@ -243,13 +243,13 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="-6"/>
-        <location line="+1340"/>
+        <location line="+1347"/>
         <location line="+40"/>
         <source>The playing song cannot be removed</source>
         <translation>Das spielende Lied kann nicht entfernt werden</translation>
     </message>
     <message>
-        <location line="-1357"/>
+        <location line="-1364"/>
         <source>Export settings</source>
         <translation>Einstellungen exportieren</translation>
     </message>
@@ -346,7 +346,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Audiovisualisierer</translation>
     </message>
     <message>
-        <location line="+158"/>
+        <location line="+165"/>
         <source>Volume: {volume}%</source>
         <translation>Lautstärke: {volume}%</translation>
     </message>
