@@ -5,7 +5,7 @@ pkgver=0
 pkgrel=1
 pkgdesc="Simple local music player"
 arch=('any')
-license=('LicenseRef-Proprietary')
+license=('GPL-3.0-or-later')
 depends=(
     'python'
     'pyside6'

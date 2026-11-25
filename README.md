@@ -361,3 +361,9 @@ of the current song is uploaded to a file host:
 - Emoji from [Twemoji](https://github.com/twitter/twemoji), CC BY 4.0, in the Twemoji Mozilla font
 - Album data from [MusicBrainz](https://musicbrainz.org), CC0 (public domain)
 - The [Inter](https://rsms.me/inter/) font, SIL Open Font License 1.1, included in the Windows version
+
+## Licence
+
+MusicHive is free software: you can use it, change it and share it under the
+[GNU General Public License](LICENSE), version 3 or (at your option) any later
+version. It comes with no warranty.

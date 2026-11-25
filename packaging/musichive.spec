@@ -1,8 +1,8 @@
 Name:           musichive
-Version:        1.7.1
+Version:        1.7.2
 Release:        1%{?dist}
 Summary:        Simple local music player
-License:        LicenseRef-Proprietary
+License:        GPL-3.0-or-later
 Source0:        %{name}-%{version}.tar.gz
 BuildArch:      noarch
 
@@ -60,12 +60,17 @@ install -Dm644 packaging/musichive.desktop \
     %{buildroot}%{_datadir}/applications/%{name}.desktop
 
 %files
+%license LICENSE
 %{_bindir}/%{name}
 %{_datadir}/%{name}/
 %{_datadir}/applications/%{name}.desktop
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Wed Nov 25 2026 MusicHive - 1.7.2-1
+- MusicHive is now free software under the GNU General Public License, version 3 or later
+- The About window is larger, and scrolls when its text does not fit
+
 * Wed Nov 25 2026 MusicHive - 1.7.1-1
 - The tray icon can be chosen in Settings: automatic, dark, light or colour
 - Windows: switching the sound output moves playback to the new device straight away

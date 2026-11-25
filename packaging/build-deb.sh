@@ -23,6 +23,7 @@ git archive --format=tar HEAD | tar -x -C "$top/src"
 
 cd "$top/src"
 cp -a main.py days.json ./*.svg ./*.png src ui assets "$app/"
+install -Dm644 LICENSE "$root/usr/share/doc/musichive/copyright"
 install -Dm644 musichive_colour.svg \
     "$root/usr/share/icons/hicolor/scalable/apps/musichive.svg"
 # The file name must match setDesktopFileName in main.py.
