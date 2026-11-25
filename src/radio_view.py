@@ -24,6 +24,7 @@ from PySide6.QtWidgets import (
 
 from src.elided_label import ElidedLabel
 from src.formatting import format_time
+from src.i18n import tr
 from src.number_field import NumberField
 from src.podcast_view import (
     HEADING_ROLE,
@@ -137,7 +138,7 @@ class RadioTab(QObject):
         manager.logo_ready.connect(self._on_logo_ready)
 
         self.refresh_list()
-        self._browse_title.set_text("Popular stations")
+        self._browse_title.set_text(tr("Popular stations"))
         w.radioPages.setCurrentWidget(w.radioBrowsePage)
         w.podcastsTab.currentChanged.connect(lambda _index: self._load_when_shown())
         self._load_when_shown()
@@ -171,21 +172,21 @@ class RadioTab(QObject):
         for station in favourites:
             self._add_list_row(station)
         if recent:
-            heading = QListWidgetItem("Recently played")
+            heading = QListWidgetItem(tr("Recently played"))
             heading.setData(HEADING_ROLE, True)
             heading.setFlags(Qt.ItemFlag.NoItemFlags)
             view.addItem(heading)
             for station in recent:
                 self._add_list_row(station)
         if not favourites and not recent:
-            heading = QListWidgetItem("Your favourite stations appear here")
+            heading = QListWidgetItem(tr("Your favourite stations appear here"))
             heading.setData(HEADING_ROLE, True)
             heading.setFlags(Qt.ItemFlag.NoItemFlags)
             view.addItem(heading)
 
     def _add_list_row(self, station: Station) -> None:
         view = self.w.radioList
-        second = "Playing" if station.id == self.playing_station else station.details()
+        second = tr("Playing") if station.id == self.playing_station else station.details()
         item = QListWidgetItem(QIcon(self.logo(station.id, LIST_ICON)), station.name)
         item.setData(LINES_ROLE, [station.name, second])
         item.setData(ID_ROLE, station.id)
@@ -215,39 +216,39 @@ class RadioTab(QObject):
         menu = QMenu(self.w.radioList)
         self._add_station_actions(menu, station)
         if not station.favourite and station.last_played:
-            menu.addAction(self._icon("x"), "Remove from Recently Played").triggered.connect(
+            menu.addAction(self._icon("x"), tr("Remove from Recently Played")).triggered.connect(
                 lambda _checked=False: self._forget_recent(station.id)
             )
         menu.exec(self.w.radioList.viewport().mapToGlobal(position))
 
     def _add_station_actions(self, menu: QMenu, station: Station) -> None:
-        menu.addAction(self._icon("play"), "Play").triggered.connect(
+        menu.addAction(self._icon("play"), tr("Play")).triggered.connect(
             lambda _checked=False: self.play_requested.emit(station.id)
         )
         menu.addSeparator()
         if station.favourite:
-            menu.addAction(self._icon("star-off"), "Remove from Favourites").triggered.connect(
+            menu.addAction(self._icon("star-off"), tr("Remove from Favourites")).triggered.connect(
                 lambda _checked=False: self.manager.set_favourite(station.id, False)
             )
         else:
-            menu.addAction(self._icon("star"), "Add to Favourites").triggered.connect(
+            menu.addAction(self._icon("star"), tr("Add to Favourites")).triggered.connect(
                 lambda _checked=False: self.manager.set_favourite(station.id, True)
             )
-        menu.addAction(self._icon("pencil"), "Rename...").triggered.connect(
+        menu.addAction(self._icon("pencil"), tr("Rename...")).triggered.connect(
             lambda _checked=False: self._rename(station)
         )
         pinned = self.is_pinned(station.id)
         menu.addAction(
             self._icon("pin-off" if pinned else "pin"),
-            "Unpin from Sidebar" if pinned else "Pin to Sidebar",
+            tr("Unpin from Sidebar") if pinned else tr("Pin to Sidebar"),
         ).triggered.connect(lambda _checked=False: self.pin_toggled.emit(station.id))
         if station.homepage:
-            menu.addAction(self._icon("globe"), "Open Website").triggered.connect(
+            menu.addAction(self._icon("globe"), tr("Open Website")).triggered.connect(
                 lambda _checked=False: QDesktopServices.openUrl(QUrl(station.homepage))
             )
 
     def _rename(self, station: Station) -> None:
-        name, accepted = QInputDialog.getText(self.w, "Rename station", "Name:", text=station.name)
+        name, accepted = QInputDialog.getText(self.w, tr("Rename station"), tr("Name:"), text=station.name)
         if accepted and name.strip():
             self.manager.rename(station.id, name.strip())
 
@@ -274,9 +275,9 @@ class RadioTab(QObject):
     def _fill_lists(self, lists: dict) -> None:
         w = self.w
         for combo, everything, entries in (
-            (w.radioCountry, "All countries", [(name, code) for name, code in lists["countries"]]),
-            (w.radioLanguage, "All languages", [(name.title(), name) for name in lists["languages"]]),
-            (w.radioGenre, "All genres", [(name.title(), name) for name in lists["tags"]]),
+            (w.radioCountry, tr("All countries"), [(name, code) for name, code in lists["countries"]]),
+            (w.radioLanguage, tr("All languages"), [(name.title(), name) for name in lists["languages"]]),
+            (w.radioGenre, tr("All genres"), [(name.title(), name) for name in lists["tags"]]),
         ):
             combo.clear()
             combo.addItem(everything, "")
@@ -289,13 +290,13 @@ class RadioTab(QObject):
         if "://" in text:
             station_id = self.manager.add_by_address(text)
             self.show_station(station_id)
-            self._show_status("Added the station. Play it, and add it to your favourites if you like it.")
+            self._show_status(tr("Added the station. Play it, and add it to your favourites if you like it."))
             return
         country = w.radioCountry.currentData() or ""
         language = w.radioLanguage.currentData() or ""
         genre = w.radioGenre.currentData() or ""
         if not (text or country or language or genre):
-            self._browse_title.set_text("Popular stations")
+            self._browse_title.set_text(tr("Popular stations"))
             w.radioPages.setCurrentWidget(w.radioBrowsePage)
             self.manager.popular()
             return
@@ -303,7 +304,7 @@ class RadioTab(QObject):
         parts += [w.radioGenre.currentText() if genre else "",
                   w.radioLanguage.currentText() if language else "",
                   w.radioCountry.currentText() if country else ""]
-        heading = "Stations: " + ", ".join(p for p in parts if p)
+        heading = tr("Stations: ") + ", ".join(p for p in parts if p)
         self._browse_title.set_text(heading)
         w.radioResults.clear()
         w.radioPages.setCurrentWidget(w.radioBrowsePage)
@@ -313,7 +314,9 @@ class RadioTab(QObject):
         self._results = stations
         view = self.w.radioResults
         view.clear()
-        self._browse_title.set_text(heading if stations else f"{heading} – nothing found")
+        self._browse_title.set_text(heading if stations else tr("{heading} – nothing found").format(
+            heading=heading,
+        ))
         placeholder = QIcon(self._placeholder.pixmap(RESULT_ICON, RESULT_ICON))
         for index, station in enumerate(stations):
             item = QListWidgetItem(placeholder, station.name)
@@ -374,7 +377,7 @@ class RadioTab(QObject):
         self._details.set_text(details)
         w.radioFavouriteButton.setIcon(self._icon("star_full" if station.favourite else "star"))
         w.radioFavouriteButton.setToolTip(
-            "Remove from favourites" if station.favourite else "Add to favourites"
+            tr("Remove from favourites") if station.favourite else tr("Add to favourites")
         )
         self._show_playing_controls()
         self._fill_history()
@@ -383,12 +386,14 @@ class RadioTab(QObject):
     def _show_playing_controls(self) -> None:
         w = self.w
         playing = self.shown_station is not None and self.shown_station == self.playing_station
-        self._now.set_text(f"Now: {self._now_playing}" if playing and self._now_playing else "")
+        self._now.set_text(tr("Now: {now_playing}").format(
+            now_playing=self._now_playing,
+        ) if playing and self._now_playing else "")
         w.radioLiveLabel.setVisible(playing)
         w.radioGoLiveButton.setVisible(playing)
         w.radioTapeButton.setEnabled(playing and self._can_tape)
         w.radioRememberButton.setEnabled(playing and bool(self._now_playing))
-        w.radioPlayButton.setToolTip("Playing" if playing else "Play this station")
+        w.radioPlayButton.setToolTip(tr("Playing") if playing else tr("Play this station"))
 
     def _play_shown(self) -> None:
         if self.shown_station is not None:
@@ -400,13 +405,13 @@ class RadioTab(QObject):
             self.manager.set_favourite(station.id, not station.favourite)
 
     def _on_tape_button(self, on: bool) -> None:
-        self.w.radioTapeButton.setToolTip("Stop taping" if on else self._tape_tooltip())
+        self.w.radioTapeButton.setToolTip(tr("Stop taping") if on else self._tape_tooltip())
         self.tape_toggled.emit(on)
 
     def _tape_tooltip(self) -> str:
-        return ("Tape what you hear: each song becomes a file in the tapes folder"
+        return (tr("Tape what you hear: each song becomes a file in the tapes folder")
                 if self.manager.settings.tape_per_song
-                else "Tape what you hear into one file in the tapes folder")
+                else tr("Tape what you hear into one file in the tapes folder"))
 
     # ----- told by the player -----
 
@@ -426,7 +431,9 @@ class RadioTab(QObject):
     def set_behind(self, seconds: float) -> None:
         w = self.w
         live = seconds < LIVE_SLACK_SECONDS
-        w.radioLiveLabel.setText("Live" if live else f"{format_time(int(seconds * 1000))} behind live")
+        w.radioLiveLabel.setText(tr("Live") if live else tr("{time} behind live").format(
+            time=format_time(int(seconds * 1000)),
+        ))
         w.radioGoLiveButton.setEnabled(not live)
 
     def set_taping(self, on: bool) -> None:
@@ -434,7 +441,7 @@ class RadioTab(QObject):
         button.blockSignals(True)
         button.setChecked(on)
         button.blockSignals(False)
-        button.setToolTip("Stop taping" if on else self._tape_tooltip())
+        button.setToolTip(tr("Stop taping") if on else self._tape_tooltip())
 
     # ----- what was heard -----
 
@@ -467,26 +474,26 @@ class RadioTab(QObject):
             table.selectRow(item.row())
         titles = self._selected_titles(table, 1)
         menu = QMenu(table)
-        menu.addAction(self._icon("heart-plus"), "Remember").triggered.connect(
+        menu.addAction(self._icon("heart-plus"), tr("Remember")).triggered.connect(
             lambda _checked=False: [self.manager.remember(self.shown_station, t) for t in titles]
         )
         self._add_song_actions(menu, titles)
         menu.addSeparator()
-        menu.addAction(self._icon("trash"), "Clear This Station's History").triggered.connect(
+        menu.addAction(self._icon("trash"), tr("Clear This Station's History")).triggered.connect(
             lambda _checked=False: self.manager.clear_history(self.shown_station)
         )
         menu.exec(table.viewport().mapToGlobal(position))
 
     def _add_song_actions(self, menu: QMenu, titles: list[str]) -> None:
-        menu.addAction(self._icon("clipboard-copy"), "Copy").triggered.connect(
+        menu.addAction(self._icon("clipboard-copy"), tr("Copy")).triggered.connect(
             lambda _checked=False: QApplication.clipboard().setText("\n".join(titles))
         )
         if len(titles) == 1:
             title = titles[0]
-            menu.addAction(self._icon("library"), "Find in Library").triggered.connect(
+            menu.addAction(self._icon("library"), tr("Find in Library")).triggered.connect(
                 lambda _checked=False: self._find_in_library(title)
             )
-            menu.addAction(self._icon("search"), "Search the Web").triggered.connect(
+            menu.addAction(self._icon("search"), tr("Search the Web")).triggered.connect(
                 lambda _checked=False: QDesktopServices.openUrl(
                     QUrl(WEB_SEARCH + urllib.parse.quote(title))
                 )
@@ -510,7 +517,9 @@ class RadioTab(QObject):
             table.setItem(row, 1, QTableWidgetItem(song.station))
             table.setItem(row, 2, QTableWidgetItem(heard_time(song.heard_at)))
         self.w.radioRememberedTitle.setText(
-            f"Remembered songs ({len(songs)})" if songs else "Remembered songs – none yet"
+            tr("Remembered songs ({count})").format(
+                count=len(songs),
+            ) if songs else tr("Remembered songs – none yet")
         )
 
     def _on_remembered_changed(self) -> None:
@@ -530,7 +539,7 @@ class RadioTab(QObject):
         menu = QMenu(table)
         self._add_song_actions(menu, titles)
         menu.addSeparator()
-        menu.addAction(self._icon("trash"), "Forget").triggered.connect(
+        menu.addAction(self._icon("trash"), tr("Forget")).triggered.connect(
             lambda _checked=False: self.manager.forget(ids)
         )
         menu.exec(table.viewport().mapToGlobal(position))
@@ -576,7 +585,7 @@ class RadioSettingsTab:
 
     def _choose_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
-            self._dialog, "Folder for tapes", str(self._manager.settings.tapes_folder())
+            self._dialog, tr("Folder for tapes"), str(self._manager.settings.tapes_folder())
         )
         if folder:
             self._set_folder(folder)

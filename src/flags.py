@@ -21,6 +21,7 @@ from pathlib import Path
 
 from PySide6.QtGui import QColor
 
+from src.i18n import QT_TR_NOOP, tr
 from src.theme import ASSETS_DIR
 
 BUILT_IN_DIR = ASSETS_DIR / "flags"
@@ -28,7 +29,7 @@ USER_DIR_NAME = "flags"
 README_NAME = "README.txt"
 MAX_STRIPES = 100
 
-README_TEXT = """Your own flags for the visualiser's bars (Settings, Now Playing, Colours).
+README_TEXT = QT_TR_NOOP("""Your own flags for the visualiser's bars (Settings, Now Playing, Colours).
 
 Put one .json file per flag in this folder, then open the settings window again.
 For example, "sunset.json":
@@ -42,7 +43,7 @@ The stripes go top to bottom on the flag, and become the bars left to right.
 A colour listed twice is a stripe twice as wide. "order" (a number) puts a flag
 earlier in the list. A file named like a built-in flag (pride.json, say)
 replaces that flag. The built-in ones are in MusicHive's assets/flags folder.
-"""
+""")
 
 
 @dataclass(frozen=True)
@@ -123,5 +124,5 @@ def prepare_user_flags_dir() -> Path:
     folder.mkdir(parents=True, exist_ok=True)
     readme = folder / README_NAME
     if not readme.exists():
-        readme.write_text(README_TEXT, encoding="utf-8")
+        readme.write_text(tr(README_TEXT), encoding="utf-8")
     return folder

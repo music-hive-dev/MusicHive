@@ -12,6 +12,8 @@ import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.i18n import tr
+
 MAX_NAME_LENGTH = 100
 
 
@@ -73,14 +75,16 @@ class PlaylistStore:
     def _check_name(name: str, existing: list[str], noun: str, ignore: str | None) -> str | None:
         name = name.strip()
         if not name:
-            return "The name cannot be empty."
+            return tr("The name cannot be empty.")
         if len(name) > MAX_NAME_LENGTH:
-            return f"The name can be at most {MAX_NAME_LENGTH} characters long."
+            return tr("The name can be at most %n character(s) long.", "", MAX_NAME_LENGTH)
         if "/" in name or "\0" in name or name.startswith("."):
-            return "The name cannot contain a slash or start with a dot."
+            return tr("The name cannot contain a slash or start with a dot.")
         taken = {other.casefold() for other in existing if other != ignore}
         if name.casefold() in taken:
-            return f"A {noun} with that name already exists."
+            if noun == "folder":
+                return tr("A folder with that name already exists.")
+            return tr("A playlist with that name already exists.")
         return None
 
     def _file(self, name: str) -> Path:
@@ -190,7 +194,7 @@ class PlaylistStore:
         taken = {other.casefold() for other in self.names()}
         number = 1
         while True:
-            suffix = " copy" if number == 1 else f" copy {number}"
+            suffix = tr(" copy") if number == 1 else tr(" copy {number}").format(number=number)
             candidate = name[: MAX_NAME_LENGTH - len(suffix)] + suffix
             if candidate.casefold() not in taken:
                 return candidate

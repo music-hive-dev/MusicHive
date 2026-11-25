@@ -40,6 +40,7 @@ from PySide6.QtWidgets import (
 )
 
 from src import library_db
+from src.i18n import QT_TR_NOOP, tr
 from src.lastfm_dialog import load_dialog
 from src.musicbrainz_dialog import AlbumToLookUp, MusicBrainzLookup
 from src.library_db import LibraryInfo
@@ -51,14 +52,14 @@ SETTINGS_PREFIX = "checkTags/"
 TEXT_FIELDS = ("title", "artist", "albumartist", "album", "date", "genre")
 NUMBER_TAGS = ("tracknumber", "tracktotal", "discnumber", "disctotal")
 LABELS = {
-    "title": "title",
-    "artist": "artist",
-    "albumartist": "album artist",
-    "album": "album",
-    "date": "year",
-    "genre": "genre",
-    "tracknumber": "track number",
-    "discnumber": "disc number",
+    "title": QT_TR_NOOP("title"),
+    "artist": QT_TR_NOOP("artist"),
+    "albumartist": QT_TR_NOOP("album artist"),
+    "album": QT_TR_NOOP("album"),
+    "date": QT_TR_NOOP("year"),
+    "genre": QT_TR_NOOP("genre"),
+    "tracknumber": QT_TR_NOOP("track number"),
+    "discnumber": QT_TR_NOOP("disc number"),
 }
 # The columns of checkTagsSongs: the tag each one shows (None: the file name).
 SONG_COLUMNS = (
@@ -106,13 +107,13 @@ def _year(text: str) -> str:
 
 
 def _songs(count: int) -> str:
-    return f"{count} song{'' if count == 1 else 's'}"
+    return tr("%n song(s)", "", count)
 
 
 def _numbers(numbers: list[int]) -> str:
     shown = ", ".join(str(n) for n in numbers[:LISTED_NUMBERS])
     if len(numbers) > LISTED_NUMBERS:
-        shown += f" and {len(numbers) - LISTED_NUMBERS} more"
+        shown += tr(" and {count} more").format(count=len(numbers) - LISTED_NUMBERS)
     return shown
 
 
@@ -254,18 +255,28 @@ def _disagreement(issue: Issue, tag: str) -> None:
     main = counts.most_common(1)[0][0]
     if len(counts) > 1:
         if tag == "album":
-            issue.problems.append(f"Album name written {len(counts)} ways")
+            issue.problems.append(tr("Album name written {count} ways").format(
+                count=len(counts),
+            ))
         else:
-            issue.problems.append(f"{len(counts)} different {LABELS[tag]}s")
+            issue.problems.append(
+                tr("{count} different values for {tag}").format(count=len(counts), tag=tr(LABELS[tag]))
+            )
         for song in songs:
             if song.values[tag] and song.values[tag] != main:
-                issue.mark(song, tag, f"Most songs have “{main}”")
+                issue.mark(song, tag, tr("Most songs have “{main}”").format(main=main))
     if tag in ("albumartist", "date"):
         without = [song for song in songs if not song.values[tag]]
         if without:
-            issue.problems.append(f"{_songs(len(without))} without {LABELS[tag]}")
+            issue.problems.append(tr("{songs} without {tag}").format(
+                songs=_songs(len(without)),
+                tag=tr(LABELS[tag]),
+            ))
             for song in without:
-                issue.mark(song, tag, f"No {LABELS[tag]}; most songs have “{main}”")
+                issue.mark(song, tag, tr("No {tag}; most songs have “{main}”").format(
+                    tag=tr(LABELS[tag]),
+                    main=main,
+                ))
 
 
 def _track_numbers(issue: Issue, limits: Limits) -> None:
@@ -275,32 +286,46 @@ def _track_numbers(issue: Issue, limits: Limits) -> None:
         members = [song for song in numbered if song.disc_key == disc]
         if not members:
             continue
-        where = f"Disc {disc}: t" if len(discs) > 1 else "T"
+        # "Disc 2: " before each problem, when the album has more than one disc
+        where = tr("Disc {disc}: ").format(disc=disc) if len(discs) > 1 else ""
         counts = Counter(song.track for song in members)
         if limits.duplicates:
             doubled = sorted(n for n, count in counts.items() if count > 1)
             if doubled:
-                s = "s" if len(doubled) > 1 else ""
-                issue.problems.append(f"{where}rack{s} {_numbers(doubled)} used more than once")
+                issue.problems.append(
+                    where
+                    + tr("Track(s) {numbers} used more than once", "", len(doubled)).format(
+                        numbers=_numbers(doubled)
+                    )
+                )
                 for song in members:
                     if counts[song.track] > 1:
-                        issue.mark(song, "tracknumber", "Another song of this disc has this number")
+                        issue.mark(song, "tracknumber", tr("Another song of this disc has this number"))
             totals = Counter(song.track_total for song in members if song.track_total)
             total = totals.most_common(1)[0][0] if totals else None
             impossible = [
                 song for song in members if song.track < 1 or (total and song.track > total)
             ]
             if impossible:
-                above = f" (the disc has {total})" if total else ""
-                issue.problems.append(f"{where}rack numbers that cannot be right{above}")
+                if total:
+                    problem = tr("Track numbers that cannot be right (the disc has {total})")
+                else:
+                    problem = tr("Track numbers that cannot be right")
+                issue.problems.append(where + problem.format(total=total))
                 for song in impossible:
-                    issue.mark(song, "tracknumber", f"The disc has {total} tracks" if total else "")
+                    issue.mark(
+                        song, "tracknumber", tr("The disc has %n track(s)", "", total) if total else ""
+                    )
         if limits.gaps:
             top = min(max(counts), HIGHEST_TRACK)
             missing = sorted(set(range(1, top + 1)) - set(counts))
             if missing:
-                s = "s" if len(missing) > 1 else ""
-                issue.problems.append(f"{where}rack{s} {_numbers(missing)} missing")
+                issue.problems.append(
+                    where
+                    + tr("Track(s) {numbers} missing", "", len(missing)).format(
+                        numbers=_numbers(missing)
+                    )
+                )
 
 
 def check_album(key: tuple, songs: list[Song], limits: Limits) -> Issue:
@@ -309,7 +334,7 @@ def check_album(key: tuple, songs: list[Song], limits: Limits) -> Issue:
     if kind == "album":
         title = Counter(song.values["album"] for song in songs).most_common(1)[0][0]
     else:
-        title = f"Songs without an album · {Path(key[2]).name}"
+        title = tr("Songs without an album · {name}").format(name=Path(key[2]).name)
     album_artists = Counter(song.values["albumartist"] for song in songs if song.values["albumartist"])
     artists = {song.values["artist"] for song in songs} - {""}
     if album_artists:
@@ -317,7 +342,7 @@ def check_album(key: tuple, songs: list[Song], limits: Limits) -> Issue:
     elif len(artists) == 1:
         artist = next(iter(artists))
     else:
-        artist = "Various artists" if artists else ""
+        artist = tr("Various artists") if artists else ""
     issue = Issue(key, kind, title, artist, songs, fields=list(ALBUM_FIELDS))
 
     for tag in ("title", "artist", "album", "date", "genre", "tracknumber"):
@@ -330,9 +355,12 @@ def check_album(key: tuple, songs: list[Song], limits: Limits) -> Issue:
         else:
             without = [song for song in songs if not song.values[tag]]
         if without:
-            issue.problems.append(f"{_songs(len(without))} without {LABELS[tag]}")
+            issue.problems.append(tr("{songs} without {tag}").format(
+                songs=_songs(len(without)),
+                tag=tr(LABELS[tag]),
+            ))
             for song in without:
-                issue.mark(song, tag, f"No {LABELS[tag]}")
+                issue.mark(song, tag, tr("No {tag}").format(tag=tr(LABELS[tag])))
 
     if kind == "album":
         if limits.mixed:
@@ -346,7 +374,7 @@ def check_album(key: tuple, songs: list[Song], limits: Limits) -> Issue:
     issue.problems = list(dict.fromkeys(issue.problems))  # each said once
     skipped = sum(song.skipped for song in songs)
     if issue.problems and skipped:
-        issue.problems.insert(0, f"{_songs(skipped)} marked to skip")
+        issue.problems.insert(0, tr("{songs} marked to skip").format(songs=_songs(skipped)))
     return issue
 
 
@@ -373,20 +401,23 @@ def spelling_issues(songs: list[Song]) -> list[Issue]:
         issue = Issue(
             ("artist", key),
             "artist",
-            "Artist written more than one way",
+            tr("Artist written more than one way"),
             main,
             members,
-            [f"{len(counts)} ways: " + ", ".join(f"“{name}” ({n}×)" for name, n in ranked)],
+            [
+                tr("{count} ways: ").format(count=len(counts))
+                + ", ".join(f"“{name}” ({n}×)" for name, n in ranked)
+            ],
             fields=[t for t in ("artist", "albumartist") if any(s.values[t] in names for s in members)],
             spelling=key,
         )
         for song in members:
             for tag in issue.fields:
                 if song.values[tag] in names and song.values[tag] != main:
-                    issue.mark(song, tag, f"Most songs have “{main}”")
+                    issue.mark(song, tag, tr("Most songs have “{main}”").format(main=main))
         skipped = sum(song.skipped for song in members)
         if skipped:
-            issue.problems.insert(0, f"{_songs(skipped)} marked to skip")
+            issue.problems.insert(0, tr("{songs} marked to skip").format(songs=_songs(skipped)))
         issues.append(issue)
     return issues
 
@@ -537,7 +568,7 @@ class CheckTagsTool(QObject):
         d = self.dialog
         found = self._library_songs()
         if found is None:
-            d.checkTagsSummary.setText("Open a library first.")
+            d.checkTagsSummary.setText(tr("Open a library first."))
             return
         library, pairs = found
         chosen = self._selected_issue()
@@ -546,7 +577,7 @@ class CheckTagsTool(QObject):
             songs = make_songs(library, pairs)
             self._issues = find_issues(songs, self._limits())
         except Exception as error:
-            d.checkTagsSummary.setText(f"Cannot read this library: {error}")
+            d.checkTagsSummary.setText(tr("Cannot read this library: {error}").format(error=error))
             return
         finally:
             QApplication.restoreOverrideCursor()
@@ -556,14 +587,16 @@ class CheckTagsTool(QObject):
         albums = sum(issue.kind != "artist" for issue in self._issues)
         artists = len(self._issues) - albums
         if not self._issues:
-            text = f"The tags of all {len(songs)} songs look tidy."
+            text = tr("The tags of all {count} songs look tidy.").format(
+                count=len(songs),
+            )
         else:
             parts = []
             if albums:
-                parts.append(f"{albums} album{'' if albums == 1 else 's'} or folder{'' if albums == 1 else 's'}")
+                parts.append(tr("%n album(s) or folder(s)", "", albums))
             if artists:
-                parts.append(f"{artists} artist{'' if artists == 1 else 's'}")
-            text = f"{' and '.join(parts)} need a look."
+                parts.append(tr("%n artist(s)", "", artists))
+            text = tr("{things} need a look.").format(things=tr(" and ").join(parts))
             text = text[0].upper() + text[1:]
         d.checkTagsSummary.setText(text)
 
@@ -636,7 +669,9 @@ class CheckTagsTool(QObject):
                     item = QTableWidgetItem(text)
                     if tag in marks:
                         item.setBackground(mark_colour)
-                        item.setToolTip(marks[tag] or f"Check the {LABELS[tag]}")
+                        item.setToolTip(marks[tag] or tr("Check the {tag}").format(
+                            tag=tr(LABELS[tag]),
+                        ))
                     elif tag is None:
                         item.setToolTip(str(song.path))
                     songs_table.setItem(row, column, item)
@@ -647,7 +682,7 @@ class CheckTagsTool(QObject):
         combo.clear()
         if issue is not None:
             for tag in issue.fields:
-                combo.addItem(LABELS[tag].capitalize(), tag)
+                combo.addItem(tr(LABELS[tag]).capitalize(), tag)
         combo.blockSignals(False)
         self._fill_values()
 
@@ -719,7 +754,7 @@ class CheckTagsTool(QObject):
             return
         value = self._chosen_value()
         if not value:
-            QMessageBox.information(self.dialog, "Make the same", "Choose or type a value first.")
+            QMessageBox.information(self.dialog, tr("Make the same"), tr("Choose or type a value first."))
             return
         if tag == "date":
             value = _year(value)
@@ -728,16 +763,22 @@ class CheckTagsTool(QObject):
             if song.values[tag] != value and issue.applies_to(song, tag)
         ]
         if not targets:
-            self._show_status(f"All of these songs already have that {LABELS[tag]}")
+            self._show_status(tr("All of these songs already have that {tag}").format(
+                tag=tr(LABELS[tag]),
+            ))
             return
         if not self._confirmed(
-            "Make the same",
-            f"Set the {LABELS[tag]} to “{value}” in {_songs(len(targets))}?",
+            tr("Make the same"),
+            tr("Set the {tag} to “{value}” in {songs}?").format(
+                tag=tr(LABELS[tag]),
+                value=value,
+                songs=_songs(len(targets)),
+            ),
         ):
             return
         self._save_tags(
             [TagJob(song.path, TagChanges({tag: value})) for song in targets],
-            f"Make the same ({LABELS[tag]}): {issue.title}",
+            tr("Make the same ({tag}): {title}").format(tag=tr(LABELS[tag]), title=issue.title),
         )
 
     def _number_tracks(self) -> None:
@@ -746,23 +787,26 @@ class CheckTagsTool(QObject):
             return
         changes = numbered_again(issue.songs)
         if not changes:
-            self._show_status("The track numbers already follow the file names")
+            self._show_status(tr("The track numbers already follow the file names"))
             return
         lines = [
             f"{song.path.name}: {song.track if song.track is not None else '–'} → {number}"
             for song, number in changes[:PREVIEW_LINES]
         ]
         if len(changes) > PREVIEW_LINES:
-            lines.append(f"… and {len(changes) - PREVIEW_LINES} more")
+            lines.append(tr("… and {count} more").format(count=len(changes) - PREVIEW_LINES))
         if not self._confirmed(
-            "Number tracks",
-            f"Give {_songs(len(changes))} of “{issue.title}” a new track number?\n\n"
+            tr("Number tracks"),
+            tr("Give {songs} of “{title}” a new track number?\n\n").format(
+                songs=_songs(len(changes)),
+                title=issue.title,
+            )
             + "\n".join(lines),
         ):
             return
         self._save_tags(
             [TagJob(song.path, TagChanges({"tracknumber": str(number)})) for song, number in changes],
-            f"Number tracks: {issue.title}",
+            tr("Number tracks: {title}").format(title=issue.title),
         )
 
     def _look_up(self, every: bool) -> None:
@@ -790,8 +834,8 @@ class CheckTagsTool(QObject):
         lookup.run()
         if lookup.saved_songs:
             self._show_status(
-                f"Saving tags from MusicBrainz in {_songs(lookup.saved_songs)} of "
-                f"{lookup.saved_albums} album{'' if lookup.saved_albums == 1 else 's'}…"
+                tr("Saving tags from MusicBrainz in {songs} of %n album(s)…", "", lookup.saved_albums)
+                .format(songs=_songs(lookup.saved_songs))
             )
 
     def _set_skipped(self) -> None:
@@ -808,7 +852,7 @@ class CheckTagsTool(QObject):
             if song.skipped != skip
         ]
         if jobs:
-            what = "Skip tag problems" if skip else "Check tags again"
+            what = tr("Skip tag problems") if skip else tr("Check tags again")
             self._save_tags(jobs, f"{what}: {issue.title}")
 
     def _edit_all(self) -> None:
@@ -826,13 +870,13 @@ class CheckTagsTool(QObject):
         if issue is None:
             return
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(issue.folder))):
-            self._show_status(f"Cannot open {issue.folder}")
+            self._show_status(tr("Cannot open {folder}").format(folder=issue.folder))
 
     # ----- handing the list on -----
 
     def _rows_as_text(self) -> list[list[str]]:
         table = self.dialog.checkTagsList
-        rows = [["Album", "Artist", "Songs", "Problems", "Folder"]]
+        rows = [[tr("Album"), tr("Artist"), tr("Songs"), tr("Problems"), tr("Folder")]]
         for row in range(table.rowCount()):
             issue = self._issues[table.item(row, ALBUM_COLUMN).data(INDEX_ROLE)]
             cells = [table.item(row, column).text() for column in range(PROBLEMS_COLUMN + 1)]
@@ -842,12 +886,12 @@ class CheckTagsTool(QObject):
     def _copy_list(self) -> None:
         text = "\n".join("\t".join(cells) for cells in self._rows_as_text())
         QApplication.clipboard().setText(text + "\n")
-        self._show_status("The list of tags to tidy up was copied")
+        self._show_status(tr("The list of tags to tidy up was copied"))
 
     def _save_list(self) -> None:
-        start = str(Path.home() / "tags to tidy.csv")
+        start = str(Path.home() / tr("tags to tidy.csv"))
         path, _ = QFileDialog.getSaveFileName(
-            self.dialog, "Save list", start, "CSV files (*.csv)"
+            self.dialog, tr("Save list"), start, tr("CSV files (*.csv)")
         )
         if not path:
             return
@@ -855,6 +899,8 @@ class CheckTagsTool(QObject):
             with open(path, "w", newline="", encoding="utf-8") as file:
                 csv.writer(file).writerows(self._rows_as_text())
         except OSError as error:
-            QMessageBox.warning(self.dialog, "Save list", f"The list could not be saved: {error}")
+            QMessageBox.warning(self.dialog, tr("Save list"), tr("The list could not be saved: {error}").format(
+                error=error,
+            ))
             return
-        self._show_status(f"Saved the list to {path}")
+        self._show_status(tr("Saved the list to {path}").format(path=path))

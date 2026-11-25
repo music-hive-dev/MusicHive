@@ -302,6 +302,32 @@ PySide6, Mutagen and PyGObject, plus GStreamer and its good plugins, should be
 enough. The interface uses the Inter font if it's installed, and PyChromecast
 is only needed for casting to Chromecasts.
 
+## Translating
+
+MusicHive is written in English and can be translated into other languages. The
+language is chosen in Settings → Interface → Language; "System default" uses the
+desktop's language when there is a translation for it.
+
+To start a translation, run `translations/update.sh` with the language's code,
+for example `translations/update.sh de` for German. This makes
+`translations/musichive_de.ts`, with every text of the program in it. Translate
+it in Qt Linguist (`pyside6-linguist translations/musichive_de.ts`), then run
+`translations/update.sh` again: it brings every translation up to date with the
+code and makes the `.qm` files MusicHive reads. Restart MusicHive to see the
+changes.
+
+A few things to keep in mind:
+
+- Words in braces, like `{name}` or `{count}`, are filled in by the program. Keep
+  them as they are, wherever they belong in the sentence.
+- Texts with `%n` have a form for each plural: "%n song(s)" becomes "1 song" and
+  "2 songs" in English. Qt Linguist shows a field for each form your language has.
+- Texts that are not translated yet are shown in English.
+
+When the code changes, add texts with `tr("...")` (from `src/i18n.py`), never with
+an f-string inside it: `tr("Saved {name}").format(name=name)`, so that
+`update.sh` can find them. Texts in the `.ui` files are found automatically.
+
 ## Making a release
 
 GitHub builds every package after each push to `master` (Actions → Build, under

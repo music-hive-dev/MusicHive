@@ -26,6 +26,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QRunnable, QSettings, QThreadPool, QTimer, Signal
 
 from src import library_db
+from src.i18n import tr
 
 USER_AGENT = "MusicHive/1.0 (podcasts)"
 SEARCH_URL = "https://itunes.apple.com/search"
@@ -473,12 +474,12 @@ class PodcastStore:
 
 def _fetch(url: str, timeout: float = FEED_TIMEOUT_SECONDS, limit: int = MAX_FEED_BYTES) -> bytes:
     if urllib.parse.urlparse(url).scheme not in ("http", "https"):
-        raise ValueError("Only http and https addresses can be used")
+        raise ValueError(tr("Only http and https addresses can be used"))
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
     with urllib.request.urlopen(request, timeout=timeout) as response:
         data = response.read(limit + 1)
     if len(data) > limit:
-        raise ValueError("The feed is too large")
+        raise ValueError(tr("The feed is too large"))
     return data
 
 
@@ -513,11 +514,11 @@ def parse_feed(data: bytes) -> FeedData:
     root = ElementTree.fromstring(data)
     channel = root.find("channel")
     if channel is None:
-        raise ValueError("This is not a podcast feed")
+        raise ValueError(tr("This is not a podcast feed"))
     image = channel.find(f"{ITUNES_NS}image")
     image_url = image.get("href", "") if image is not None else ""
     feed = FeedData(
-        title=_text(channel, "title") or "Untitled podcast",
+        title=_text(channel, "title") or tr("Untitled podcast"),
         author=_text(channel, f"{ITUNES_NS}author") or _text(channel, "managingEditor"),
         description=_text(channel, "description") or _text(channel, f"{ITUNES_NS}summary"),
         image_url=image_url or _text(channel, "image/url"),
@@ -534,7 +535,7 @@ def parse_feed(data: bytes) -> FeedData:
             size = 0
         feed.items.append(FeedItem(
             guid=_text(item, "guid") or url,
-            title=_text(item, "title") or "Untitled episode",
+            title=_text(item, "title") or tr("Untitled episode"),
             description=_text(item, "description") or _text(item, f"{ITUNES_NS}summary"),
             published=parse_date(_text(item, "pubDate")),
             url=url,
@@ -576,7 +577,7 @@ def download_file(url: str, target: Path, report: Callable[[int, int], None],
                   cancelled: threading.Event) -> int:
     """Download `url` to `target` (through a .part file). Returns its size in bytes."""
     if urllib.parse.urlparse(url).scheme not in ("http", "https"):
-        raise ValueError("Only http and https addresses can be downloaded")
+        raise ValueError(tr("Only http and https addresses can be downloaded"))
     target.parent.mkdir(parents=True, exist_ok=True)
     partial = target.with_name(target.name + ".part")
     request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT})
@@ -630,11 +631,14 @@ class _Task(QRunnable):
 
 def _describe(error: Exception) -> str:
     if isinstance(error, urllib.error.HTTPError):
-        return f"The server answered {error.code} ({error.reason})"
+        return tr("The server answered {code} ({reason})").format(
+            code=error.code,
+            reason=error.reason,
+        )
     if isinstance(error, urllib.error.URLError):
-        return f"Could not connect: {error.reason}"
+        return tr("Could not connect: {reason}").format(reason=error.reason)
     if isinstance(error, ElementTree.ParseError):
-        return "This is not a podcast feed"
+        return tr("This is not a podcast feed")
     return str(error) or error.__class__.__name__
 
 
@@ -642,7 +646,7 @@ def safe_name(text: str, limit: int = 80) -> str:
     """Text that can be used as a file or folder name."""
     cleaned = re.sub(r'[\\/:*?"<>|\x00-\x1f]', " ", text)
     cleaned = re.sub(r"\s+", " ", cleaned).strip(" .")
-    return cleaned[:limit].rstrip(" .") or "Untitled"
+    return cleaned[:limit].rstrip(" .") or tr("Untitled")
 
 
 def suffix_for(episode: Episode) -> str:
@@ -755,17 +759,19 @@ class PodcastManager(QObject):
     # ----- finding podcasts -----
 
     def search(self, term: str) -> None:
-        self.status.emit(f"Searching for “{term}”…")
+        self.status.emit(tr("Searching for “{term}”…").format(term=term))
         self._run(
             lambda _signals: search_podcasts(term),
             self.search_finished.emit,
-            lambda message: self.failed.emit(f"Search failed: {message}"),
+            lambda message: self.failed.emit(tr("Search failed: {message}").format(
+                message=message,
+            )),
         )
 
     def open_feed(self, feed_url: str) -> None:
         """Read a feed and show it, subscribed or not."""
         feed_url = feed_url.strip()
-        self.status.emit("Reading the podcast's feed…")
+        self.status.emit(tr("Reading the podcast's feed…"))
 
         def done(feed: FeedData) -> None:
             podcast_id, _new = self.store.save_feed(feed_url, feed)
@@ -776,7 +782,9 @@ class PodcastManager(QObject):
         self._run(
             lambda _signals: read_feed(feed_url),
             done,
-            lambda message: self.failed.emit(f"Could not read the feed: {message}"),
+            lambda message: self.failed.emit(tr("Could not read the feed: {message}").format(
+                message=message,
+            )),
         )
 
     def subscribe(self, podcast_id: int) -> None:
@@ -803,7 +811,7 @@ class PodcastManager(QObject):
     def check_all(self) -> None:
         podcasts = self.store.podcasts()
         if podcasts:
-            self.status.emit("Checking podcasts for new episodes…")
+            self.status.emit(tr("Checking podcasts for new episodes…"))
         for podcast in podcasts:
             self.check(podcast.id)
 
@@ -824,7 +832,7 @@ class PodcastManager(QObject):
             if new and podcast.subscribed:
                 count = len(new)
                 self.status.emit(
-                    f"{feed.title}: {count} new episode{'' if count == 1 else 's'}"
+                    tr("{podcast}: %n new episode(s)", "", count).format(podcast=feed.title)
                 )
             self.auto_download(podcast_id)
             if not self._checking:
@@ -950,7 +958,10 @@ class PodcastManager(QObject):
             self.progress_of.pop(episode_id, None)
             self.episode_changed.emit(episode_id)
             if message:  # "" when it was cancelled
-                self.failed.emit(f"Download of “{episode.title}” failed: {message}")
+                self.failed.emit(tr("Download of “{title}” failed: {message}").format(
+                    title=episode.title,
+                    message=message,
+                ))
             self._start_downloads()
 
         self._run(work, finished, fail, progress)
@@ -1076,4 +1087,4 @@ class PodcastManager(QObject):
                 gone.add(episode.id)
         if gone:
             count = len(gone)
-            self.status.emit(f"Deleted {count} podcast download{'' if count == 1 else 's'}")
+            self.status.emit(tr("Deleted %n podcast download(s)", "", count))

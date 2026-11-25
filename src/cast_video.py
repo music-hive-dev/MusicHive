@@ -27,6 +27,7 @@ from gi.repository import GLib, Gst, GstVideo  # noqa: E402
 from PySide6.QtGui import QImage  # noqa: E402
 
 from src.cast import CHROMECAST, CastDevice, CastError, log  # noqa: E402
+from src.i18n import tr  # noqa: E402
 
 Gst.init(None)
 
@@ -88,7 +89,7 @@ def _webm_parts() -> tuple[str, str, str]:
     )], "enc")
     audio = _first([("opusenc", dict(bitrate=192_000), "")], "aenc")
     if video is None or audio is None:
-        raise CastError("casting pictures needs GStreamer's vp8enc and opusenc")
+        raise CastError(tr("casting pictures needs GStreamer's vp8enc and opusenc"))
     return video, audio, "webmmux name=mux streamable=true"
 
 
@@ -111,11 +112,13 @@ def _transport_stream_parts() -> tuple[str, str, str]:
     ], "aenc")
     if video is None:
         raise CastError(
-            "casting pictures to this TV needs a video encoder: install "
-            "gstreamer1-plugin-openh264 or gstreamer1-plugin-libav"
+            tr(
+                "casting pictures to this TV needs a video encoder: install "
+                "gstreamer1-plugin-openh264 or gstreamer1-plugin-libav"
+            )
         )
     if audio is None:
-        raise CastError("casting pictures to this TV needs an AAC or MP3 encoder")
+        raise CastError(tr("casting pictures to this TV needs an AAC or MP3 encoder"))
     return video, audio, "mpegtsmux name=mux alignment=7"
 
 
@@ -173,7 +176,9 @@ class VideoStream:
         try:
             self._pipeline = Gst.parse_launch(description)
         except GLib.Error as error:
-            raise CastError(f"the video could not be set up: {error.message}") from None
+            raise CastError(tr("the video could not be set up: {message}").format(
+                message=error.message,
+            )) from None
         self._audio = [self._pipeline.get_by_name(f"audio{i}") for i in range(DECKS)]
         self._video = self._pipeline.get_by_name("video")
         self._encoder = self._pipeline.get_by_name("enc")
@@ -196,7 +201,7 @@ class VideoStream:
         self._running = True
         if self._pipeline.set_state(Gst.State.PLAYING) == Gst.StateChangeReturn.FAILURE:
             self._running = False
-            raise CastError("the video could not be started")
+            raise CastError(tr("the video could not be started"))
 
     def stop(self) -> None:
         self._running = False

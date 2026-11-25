@@ -40,7 +40,7 @@ class ColumnsDialog:
     @staticmethod
     def _fill(view: QListWidget, columns: list[Column]) -> None:
         for column in columns:
-            item = QListWidgetItem(column.title)
+            item = QListWidgetItem(column.label)
             item.setData(Qt.ItemDataRole.UserRole, column.key)
             view.addItem(item)
 

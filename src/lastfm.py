@@ -22,6 +22,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QRunnable, QSettings, QThreadPool, QTimer, QUrl, Signal
 from PySide6.QtGui import QDesktopServices
 
+from src.i18n import tr
 from src.library_db import track_key
 from src.scrobble_backlog import DEFAULT_BACKLOG_PER_DAY, ImportResult, ScrobbleBacklog
 
@@ -85,9 +86,11 @@ def _call(api_key, secret, method, params=None, *, post=False, sign=False) -> di
         except ValueError:
             raise LastFmError(0, f"HTTP {error.code} {error.reason}") from error
     except (urllib.error.URLError, TimeoutError, OSError) as error:
-        raise LastFmError(-1, f"no connection to Last.fm ({error})") from error
+        raise LastFmError(-1, tr("no connection to Last.fm ({error})").format(
+            error=error,
+        )) from error
     except ValueError as error:
-        raise LastFmError(0, "unexpected answer from Last.fm") from error
+        raise LastFmError(0, tr("unexpected answer from Last.fm")) from error
 
     if isinstance(payload, dict) and "error" in payload:
         raise LastFmError(int(payload["error"]), str(payload.get("message", "unknown error")))
@@ -366,14 +369,14 @@ class LastFmClient(QObject):
         self._backlog.clear()
         self._save_session()
         self._set_state("out")
-        self.status_message.emit("Logged out of Last.fm")
+        self.status_message.emit(tr("Logged out of Last.fm"))
 
     def _poll_login(self) -> None:
         if self.login_state != "waiting" or self._token is None:
             self._poll_timer.stop()
             return
         if time.monotonic() > self._login_deadline:
-            self._fail_login("Timed out waiting for you to allow MusicHive. Please try again.")
+            self._fail_login(tr("Timed out waiting for you to allow MusicHive. Please try again."))
             return
         if self._polling:
             return
@@ -394,7 +397,7 @@ class LastFmClient(QObject):
         self._session_key = None
         self._save_session()
         self._set_state("out")
-        self.status_message.emit("Your Last.fm login is no longer valid. Please log in again.")
+        self.status_message.emit(tr("Your Last.fm login is no longer valid. Please log in again."))
 
     def _set_state(self, state: str) -> None:
         self.login_state = state
@@ -475,7 +478,7 @@ class LastFmClient(QObject):
             self._backlog.mark_full(now)
             self._hold_until = now + CAP_RETRY_SECONDS * 0.9  # timers can fire a little early
             self._retry_timer.start(CAP_RETRY_SECONDS * 1000)
-            self.status_message.emit("Last.fm's daily limit was reached. The rest is sent later.")
+            self.status_message.emit(tr("Last.fm's daily limit was reached. The rest is sent later."))
         self.state_changed.emit()
         self.flush()
 
@@ -498,11 +501,17 @@ class LastFmClient(QObject):
             del self._queue[: self._sent_count]
             self._save_queue()
             self.state_changed.emit()
-            self.status_message.emit(f"Last.fm refused some scrobbles: {message}")
+            self.status_message.emit(tr("Last.fm refused some scrobbles: {message}").format(
+                message=message,
+            ))
             self.flush()
         else:  # no connection, or Last.fm is busy: try again later
             self.status_message.emit(
-                f"Could not reach Last.fm ({message}). {len(self._queue)} scrobble(s) will be sent later."
+                tr(
+                    "Could not reach Last.fm ({message}). %n scrobble(s) will be sent later.",
+                    "",
+                    len(self._queue),
+                ).format(message=message)
             )
             self._retry_timer.start(RETRY_SECONDS * 1000)
 
@@ -542,7 +551,7 @@ class LastFmClient(QObject):
             self.username, self._session_key = name, key
             self._save_session()
             self._set_state("in")
-            self.status_message.emit(f"Logged in to Last.fm as {name}")
+            self.status_message.emit(tr("Logged in to Last.fm as {name}").format(name=name))
             self.flush()
         elif tag == "scrobble":
             self._on_scrobbled(result)
@@ -554,12 +563,14 @@ class LastFmClient(QObject):
     def _on_failed(self, tag: str, code: int, message: str) -> None:
         print(f"MusicHive: Last.fm {tag} failed ({code}): {message}", file=sys.stderr)
         if tag == "token":
-            self._fail_login(f"Could not start the Last.fm login: {message}")
+            self._fail_login(tr("Could not start the Last.fm login: {message}").format(
+                message=message,
+            ))
         elif tag == "session":
             self._polling = False
             if code in (14, -1):  # not allowed yet, or no connection: keep waiting
                 return
-            self._fail_login(f"Last.fm login failed: {message}")
+            self._fail_login(tr("Last.fm login failed: {message}").format(message=message))
         elif tag == "scrobble":
             self._on_scrobble_failed(code, message)
         elif tag == "now_playing":

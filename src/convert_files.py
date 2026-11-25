@@ -39,6 +39,7 @@ from PySide6.QtWidgets import (  # noqa: E402
     QWidget,
 )
 
+from src.i18n import QT_TR_NOOP, tr  # noqa: E402
 from src.lastfm_dialog import load_dialog  # noqa: E402
 from src.organise_files import (  # noqa: E402
     render_stem,
@@ -108,10 +109,10 @@ _ENCODER_TAGS = {"encoder", "encodersettings", "encoderoptions"}
 
 CONVERTED, TAGS_UPDATED, UP_TO_DATE, FAILED = "converted", "updated", "current", "failed"
 _OUTCOME_TEXT = {
-    CONVERTED: "Converted",
-    TAGS_UPDATED: "Updated tags of",
-    UP_TO_DATE: "Already up to date:",
-    FAILED: "Could not convert",
+    CONVERTED: QT_TR_NOOP("Converted"),
+    TAGS_UPDATED: QT_TR_NOOP("Updated tags of"),
+    UP_TO_DATE: QT_TR_NOOP("Already up to date:"),
+    FAILED: QT_TR_NOOP("Could not convert"),
 }
 
 FORMAT_KEY = "convert/format"
@@ -299,7 +300,7 @@ def convert_song(task: ConvertTask, cancel: threading.Event) -> tuple[str, str]:
     source, target = task.source, task.target
     try:
         if target.resolve() == source.resolve():
-            return FAILED, "the export would replace the original"
+            return FAILED, tr("the export would replace the original")
         wanted = read_editable_file(source)
         if task.cover_side and wanted.cover:
             wanted.cover = shrink_cover(wanted.cover, task.cover_side)
@@ -427,7 +428,10 @@ class ConvertFilesTool(QObject):
         if not self.is_running:
             self._all, self._selected = songs, selected
             d.convertScope.setCurrentIndex(1 if selected else 0)
-            d.convertStatus.setText(f"{len(songs)} songs in this library, {len(selected)} selected.")
+            d.convertStatus.setText(tr("{songs} songs in this library, {selected} selected.").format(
+                songs=len(songs),
+                selected=len(selected),
+            ))
         d.show()
         d.raise_()
         d.activateWindow()
@@ -477,7 +481,7 @@ class ConvertFilesTool(QObject):
 
     def _browse(self) -> None:
         d = self.dialog
-        folder = QFileDialog.getExistingDirectory(d, "Export to", d.convertFolder.text())
+        folder = QFileDialog.getExistingDirectory(d, tr("Export to"), d.convertFolder.text())
         if folder:
             d.convertFolder.setText(folder)
 
@@ -497,11 +501,11 @@ class ConvertFilesTool(QObject):
         d = self.dialog
         folder = d.convertFolder.text().strip()
         if not folder:
-            d.convertStatus.setText("Choose a folder to export to.")
+            d.convertStatus.setText(tr("Choose a folder to export to."))
             return
         songs = self._selected if d.convertScope.currentIndex() == 1 else self._all
         if not songs:
-            d.convertStatus.setText("There are no songs to convert. Select some first.")
+            d.convertStatus.setText(tr("There are no songs to convert. Select some first."))
             return
         template = d.convertTemplate.text() if d.convertFormatSubfolders.isChecked() else None
         problem = template_problem(template) if template is not None else None
@@ -540,12 +544,12 @@ class ConvertFilesTool(QObject):
             self._workers.add(worker)
             self._pool.start(worker)
         self._set_controls_enabled(False)
-        self._report(f"Converting {self._total} songs…")
+        self._report(tr("Converting {total} songs…").format(total=self._total))
 
     def _stop(self) -> None:
         self._cancel.set()
         self.dialog.convertStopButton.setEnabled(False)
-        self._report("Stopping…")
+        self._report(tr("Stopping…"))
 
     def _report(self, text: str) -> None:
         self.dialog.convertStatus.setText(text)
@@ -557,7 +561,12 @@ class ConvertFilesTool(QObject):
         if error and not self._first_problem:
             self._first_problem = f"{name}: {error}"
         self.dialog.convertProgress.setValue(self._done)
-        self._report(f"{self._done} of {self._total}. {_OUTCOME_TEXT[outcome]} {name}")
+        self._report(tr("{done} of {total}. {outcome} {name}").format(
+            done=self._done,
+            total=self._total,
+            outcome=tr(_OUTCOME_TEXT[outcome]),
+            name=name,
+        ))
 
     def _on_worker_done(self, worker: ConvertWorker) -> None:
         self._workers.discard(worker)
@@ -566,19 +575,21 @@ class ConvertFilesTool(QObject):
 
     def _finish(self) -> None:
         counts = self._counts
-        parts = [f"Converted {counts.get(CONVERTED, 0)}"]
+        parts = [tr("Converted {count}").format(count=counts.get(CONVERTED, 0))]
         if counts.get(TAGS_UPDATED):
-            parts.append(f"updated the tags of {counts[TAGS_UPDATED]}")
+            parts.append(tr("updated the tags of {count}").format(count=counts[TAGS_UPDATED]))
         if counts.get(UP_TO_DATE):
-            parts.append(f"{counts[UP_TO_DATE]} already up to date")
+            parts.append(tr("{count} already up to date").format(count=counts[UP_TO_DATE]))
         if self._left_out:
-            parts.append(f"{self._left_out} skipped for missing tags")
+            parts.append(tr("{count} skipped for missing tags").format(count=self._left_out))
         if counts.get(FAILED):
-            parts.append(f"{counts[FAILED]} failed")
+            parts.append(tr("{count} failed").format(count=counts[FAILED]))
         message = ", ".join(parts)
         if self._cancel.is_set():
-            message = f"Stopped. {message}"
+            message = tr("Stopped. {message}").format(message=message)
         if self._first_problem:
-            message += f"\nFirst problem: {self._first_problem}"
+            message += tr("\nFirst problem: {first_problem}").format(
+                first_problem=self._first_problem,
+            )
         self._show_idle()
         self._report(message)

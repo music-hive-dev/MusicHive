@@ -5325,7 +5325,7 @@ QWidget {
      <normaloff>../assets/refresh-cw.svg</normaloff>../assets/refresh-cw.svg</iconset>
    </property>
    <property name="text">
-    <string>Rescan Libary</string>
+    <string>Rescan Library</string>
    </property>
    <property name="toolTip">
     <string>Rescan the current library.</string>

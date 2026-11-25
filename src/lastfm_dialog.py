@@ -10,6 +10,7 @@ from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QFileDialog, QMessageBox, QPushButton, QWidget
 
 from src import theme
+from src.i18n import tr
 from src.number_field import NumberField
 from src.lastfm import LastFmClient
 
@@ -79,22 +80,24 @@ class LastFmDialog:
 
         if not client.is_configured:
             status = (
-                "Last.fm is not set up yet. Add your API key and secret to the secrets "
-                "file (Go to Secrets File, below), then restart MusicHive."
+                tr(
+                    "Last.fm is not set up yet. Add your API key and secret to the secrets "
+                    "file (Go to Secrets File, below), then restart MusicHive."
+                )
             )
         elif state == "in":
-            status = f"Logged in as {client.username}."
+            status = tr("Logged in as {username}.").format(username=client.username)
         elif state == "waiting":
-            status = "Waiting for you to allow MusicHive in your browser…"
+            status = tr("Waiting for you to allow MusicHive in your browser…")
         else:
-            status = "Not logged in."
+            status = tr("Not logged in.")
         d.lastFmStatusLabel.setText(status)
 
         d.lastFmRememberCheckBox.blockSignals(True)
         d.lastFmRememberCheckBox.setChecked(client.remember)
         d.lastFmRememberCheckBox.blockSignals(False)
 
-        d.lastFmLoginButton.setText("Cancel" if state == "waiting" else self._login_text)
+        d.lastFmLoginButton.setText(tr("Cancel") if state == "waiting" else self._login_text)
         d.lastFmLoginButton.setEnabled(client.is_configured and state != "in")
         d.lastFmLogoutButton.setEnabled(state == "in")
         d.lastFmDownloadButton.setEnabled(state == "in" and not client.is_downloading)
@@ -103,8 +106,11 @@ class LastFmDialog:
         if waiting:
             days = -(-waiting // client.backlog_per_day)  # rounded up
             d.lastFmBacklogLabel.setText(
-                f"{waiting} imported plays waiting: about {days} day{'' if days == 1 else 's'} "
-                "with MusicHive open."
+                tr(
+                    "{waiting} imported plays waiting: about %n day(s) with MusicHive open.",
+                    "",
+                    days,
+                ).format(waiting=waiting)
             )
         else:
             d.lastFmBacklogLabel.setText("")
@@ -120,23 +126,31 @@ class LastFmDialog:
     def _on_import_clicked(self) -> None:
         d = self.dialog
         chosen, _used_filter = QFileDialog.getOpenFileName(
-            d, "Import scrobble log", "", "Scrobble logs (*.log);;All files (*)"
+            d, tr("Import scrobble log"), "", tr("Scrobble logs (*.log);;All files (*)")
         )
         if not chosen:
             return
         try:
             result = self.client.import_scrobble_log(Path(chosen))
         except OSError as error:
-            QMessageBox.warning(d, "Import scrobble log", f"Could not read the file:\n{error}")
+            QMessageBox.warning(d, tr("Import scrobble log"), tr("Could not read the file:\n{error}").format(
+                error=error,
+            ))
             return
-        notes = [f"Added {result.added} plays."]
+        notes = [tr("Added {added} plays.").format(added=result.added)]
         if result.already_imported:
-            notes.append(f"{result.already_imported} were imported before and left out.")
+            notes.append(tr("{already_imported} were imported before and left out.").format(
+                already_imported=result.already_imported,
+            ))
         if result.skipped_on_player:
-            notes.append(f"{result.skipped_on_player} were skipped on the player and left out.")
+            notes.append(tr("{skipped_on_player} were skipped on the player and left out.").format(
+                skipped_on_player=result.skipped_on_player,
+            ))
         if result.unreadable:
-            notes.append(f"{result.unreadable} lines could not be read.")
-        QMessageBox.information(d, "Import scrobble log", "\n".join(notes))
+            notes.append(tr("{unreadable} lines could not be read.").format(
+                unreadable=result.unreadable,
+            ))
+        QMessageBox.information(d, tr("Import scrobble log"), "\n".join(notes))
 
     def _on_download_clicked(self) -> None:
         d = self.dialog
@@ -146,52 +160,67 @@ class LastFmDialog:
             QMessageBox.information(
                 d,
                 "Scrobbles still waiting",
-                f"{pending} scrobble(s) have not been sent to Last.fm yet. "
-                "Please try again in a moment, so that no recent plays are lost.",
+                tr(
+                    "%n scrobble(s) (has/have) not been sent to Last.fm yet. "
+                    "Please try again in a moment, so that no recent plays are lost.",
+                    "",
+                    pending,
+                ),
             )
             return
 
         box = QMessageBox(
             QMessageBox.Icon.Warning,
-            "Replace play counts?",
-            "This replaces the play counts stored in MusicHive with the counts "
-            "from your Last.fm account, for every song Last.fm knows about. "
-            "This can lower a count if Last.fm's number is lower.\n\n"
-            "Songs with no plays on Last.fm keep their local play count.\n\n"
-            "This cannot be undone.",
+            tr("Replace play counts?"),
+            tr(
+                "This replaces the play counts stored in MusicHive with the counts "
+                "from your Last.fm account, for every song Last.fm knows about. "
+                "This can lower a count if Last.fm's number is lower.\n\n"
+                "Songs with no plays on Last.fm keep their local play count.\n\n"
+                "This cannot be undone."
+            ),
             parent=d,
         )
-        download = box.addButton("Download and replace", QMessageBox.ButtonRole.AcceptRole)
+        download = box.addButton(tr("Download and replace"), QMessageBox.ButtonRole.AcceptRole)
         cancel = box.addButton(QMessageBox.StandardButton.Cancel)
         box.setDefaultButton(cancel)
         box.exec()
         if box.clickedButton() is not download:
             return
 
-        d.lastFmSyncLabel.setText("Downloading play counts…")
+        d.lastFmSyncLabel.setText(tr("Downloading play counts…"))
         self.client.download_play_counts()
 
     # ----- play count download -----
 
     def _on_progress(self, page: int, total_pages: int) -> None:
         self.dialog.lastFmSyncLabel.setText(
-            f"Downloading play counts… page {page} of {total_pages}"
+            tr("Downloading play counts… page {page} of {total_pages}").format(
+                page=page,
+                total_pages=total_pages,
+            )
         )
 
     def _on_counts_ready(self, counts: dict) -> None:
         label = self.dialog.lastFmSyncLabel
-        label.setText("Applying play counts…")
+        label.setText(tr("Applying play counts…"))
         updated, libraries = self._apply_counts(counts)
         if updated:
             label.setText(
-                f"Done. Updated {updated} songs in {libraries} "
-                f"librar{'y' if libraries == 1 else 'ies'} "
-                f"({len(counts)} songs on Last.fm)."
+                tr(
+                    "Done. Updated {updated} songs in %n librar(y/ies) ({found} songs on Last.fm).",
+                    "",
+                    libraries,
+                ).format(updated=updated, found=len(counts))
             )
         else:
             label.setText(
-                f"Done, but no songs matched the {len(counts)} songs on Last.fm."
+                tr("Done, but no songs matched the {count} songs on Last.fm.").format(
+                    count=len(counts),
+                )
             )
 
     def _on_counts_failed(self, message: str) -> None:
-        self.dialog.lastFmSyncLabel.setText(f"Download failed: {message}")
+        self.dialog.lastFmSyncLabel.setText(tr("Download failed: {message}").format(
+            message=message,
+        ))

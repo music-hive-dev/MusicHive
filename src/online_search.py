@@ -18,6 +18,7 @@ from PySide6.QtGui import QImage, QPixmap
 from PySide6.QtWidgets import QDialog, QListWidgetItem, QWidget
 
 from src.artist_info import LASTFM_RETRY_CODES, LookupFailed, RateLimited, download
+from src.i18n import tr
 from src.lastfm import LastFmError, fetch_top_tags
 from src.lastfm_dialog import load_dialog
 from src.library_db import track_key
@@ -198,7 +199,7 @@ def find_genres(
 ) -> list[str]:
     """Genres for a song, best first. Raises if Last.fm cannot be asked."""
     if not api_key:
-        raise LookupFailed("this needs a Last.fm API key")
+        raise LookupFailed(tr("this needs a Last.fm API key"))
     names = fetch_top_tags(api_key, artist, title, album)[:limit]
     return [" ".join(word.capitalize() for word in name.split()) for name in names]
 
@@ -359,7 +360,7 @@ class _AutoLyricsTask(QRunnable):
                 return find_lyrics(song.artist, song.title, song.album, song.duration_s)
             except RateLimited as problem:
                 if attempt == len(RATE_LIMIT_WAITS):
-                    raise LookupFailed("LRCLIB keeps answering “too many requests”; try again later")
+                    raise LookupFailed(tr("LRCLIB keeps answering “too many requests”; try again later"))
                 wait = problem.wait or RATE_LIMIT_WAITS[attempt]
                 self._signals.auto_lyrics_waiting.emit(wait)
                 if self._cancel.wait(wait):  # returns at once when stopped
@@ -520,7 +521,7 @@ def _show_image(label, info_label, data: bytes | None, description: str) -> None
     image = QImage.fromData(data) if data else QImage()
     if image.isNull():
         label.clear()
-        label.setText("No image")
+        label.setText(tr("No image"))
         info_label.setText(description)
         return
     scaled = image.scaled(
@@ -544,7 +545,10 @@ def compare_covers(
     def show_found() -> None:
         cover = found[position[0]]
         _show_image(d.coverCompareFound, d.coverCompareFoundInfo, cover.data, cover.description)
-        d.coverComparePosition.setText(f"{position[0] + 1} of {len(found)}")
+        d.coverComparePosition.setText(tr("{position} of {count}").format(
+            position=position[0] + 1,
+            count=len(found),
+        ))
         d.coverComparePrevious.setEnabled(position[0] > 0)
         d.coverCompareNext.setEnabled(position[0] < len(found) - 1)
 
@@ -566,8 +570,13 @@ def compare_covers(
 def ask_auto_tag_count(ui_path: Path, parent: QWidget, song_count: int) -> int | None:
     """Ask how many genres each song gets: a number, AUTO_TAG_ALL or AUTO_TAG_CANCELLED."""
     d = load_dialog(ui_path, parent)
-    songs = f"{song_count} selected song{'' if song_count == 1 else 's'}"
-    d.autoTagCountLabel.setText(f"This replaces the genres of {songs} with those found on Last.fm.")
+    d.autoTagCountLabel.setText(
+        tr(
+            "This replaces the genres of %n selected song(s) with those found on Last.fm.",
+            "",
+            song_count,
+        )
+    )
     d.autoTagButtonBox.accepted.connect(d.accept)
     d.autoTagButtonBox.rejected.connect(d.reject)
     accepted = d.exec() == QDialog.DialogCode.Accepted
@@ -592,8 +601,9 @@ def ask_auto_lyrics(
     with lyrics, upgrade plain lyrics to timed), or None if cancelled. The answers
     are remembered for next time."""
     d = load_dialog(ui_path, parent)
-    songs = f"{song_count} selected song{'' if song_count == 1 else 's'}"
-    d.autoLyricsCountLabel.setText(f"This looks up the lyrics of {songs} on LRCLIB.")
+    d.autoLyricsCountLabel.setText(
+        tr("This looks up the lyrics of %n selected song(s) on LRCLIB.", "", song_count)
+    )
     d.autoLyricsPreference.setCurrentIndex(settings.value(LYRICS_PREFERENCE_KEY, PREFER_TIMED, type=int))
     d.autoLyricsSaveTo.setCurrentIndex(settings.value(LYRICS_SAVE_KEY, SAVE_TO_LRC, type=int))
     d.autoLyricsSkipExisting.setChecked(settings.value(LYRICS_SKIP_KEY, True, type=bool))
@@ -625,7 +635,7 @@ def compare_genres(
 ) -> list[str] | None:
     """Show the current genres beside what was found. Returns the ticked ones, or None."""
     d = load_dialog(ui_path, parent)
-    d.genreCompareCurrent.setText(current or "(none)")
+    d.genreCompareCurrent.setText(current or tr("(none)"))
     for position, name in enumerate(found):
         item = QListWidgetItem(name)
         item.setFlags(item.flags() | Qt.ItemFlag.ItemIsUserCheckable)

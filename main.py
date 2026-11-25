@@ -101,7 +101,8 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from src import library_db, theme
+from src import i18n, library_db, theme
+from src.i18n import QT_TR_NOOP, tr
 from src.artist_info import ArtistInfoService
 from src.audio_player import AudioPlayer
 from src.cast import BROWSER, CHROMECAST, CastDevice, CastError, CastFinder
@@ -318,9 +319,9 @@ VOLUME_TOOLTIP_MS = 3_600_000
 VOLUME_TOOLTIP_DRIFT = 2
 
 REPEAT_STATUS = {
-    "off": "Repeat off",
-    "all": "Repeat all songs",
-    "one": "Repeat current song",
+    "off": QT_TR_NOOP("Repeat off"),
+    "all": QT_TR_NOOP("Repeat all songs"),
+    "one": QT_TR_NOOP("Repeat current song"),
 }
 
 # Icon (a file name in assets/, without ".svg") for each context menu entry.
@@ -366,24 +367,24 @@ MENU_ICONS = {
 
 # "Go to" entries: (menu label, name of the TrackInfo field to match)
 GO_TO_FIELDS = (
-    ("Artist", "artist"),
-    ("Title", "title"),
-    ("Album", "album"),
-    ("Year", "year"),
-    ("Album artist", "album_artist"),
-    ("Genre", "genre"),
+    (QT_TR_NOOP("Artist"), "artist"),
+    (QT_TR_NOOP("Title"), "title"),
+    (QT_TR_NOOP("Album"), "album"),
+    (QT_TR_NOOP("Year"), "year"),
+    (QT_TR_NOOP("Album artist"), "album_artist"),
+    (QT_TR_NOOP("Genre"), "genre"),
 )
 
-NO_PLAYLIST_TEXT = "No playlist selected"
-M3U8_FILTER = "M3U8 playlist (*.m3u8)"
-M3U_FILTER = "M3U playlist (*.m3u)"
-SETTINGS_FILTER = "MusicHive settings (*.ini)"
+NO_PLAYLIST_TEXT = QT_TR_NOOP("No playlist selected")
+M3U8_FILTER = QT_TR_NOOP("M3U8 playlist (*.m3u8)")
+M3U_FILTER = QT_TR_NOOP("M3U playlist (*.m3u)")
+SETTINGS_FILTER = QT_TR_NOOP("MusicHive settings (*.ini)")
 DAYS_FILE = Path(__file__).parent / "days.json"
 EMOJI_FONT_FILE = Path(__file__).parent / "assets" / "fonts" / "Twemoji.Mozilla.ttf"
 APP_ICON_FILE = Path(__file__).parent / "musichive_colour.svg"
 WINDOWS = sys.platform == "win32"
 EMOJI_FONTS = ["Twemoji Mozilla", "Segoe UI Emoji", "Noto Emoji"]  # the first with the emoji is used
-NOTHING_TO_PASTE = "There are no songs from this library on the clipboard"
+NOTHING_TO_PASTE = QT_TR_NOOP("There are no songs from this library on the clipboard")
 
 
 def todays_greeting() -> str:
@@ -394,7 +395,7 @@ def todays_greeting() -> str:
         return ""
     today = datetime.date.today().strftime("%m-%d")
     names = [day["name"] for day in days if day["date"] == today]
-    return f"Happy {' and '.join(names)}!" if names else ""
+    return tr("Happy {days}!").format(days=tr(" and ").join(names)) if names else ""
 
 
 def load_ui(path: Path):
@@ -885,7 +886,7 @@ class MusicHive:
         w.actionDiscordPresence.setChecked(discord_on)
         if not DISCORD_CLIENT_ID:
             w.actionDiscordPresence.setEnabled(False)
-            w.actionDiscordPresence.setToolTip("Set DISCORD_CLIENT_ID in main.py first")
+            w.actionDiscordPresence.setToolTip(tr("Set DISCORD_CLIENT_ID in main.py first"))
         self.discord.set_enabled(discord_on)
         w.actionDiscordPresence.toggled.connect(self.on_discord_toggled)
 
@@ -1108,7 +1109,7 @@ class MusicHive:
 
         w.actionSelectAll.triggered.connect(lambda _checked=False: self.select_all_in_table())
         w.playlistLockButton.clicked.connect(self.on_playlist_lock_clicked)
-        w.playlistEditButton.setToolTip("Edit this playlist's title, image and description")
+        w.playlistEditButton.setToolTip(tr("Edit this playlist's title, image and description"))
         w.playlistEditButton.clicked.connect(lambda _checked=False: self.edit_playlist())
         self.playlist_description = ElidedLabel(
             w.playlistsTabDescription, fit_beside=w.playlistsTabIcon
@@ -1164,12 +1165,17 @@ class MusicHive:
         self.online_search.auto_lyrics_finished.connect(self.on_auto_lyrics_finished)
         self.online_search.auto_lyrics_checking.connect(
             lambda done, total: self.show_status(
-                f"Checking which songs need lyrics: {done} of {total}…"
+                tr("Checking which songs need lyrics: {done} of {total}…").format(
+                    done=done,
+                    total=total,
+                )
             )
         )
         self.online_search.auto_lyrics_waiting.connect(
             lambda seconds: self.show_status(
-                f"LRCLIB asks to slow down: waiting {seconds} seconds, then carrying on…"
+                tr("LRCLIB asks to slow down: waiting {seconds} seconds, then carrying on…").format(
+                    seconds=seconds,
+                )
             )
         )
         self.auto_lyrics_library: LibraryInfo | None = None  # set while lyrics are looked up
@@ -1205,6 +1211,7 @@ class MusicHive:
 
         self.settings_window = None  # created the first time it is opened
         self.restart_requested = False  # start again after quitting (a new look)
+        self.language_at_start = i18n.saved(self.settings)  # a change needs a restart
 
         # Shuffle and repeat buttons (settings are remembered between sessions)
         w.shuffleButton.setCheckable(True)
@@ -1225,7 +1232,7 @@ class MusicHive:
         w.repeatButton.clicked.connect(self.cycle_repeat)
 
         # Library selector and buttons
-        w.libraryCombo.setPlaceholderText("No library yet")
+        w.libraryCombo.setPlaceholderText(tr("No library yet"))
         w.libraryCombo.activated.connect(self.on_library_chosen)
         w.addLibraryButton.clicked.connect(self.add_library)
         w.rescanButton.clicked.connect(self.rescan)
@@ -1306,7 +1313,7 @@ class MusicHive:
 
         # The playlist icon at the top of the tab can be clicked to change it
         icon_widget = w.playlistsTabIcon
-        icon_widget.setToolTip("Click to choose an icon for this playlist")
+        icon_widget.setToolTip(tr("Click to choose an icon for this playlist"))
         if hasattr(icon_widget, "clicked"):  # a button
             icon_widget.clicked.connect(self.choose_playlist_icon)
         else:  # a label
@@ -1353,7 +1360,7 @@ class MusicHive:
             if moved:
                 self.show_status(message)
             else:
-                QMessageBox.warning(self.window, "Data folder", message)
+                QMessageBox.warning(self.window, tr("Data folder"), message)
 
     @staticmethod
     def quit_app() -> None:
@@ -1463,11 +1470,15 @@ class MusicHive:
                 path.write_text(json.dumps(SECRETS_TEMPLATE, indent=2) + "\n", encoding="utf-8")
                 os.chmod(path, 0o600)  # only you can read it
         except OSError as error:
-            QMessageBox.warning(parent, "Secrets file", f"Cannot make the file: {error}")
+            QMessageBox.warning(parent, tr("Secrets file"), tr("Cannot make the file: {error}").format(
+                error=error,
+            ))
             return
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(path))):
             QMessageBox.information(
-                parent, "Secrets file", f"Open this file in a text editor:\n{path}"
+                parent, tr("Secrets file"), tr("Open this file in a text editor:\n{path}").format(
+                    path=path,
+                )
             )
 
     def connect_interface_tab(self, d) -> None:
@@ -1475,6 +1486,14 @@ class MusicHive:
         Both are used from the next start, so the tab says so once they change."""
         d.interfaceMode.setCurrentIndex(theme.MODES.index(theme.saved_mode(self.settings)))
         d.interfaceMode.activated.connect(self.set_interface_mode)
+        d.interfaceLanguage.addItem(tr("System default"), i18n.SYSTEM)
+        for code, name in i18n.available():
+            d.interfaceLanguage.addItem(name, code)
+        index = d.interfaceLanguage.findData(i18n.saved(self.settings))
+        d.interfaceLanguage.setCurrentIndex(max(index, 0))
+        d.interfaceLanguage.activated.connect(
+            lambda index: self.set_language(d.interfaceLanguage.itemData(index))
+        )
         d.interfaceHighlight.editingFinished.connect(
             lambda: self.set_highlight_colour(d.interfaceHighlight.text())
         )
@@ -1499,6 +1518,7 @@ class MusicHive:
         changed = (
             theme.saved_mode(self.settings) != theme.active_mode()
             or highlight != theme.active_highlight()
+            or i18n.saved(self.settings) != self.language_at_start
         )
         d.interfaceRestartNote.setVisible(changed)
 
@@ -1510,11 +1530,18 @@ class MusicHive:
         self.show_interface_settings()
         self.offer_restart()
 
+    def set_language(self, code: str) -> None:
+        if code == i18n.saved(self.settings):
+            return
+        self.settings.setValue(i18n.LANGUAGE_KEY, code)
+        self.show_interface_settings()
+        self.offer_restart()
+
     def set_highlight_colour(self, text: str) -> None:
         """Save a typed or chosen highlight colour; anything else is put back."""
         colour = theme.valid_highlight(text)
         if colour is None:
-            self.show_status(f"'{text}' is not a colour: type it as #rrggbb")
+            self.show_status(tr("'{text}' is not a colour: type it as #rrggbb").format(text=text))
         elif colour != theme.saved_highlight(self.settings):
             theme.save_highlight(self.settings, colour)
             self.show_interface_settings()
@@ -1523,13 +1550,13 @@ class MusicHive:
         self.show_interface_settings()
 
     def offer_restart(self) -> None:
-        """A new look was chosen: ask whether to restart now to see it."""
+        """A new look or language was chosen: ask whether to restart now to see it."""
         if not self.settings_window.interfaceRestartNote.isVisible():
             return  # back to the look in use, so nothing to restart for
         answer = QMessageBox.question(
             self.settings_window,
-            "Restart MusicHive",
-            "The new look is used once MusicHive restarts. Restart now?",
+            tr("Restart MusicHive"),
+            tr("The new look and language are used once MusicHive restarts. Restart now?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.Yes,
         )
@@ -1540,7 +1567,7 @@ class MusicHive:
     def choose_highlight_colour(self) -> None:
         d = self.settings_window
         current = QColor(theme.saved_highlight(self.settings))
-        chosen = QColorDialog.getColor(current, d, "Highlight colour")
+        chosen = QColorDialog.getColor(current, d, tr("Highlight colour"))
         if chosen.isValid():
             self.set_highlight_colour(chosen.name())
 
@@ -1549,13 +1576,15 @@ class MusicHive:
         d.generalDataFolder.setText(str(library_db.data_dir()))
         pending = library_db.pending_data_move()
         d.generalDataFolderPending.setText(
-            f"It will move to {pending} the next time MusicHive starts." if pending else ""
+            tr("It will move to {pending} the next time MusicHive starts.").format(
+                pending=pending,
+            ) if pending else ""
         )
 
     def choose_data_folder(self) -> None:
         """Settings: pick a new data folder. The move happens at the next start."""
         d = self.settings_window
-        chosen = QFileDialog.getExistingDirectory(d, "Choose an empty folder for MusicHive's data")
+        chosen = QFileDialog.getExistingDirectory(d, tr("Choose an empty folder for MusicHive's data"))
         if not chosen:
             return
         target = Path(chosen)
@@ -1565,15 +1594,17 @@ class MusicHive:
             return
         problem = library_db.check_new_data_folder(target)
         if problem is not None:
-            QMessageBox.warning(d, "Data folder", problem)
+            QMessageBox.warning(d, tr("Data folder"), problem)
             return
         library_db.request_data_move(target)
         self.show_data_folder()
         QMessageBox.information(
             d,
-            "Data folder",
-            f"Everything in the data folder will be moved to:\n{target}\n\n"
-            "This happens the next time MusicHive starts, so please restart it.",
+            tr("Data folder"),
+            tr(
+                "Everything in the data folder will be moved to:\n{target}\n\n"
+                "This happens the next time MusicHive starts, so please restart it."
+            ).format(target=target),
         )
 
     def setup_menu_actions(self) -> None:
@@ -1631,7 +1662,7 @@ class MusicHive:
         focus = QApplication.focusWidget()
         text_action = getattr(focus, name, None)
         if name == "copy" and isinstance(focus, QLabel) and focus.hasSelectedText():
-            self.copy_text(focus.selectedText(), "Text copied")
+            self.copy_text(focus.selectedText(), tr("Text copied"))
         elif callable(text_action):
             text_action()
         elif name == "paste":
@@ -1645,7 +1676,7 @@ class MusicHive:
         if w.upcomingList.hasFocus():
             offsets = self.selected_upcoming_offsets()
             if not offsets:
-                self.show_status("Select some songs first")
+                self.show_status(tr("Select some songs first"))
             elif cut:
                 self.cut_from_upcoming([offset for offset in offsets if offset > 0])
             else:
@@ -1653,7 +1684,7 @@ class MusicHive:
             return
         rows = self.selected_song_rows()
         if not rows:
-            self.show_status("Select some songs first")
+            self.show_status(tr("Select some songs first"))
         elif not cut:
             self.copy_rows(rows)
         elif (
@@ -1663,16 +1694,16 @@ class MusicHive:
         ):
             self.cut_songs(rows)
         else:
-            self.show_status("Songs can only be cut from an unlocked normal playlist or Upcoming")
+            self.show_status(tr("Songs can only be cut from an unlocked normal playlist or Upcoming"))
 
     def paste_songs(self) -> None:
         """Edit menu: paste into the list being used."""
         if self.window.upcomingList.hasFocus():
             self.paste_into("upcoming")
         elif not self.window.playlistSongList.isVisible() or self.current_playlist is None:
-            self.show_status("Open a playlist to paste songs into")
+            self.show_status(tr("Open a playlist to paste songs into"))
         elif not self.shows_normal_playlist():
-            self.show_status("Songs cannot be pasted into an auto playlist")
+            self.show_status(tr("Songs cannot be pasted into an auto playlist"))
         else:
             self.paste_into("playlist")
 
@@ -1698,30 +1729,36 @@ class MusicHive:
 
     def copy_rows(self, rows: list[int]) -> None:
         self.put_songs_on_clipboard(rows)
-        self.show_status(f"Copied {self.describe_songs(rows)}")
+        self.show_status(tr("Copied {songs}").format(
+            songs=self.describe_songs(rows),
+        ))
 
     def cut_songs(self, rows: list[int]) -> None:
         """Copy songs and remove them from the playlist on screen."""
         self.put_songs_on_clipboard(rows)
         self.remove_from_playlist(rows)
-        self.show_status(f"Cut {self.describe_songs(rows)}")
+        self.show_status(tr("Cut {songs}").format(
+            songs=self.describe_songs(rows),
+        ))
 
     def cut_from_upcoming(self, offsets: list[int]) -> None:
         """Copy these entries of the Upcoming list, and take them out of it."""
         if not offsets:
-            self.show_status("The playing song cannot be removed")
+            self.show_status(tr("The playing song cannot be removed"))
             return
         model = self.queue_model
         rows = [model.library_row(model.index(offset, 0)) for offset in sorted(offsets)]
         self.put_songs_on_clipboard(rows)
         self.remove_from_upcoming(offsets)
-        self.show_status(f"Cut {self.describe_songs(rows)}")
+        self.show_status(tr("Cut {songs}").format(
+            songs=self.describe_songs(rows),
+        ))
 
     def paste_into(self, source: str, before: int = -1) -> None:
         """Add the songs on the clipboard to the Upcoming list or the playlist on screen."""
         rows = self.clipboard_rows()
         if not rows:
-            self.show_status(NOTHING_TO_PASTE)
+            self.show_status(tr(NOTHING_TO_PASTE))
         elif source == "upcoming":
             self.queue_tracks(rows, play_next=False)
         else:
@@ -1730,7 +1767,7 @@ class MusicHive:
     def export_settings_file(self) -> None:
         start_dir = Path(QStandardPaths.writableLocation(QStandardPaths.HomeLocation))
         chosen, _filter = QFileDialog.getSaveFileName(
-            self.window, "Export settings", str(start_dir / "musichive-settings.ini"), SETTINGS_FILTER
+            self.window, tr("Export settings"), str(start_dir / "musichive-settings.ini"), tr(SETTINGS_FILTER)
         )
         if not chosen:
             return
@@ -1738,24 +1775,24 @@ class MusicHive:
         try:
             export_settings(self.settings, file)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot export settings", str(error))
+            QMessageBox.warning(self.window, tr("Cannot export settings"), str(error))
             return
-        self.show_status(f"Settings exported to {file.name}")
+        self.show_status(tr("Settings exported to {name}").format(name=file.name))
 
     def import_settings_file(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.HomeLocation)
         chosen, _filter = QFileDialog.getOpenFileName(
-            self.window, "Import settings", start_dir, SETTINGS_FILTER
+            self.window, tr("Import settings"), start_dir, tr(SETTINGS_FILTER)
         )
         if not chosen:
             return
         try:
             import_settings(self.settings, Path(chosen))
         except ValueError as error:
-            QMessageBox.warning(self.window, "Cannot import settings", str(error))
+            QMessageBox.warning(self.window, tr("Cannot import settings"), str(error))
             return
         QMessageBox.information(
-            self.window, "Settings imported", "Restart MusicHive to use the imported settings."
+            self.window, tr("Settings imported"), tr("Restart MusicHive to use the imported settings.")
         )
 
     def show_equaliser(self) -> None:
@@ -1770,20 +1807,20 @@ class MusicHive:
         w = self.window
         menu = QMenu(w)
         for label, icon, callback in (
-            ("Show MusicHive", "library", self.raise_window),
-            ("Play/Pause", "play", self.on_play_pause),
-            ("Next", "skip-forward", self.play_next),
-            ("Previous", "skip-back", self.play_previous),
-            ("Quit", "door-open", self.quit_app),
+            (tr("Show MusicHive"), "library", self.raise_window),
+            (tr("Play/Pause"), "play", self.on_play_pause),
+            (tr("Next"), "skip-forward", self.play_next),
+            (tr("Previous"), "skip-back", self.play_previous),
+            (tr("Quit"), "door-open", self.quit_app),
         ):
             action = menu.addAction(asset_icon(icon), label)
             action.triggered.connect(lambda _checked=False, c=callback: c())
         # A plain item, not the checkable action: the desktop draws this menu and
         # would leave an empty space for the checkbox.
-        mini_item = QAction(asset_icon("picture-in-picture-2"), "Open Mini Player", menu)
+        mini_item = QAction(asset_icon("picture-in-picture-2"), tr("Open Mini Player"), menu)
         mini_item.triggered.connect(lambda _checked=False: w.actionMiniPlayer.toggle())
         w.actionMiniPlayer.toggled.connect(
-            lambda shown: mini_item.setText("Close Mini Player" if shown else "Open Mini Player")
+            lambda shown: mini_item.setText(tr("Close Mini Player") if shown else tr("Open Mini Player"))
         )
         menu.insertAction(action, mini_item)  # above Quit, the last item
         folder = Path(__file__).parent
@@ -1802,7 +1839,7 @@ class MusicHive:
         action = w.actionMinimizeToTray
         if not TrayMinimizer.is_available():
             action.setEnabled(False)
-            action.setToolTip("Your desktop has no system tray")
+            action.setToolTip(tr("Your desktop has no system tray"))
         action.setChecked(self.settings.value("minimizeToTray", False, type=bool))
         action.toggled.connect(self.on_minimize_to_tray_toggled)
         self.tray.set_enabled(action.isChecked())
@@ -1842,19 +1879,19 @@ class MusicHive:
         w = self.window
         controls = self.mini_player.window
         menu = QMenu(controls)
-        close = menu.addAction(asset_icon("x"), "Close Mini Player")
+        close = menu.addAction(asset_icon("x"), tr("Close Mini Player"))
         close.triggered.connect(lambda _checked=False: w.actionMiniPlayer.setChecked(False))
-        big_player = menu.addAction(asset_icon("library"), "Open Big Player")
+        big_player = menu.addAction(asset_icon("library"), tr("Open Big Player"))
         big_player.triggered.connect(lambda _checked=False: self.raise_window())
         menu.addSeparator()
         # With the same icons as the main window's buttons, which show the current state.
-        shuffle = menu.addAction(w.shuffleButton.icon(), "Shuffle")
+        shuffle = menu.addAction(w.shuffleButton.icon(), tr("Shuffle"))
         shuffle.triggered.connect(lambda _checked=False: w.shuffleButton.toggle())
-        repeat = menu.addAction(w.repeatButton.icon(), "Repeat")
+        repeat = menu.addAction(w.repeatButton.icon(), tr("Repeat"))
         repeat.triggered.connect(lambda _checked=False: self.cycle_repeat())
         shown = self.mini_visualizer.enabled
         visualiser = menu.addAction(
-            asset_icon("audio-lines" if shown else "audio-lines-off"), "Visualiser"
+            asset_icon("audio-lines" if shown else "audio-lines-off"), tr("Visualiser")
         )
         visualiser.triggered.connect(lambda _checked=False: self.set_mini_visualizer(not shown))
         menu.exec(controls.mapToGlobal(position))
@@ -2012,13 +2049,13 @@ class MusicHive:
         volume = w.volumeSlider.value()
         muted = w.muteButton.isChecked()
 
-        w.volumeSlider.setToolTip(f"Volume: {volume}%")
+        w.volumeSlider.setToolTip(tr("Volume: {volume}%").format(volume=volume))
         if muted:
             key = "muted"
-            w.muteButton.setToolTip(f"Muted ({volume}%) – click to unmute")
+            w.muteButton.setToolTip(tr("Muted ({volume}%) – click to unmute").format(volume=volume))
         else:
             key = "silent" if volume == 0 else "low" if volume <= 50 else "high"
-            w.muteButton.setToolTip(f"Volume: {volume}% – click to mute")
+            w.muteButton.setToolTip(tr("Volume: {volume}% – click to mute").format(volume=volume))
         w.muteButton.setIcon(self.volume_icons[key])
         self.mini_player.show_volume(w.muteButton.icon(), w.muteButton.toolTip())
 
@@ -2381,7 +2418,7 @@ class MusicHive:
             return make_activity(
                 title=song or self.radio_title or station.name,
                 artist=artist or station.name,
-                album=f"Radio: {station.name}",
+                album=tr("Radio: {name}").format(name=station.name),
                 audio_format="",
                 position_ms=self.position_ms,
                 duration_ms=0,
@@ -2401,7 +2438,7 @@ class MusicHive:
             return make_activity(
                 title=episode.title,
                 artist=podcast.title,
-                album="Podcast",
+                album=tr("Podcast"),
                 audio_format="",
                 position_ms=self.position_ms,
                 duration_ms=self.duration_ms or episode.duration_ms,
@@ -2461,7 +2498,7 @@ class MusicHive:
     def on_discord_toggled(self, enabled: bool) -> None:
         self.settings.setValue("discordPresence", enabled)
         self.discord.set_enabled(enabled)
-        self.show_status("Discord Rich Presence on" if enabled else "Discord Rich Presence off")
+        self.show_status(tr("Discord Rich Presence on") if enabled else tr("Discord Rich Presence off"))
 
 
     # ----- track info panel -----
@@ -2546,17 +2583,22 @@ class MusicHive:
         try:
             library_db.set_rating(library.db_path, path, rating)
         except sqlite3.Error as error:
-            self.show_status(f"Cannot save the rating: {error}")
+            self.show_status(tr("Cannot save the rating: {error}").format(error=error))
             return
         self.library_model.set_rating(self.current_index, rating)
         self.show_current_rating()
         self.tag_writer.write_rating(self.tracks[self.current_index], rating)
         self.update_playlists_using("rating")
-        stars = f"{rating} star{'' if rating == 1 else 's'}"
-        self.show_status(f"Rated '{info.title}' {stars}" if rating else f"Cleared the rating of '{info.title}'")
+        if rating:
+            self.show_status(tr("Rated '{title}' %n star(s)", "", rating).format(title=info.title))
+        else:
+            self.show_status(tr("Cleared the rating of '{title}'").format(title=info.title))
 
     def on_rating_write_failed(self, file_name: str, message: str) -> None:
-        self.show_status(f"Could not write the rating to {file_name}: {message}")
+        self.show_status(tr("Could not write the rating to {file_name}: {message}").format(
+            file_name=file_name,
+            message=message,
+        ))
 
     def show_full_cover(self) -> None:
         """Open the playing track's cover at its full resolution."""
@@ -2602,21 +2644,21 @@ class MusicHive:
         label = self.cover_window.coverWindowImage
         menu = QMenu(label)
         add = self.add_menu_item
-        add(menu, "Save image…", "save_image", lambda: self.save_cover(data, name))
-        add(menu, "Copy image", "copy", lambda: self.copy_image(image))
+        add(menu, tr("Save image…"), "save_image", lambda: self.save_cover(data, name))
+        add(menu, tr("Copy image"), "copy", lambda: self.copy_image(image))
         menu.exec(label.mapToGlobal(pos))
 
     def save_cover(self, data: bytes, name: str) -> None:
         """Save a cover exactly as it is stored, so it loses no quality."""
         if data.startswith(b"\x89PNG"):
-            extension, kind = "png", "PNG image"
+            extension, kind = "png", tr("PNG image")
         elif data[:4] == b"RIFF" and data[8:12] == b"WEBP":
-            extension, kind = "webp", "WebP image"
+            extension, kind = "webp", tr("WebP image")
         else:
-            extension, kind = "jpg", "JPEG image"
+            extension, kind = "jpg", tr("JPEG image")
         start_dir = Path(QStandardPaths.writableLocation(QStandardPaths.PicturesLocation))
         chosen, _filter = QFileDialog.getSaveFileName(
-            self.window, "Save image", str(start_dir / f"{name}.{extension}"), f"{kind} (*.{extension})"
+            self.window, tr("Save image"), str(start_dir / f"{name}.{extension}"), f"{kind} (*.{extension})"
         )
         if not chosen:
             return
@@ -2626,9 +2668,9 @@ class MusicHive:
         try:
             file.write_bytes(data)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot save image", str(error))
+            QMessageBox.warning(self.window, tr("Cannot save image"), str(error))
             return
-        self.show_status(f"Image saved as {file.name}")
+        self.show_status(tr("Image saved as {name}").format(name=file.name))
 
     def track_info_link(self, text: str, field: str) -> str:
         """A link that looks like the label's normal text ("" if there is no text)."""
@@ -2665,7 +2707,7 @@ class MusicHive:
 
     def show_nothing_playing(self) -> None:
         """Nothing is playing: reset the now-playing label, the info panel and Discord."""
-        self.window.currentTrackLabel.setText("Nothing playing")
+        self.window.currentTrackLabel.setText(tr("Nothing playing"))
         self.clear_track_info()
         self.discord_active = False
         self.discord.request_update()
@@ -2713,7 +2755,7 @@ class MusicHive:
         self.play_order.set_shuffle(enabled)
         self.settings.setValue("shuffle", enabled)
         self.refresh_upcoming()
-        self.show_status("Shuffle on" if enabled else "Shuffle off")
+        self.show_status(tr("Shuffle on") if enabled else tr("Shuffle off"))
         self.update_mpris()
 
     def set_smart_shuffle(self, enabled: bool) -> None:
@@ -2723,7 +2765,7 @@ class MusicHive:
         if self.play_order.shuffle:  # shuffle what comes next again, the new way
             self.play_order.reshuffle()
             self.refresh_upcoming()
-        self.show_status("Smart shuffle on" if enabled else "Smart shuffle off")
+        self.show_status(tr("Smart shuffle on") if enabled else tr("Smart shuffle off"))
 
     # ----- albums that play in order -----
 
@@ -2802,7 +2844,7 @@ class MusicHive:
         self.play_order.set_repeat(mode)
         self.settings.setValue("repeat", mode)
         self.update_repeat_button()
-        self.show_status(REPEAT_STATUS[mode])
+        self.show_status(tr(REPEAT_STATUS[mode]))
         self.update_mpris()
 
     def update_repeat_button(self) -> None:
@@ -2811,7 +2853,7 @@ class MusicHive:
         mode = self.play_order.repeat
         button.setChecked(mode != "off")
         button.setIcon(self.repeat_icons[mode])
-        button.setToolTip(REPEAT_STATUS[mode])
+        button.setToolTip(tr(REPEAT_STATUS[mode]))
         self.window.actionRepeat.setChecked(mode != "off")
         if self.settings_window is not None:
             self.settings_window.playbackRepeat.setCurrentIndex(PlayOrder.REPEAT_MODES.index(mode))
@@ -2830,7 +2872,9 @@ class MusicHive:
     def add_playlist_submenu(self, menu: QMenu, rows: list[int], several: str = "") -> None:
         """The "Add to playlist" entry of a right-click menu."""
         names = self.playlist_store.names() if self.playlist_store else []
-        submenu = menu.addMenu(self.menu_icons["add_to_playlist"], f"Add to playlist{several}")
+        submenu = menu.addMenu(self.menu_icons["add_to_playlist"], tr("Add to playlist{several}").format(
+            several=several,
+        ))
         submenu.setToolTipsVisible(True)
         for name in names:
             locked = self.side_model.is_locked(name)
@@ -2838,26 +2882,26 @@ class MusicHive:
                 submenu, name.replace("&", "&&"), None,
                 lambda n=name: self.add_to_playlist(n, rows),
                 enabled=not locked,
-                tip="This playlist is locked" if locked else "",
+                tip=tr("This playlist is locked") if locked else "",
             )
         if names:
             submenu.addSeparator()
         self.add_menu_item(
-            submenu, "New playlist…", None,
+            submenu, tr("New playlist…"), None,
             lambda: self.new_playlist(add_rows=rows),
             enabled=self.playlist_store is not None,
         )
 
     def add_go_to_submenu(self, menu: QMenu, row: int, info) -> None:
         """The "Go to" entry of a right-click menu."""
-        go_menu = menu.addMenu(self.menu_icons["go_to"], "Go to")
+        go_menu = menu.addMenu(self.menu_icons["go_to"], tr("Go to"))
         go_menu.setToolTipsVisible(True)
         for label, field in GO_TO_FIELDS:
             has_value = field == "title" or bool(getattr(info, field))
             self.add_menu_item(
-                go_menu, label, None, lambda f=field: self.go_to(row, f),
+                go_menu, tr(label), None, lambda f=field: self.go_to(row, f),
                 enabled=has_value,
-                tip="" if has_value else "This song has no such tag (rescan to read new ones)",
+                tip="" if has_value else tr("This song has no such tag (rescan to read new ones)"),
             )
 
     def show_playing_track_menu(self, widget, pos) -> None:
@@ -2874,45 +2918,45 @@ class MusicHive:
         if widget is window.trackInfoCoverImg:
             image = self.full_cover
             add(
-                menu, "Copy image", "copy", lambda: self.copy_image(image),
+                menu, tr("Copy image"), "copy", lambda: self.copy_image(image),
                 enabled=image is not None,
-                tip="" if image is not None else "This song has no cover",
+                tip="" if image is not None else tr("This song has no cover"),
             )
             data = self.full_cover_data
             name = self.cover_file_name()
             add(
-                menu, "Save image…", "save_image", lambda: self.save_cover(data, name),
+                menu, tr("Save image…"), "save_image", lambda: self.save_cover(data, name),
                 enabled=data is not None,
-                tip="" if data is not None else "This song has no cover",
+                tip="" if data is not None else tr("This song has no cover"),
             )
         else:
             plain = QTextDocumentFragment.fromHtml(widget.text()).toPlainText()
             text = widget.selectedText() if widget.hasSelectedText() else plain
-            add(menu, "Copy text", "copy", lambda: self.copy_text(text, "Text copied"), enabled=bool(text))
-        add(menu, "Copy song", "copy", lambda: self.copy_rows([row]))
+            add(menu, tr("Copy text"), "copy", lambda: self.copy_text(text, tr("Text copied")), enabled=bool(text))
+        add(menu, tr("Copy song"), "copy", lambda: self.copy_rows([row]))
         menu.addSeparator()
 
-        add(menu, "Play next", "play_next", lambda: self.queue_tracks([row], play_next=True))
-        add(menu, "Add to queue", "add_to_queue", lambda: self.queue_tracks([row], play_next=False))
-        add(menu, "Add to end of queue", "add_to_end", lambda: self.queue_tracks([row], at_end=True))
+        add(menu, tr("Play next"), "play_next", lambda: self.queue_tracks([row], play_next=True))
+        add(menu, tr("Add to queue"), "add_to_queue", lambda: self.queue_tracks([row], play_next=False))
+        add(menu, tr("Add to end of queue"), "add_to_end", lambda: self.queue_tracks([row], at_end=True))
         self.add_playlist_submenu(menu, [row])
         menu.addSeparator()
 
         scanning = self.scan_task is not None
         add(
-            menu, "Edit…", "edit", lambda: self.edit_tags([row]),
+            menu, tr("Edit…"), "edit", lambda: self.edit_tags([row]),
             enabled=not scanning,
-            tip="Wait for the scan to finish" if scanning else "",
+            tip=tr("Wait for the scan to finish") if scanning else "",
         )
         self.add_go_to_submenu(menu, row, info)
-        add(menu, "Show in File Manager", "show_in_files",
+        add(menu, tr("Show in File Manager"), "show_in_files",
             lambda: self.show_in_file_manager([self.tracks[row]]))
         menu.addSeparator()
 
         marked = self.play_order.stop_after_offset() == 0
         add(
             menu,
-            "Don't end playback after song" if marked else "End playback after song",
+            tr("Don't end playback after song") if marked else tr("End playback after song"),
             "end_after",
             lambda: self.toggle_stop_after(0),
         )
@@ -2920,7 +2964,7 @@ class MusicHive:
 
     def copy_image(self, image: QImage) -> None:
         QApplication.clipboard().setImage(image)
-        self.show_status("Image copied")
+        self.show_status(tr("Image copied"))
 
     def show_lyrics_menu(self, pos) -> None:
         """Right-click menu of the lyrics."""
@@ -2932,8 +2976,8 @@ class MusicHive:
         line = item.text().strip() if item is not None else ""
         menu = QMenu(view)
         add = self.add_menu_item
-        add(menu, "Copy line", "copy", lambda: self.copy_text(line, "Line copied"), enabled=bool(line))
-        add(menu, "Copy all lyrics", "copy", lambda: self.copy_text(lyrics, "Lyrics copied"))
+        add(menu, tr("Copy line"), "copy", lambda: self.copy_text(line, tr("Line copied")), enabled=bool(line))
+        add(menu, tr("Copy all lyrics"), "copy", lambda: self.copy_text(lyrics, tr("Lyrics copied")))
         menu.exec(view.viewport().mapToGlobal(pos))
 
     def shows_normal_playlist(self) -> bool:
@@ -2947,17 +2991,17 @@ class MusicHive:
         menu.setToolTipsVisible(True)
         add = self.add_menu_item
         pasted = bool(self.clipboard_rows())
-        paste_tip = "" if pasted else NOTHING_TO_PASTE
+        paste_tip = "" if pasted else tr(NOTHING_TO_PASTE)
         if source == "upcoming":
-            add(menu, "Paste", "paste", lambda: self.paste_into("upcoming"), enabled=pasted, tip=paste_tip)
+            add(menu, tr("Paste"), "paste", lambda: self.paste_into("upcoming"), enabled=pasted, tip=paste_tip)
         elif source == "playlist" and self.shows_normal_playlist():
             locked = self.side_model.is_locked(self.current_playlist)
             add(
-                menu, "Paste", "paste", lambda: self.paste_into("playlist"),
+                menu, tr("Paste"), "paste", lambda: self.paste_into("playlist"),
                 enabled=pasted and not locked,
-                tip="This playlist is locked" if locked else paste_tip,
+                tip=tr("This playlist is locked") if locked else paste_tip,
             )
-        add(menu, "Select all", "select_all", view.selectAll, enabled=view.model().rowCount() > 0)
+        add(menu, tr("Select all"), "select_all", view.selectAll, enabled=view.model().rowCount() > 0)
         menu.exec(view.viewport().mapToGlobal(pos))
 
     def show_track_menu(self, view, pos, source: str) -> None:
@@ -2998,24 +3042,24 @@ class MusicHive:
         # Actions apply to the whole selection if the click was inside it.
         selected = self.selected_library_rows(source)
         rows = selected if row in selected else [row]
-        several = f" ({len(rows)} songs)" if len(rows) > 1 else ""
+        several = tr(" (%n song(s))", "", len(rows)) if len(rows) > 1 else ""
 
         scanning = self.scan_task is not None
         menu = QMenu(view)
         menu.setToolTipsVisible(True)
 
         add = self.add_menu_item
-        add(menu, "Play now", "play_now", lambda: self.play_now(row, offset, context, group))
+        add(menu, tr("Play now"), "play_now", lambda: self.play_now(row, offset, context, group))
         add(
-            menu, f"Play next{several}", "play_next",
+            menu, tr("Play next{several}").format(several=several), "play_next",
             lambda: self.queue_tracks(rows, play_next=True),
         )
         add(
-            menu, f"Add to queue{several}", "add_to_queue",
+            menu, tr("Add to queue{several}").format(several=several), "add_to_queue",
             lambda: self.queue_tracks(rows, play_next=False),
         )
         add(
-            menu, f"Add to end of queue{several}", "add_to_end",
+            menu, tr("Add to end of queue{several}").format(several=several), "add_to_end",
             lambda: self.queue_tracks(rows, at_end=True),
         )
         self.add_playlist_submenu(menu, rows, several)
@@ -3024,42 +3068,44 @@ class MusicHive:
         # Hidden where it can never apply; greyed out while it temporarily cannot.
         in_playlist = source == "playlist" and self.shows_normal_playlist()
         locked = in_playlist and self.side_model.is_locked(self.current_playlist)
-        lock_tip = "This playlist is locked" if locked else ""
+        lock_tip = tr("This playlist is locked") if locked else ""
         offsets = self.selected_upcoming_offsets() if source == "upcoming" else []
         removable = [o for o in (offsets if offset in offsets else [offset]) if o > 0]
-        removable_count = f" ({len(removable)} songs)" if len(removable) > 1 else ""
+        removable_count = tr(" (%n song(s))", "", len(removable)) if len(removable) > 1 else ""
         pasted = bool(self.clipboard_rows())
-        paste_tip = "" if pasted else NOTHING_TO_PASTE
+        paste_tip = "" if pasted else tr(NOTHING_TO_PASTE)
 
         if in_playlist:
-            add(menu, f"Cut{several}", "cut", lambda: self.cut_songs(rows), enabled=not locked, tip=lock_tip)
+            add(menu, tr("Cut{several}").format(
+                several=several,
+            ), "cut", lambda: self.cut_songs(rows), enabled=not locked, tip=lock_tip)
         elif source == "upcoming":
             add(
-                menu, f"Cut{removable_count}", "cut",
+                menu, tr("Cut{removable_count}").format(removable_count=removable_count), "cut",
                 lambda: self.cut_from_upcoming(removable),
                 enabled=bool(removable),
-                tip="" if removable else "The playing song cannot be removed",
+                tip="" if removable else tr("The playing song cannot be removed"),
             )
-        add(menu, f"Copy{several}", "copy", lambda: self.copy_rows(rows))
+        add(menu, tr("Copy{several}").format(several=several), "copy", lambda: self.copy_rows(rows))
         if in_playlist:
             add(
-                menu, "Paste", "paste", lambda: self.paste_into("playlist", before=row),
+                menu, tr("Paste"), "paste", lambda: self.paste_into("playlist", before=row),
                 enabled=pasted and not locked, tip=lock_tip or paste_tip,
             )
         elif source == "upcoming":
-            add(menu, "Paste", "paste", lambda: self.paste_into("upcoming"), enabled=pasted, tip=paste_tip)
-        select_all = add(menu, "Select all", "select_all", view.selectAll)
+            add(menu, tr("Paste"), "paste", lambda: self.paste_into("upcoming"), enabled=pasted, tip=paste_tip)
+        select_all = add(menu, tr("Select all"), "select_all", view.selectAll)
         menu.addSeparator()
 
         add(
-            menu, f"Edit…{several}", "edit",
+            menu, tr("Edit…{several}").format(several=several), "edit",
             lambda: self.edit_tags(rows, self.track_menu_neighbours(source, context)),
             enabled=not scanning,
-            tip="Wait for the scan to finish" if scanning else "",
+            tip=tr("Wait for the scan to finish") if scanning else "",
         )
         self.add_go_to_submenu(menu, row, info)
         add(
-            menu, f"Show in File Manager{several}", "show_in_files",
+            menu, tr("Show in File Manager{several}").format(several=several), "show_in_files",
             lambda: self.show_in_file_manager([self.tracks[r] for r in rows]),
         )
         menu.addSeparator()
@@ -3068,28 +3114,32 @@ class MusicHive:
             marked = self.play_order.stop_after_offset() == offset
             add(
                 menu,
-                "Don't end playback after song" if marked else "End playback after song",
+                tr("Don't end playback after song") if marked else tr("End playback after song"),
                 "end_after",
                 lambda: self.toggle_stop_after(offset),
             )
             add(
-                menu, f"Remove from upcoming{removable_count}", "remove_from_upcoming",
+                menu, tr("Remove from upcoming{removable_count}").format(
+                    removable_count=removable_count,
+                ), "remove_from_upcoming",
                 lambda: self.remove_from_upcoming(removable),
                 enabled=bool(removable),
-                tip="" if removable else "The playing song cannot be removed",
+                tip="" if removable else tr("The playing song cannot be removed"),
             )
         if in_playlist:
             add(
-                menu, f"Remove from playlist{several}", "delete_from_playlist",
+                menu, tr("Remove from playlist{several}").format(
+                    several=several,
+                ), "delete_from_playlist",
                 lambda: self.remove_from_playlist(rows),
                 enabled=not locked, tip=lock_tip,
             )
         add(
-            menu, "Delete file", "delete_file", lambda: self.delete_file(row),
+            menu, tr("Delete file"), "delete_file", lambda: self.delete_file(row),
             enabled=not scanning and not several,
             tip=(
-                "Wait for the scan to finish" if scanning
-                else "Select a single song to delete its file" if several
+                tr("Wait for the scan to finish") if scanning
+                else tr("Select a single song to delete its file") if several
                 else ""
             ),
         )
@@ -3135,19 +3185,19 @@ class MusicHive:
                 self.play_order.add_to_queue(row)
             self.refresh_upcoming(keep_scroll=True)
             return
-        what = self.library_model.info(rows[0]).title if len(rows) == 1 else f"{len(rows)} songs"
+        what = self.library_model.info(rows[0]).title if len(rows) == 1 else tr("%n song(s)", "", len(rows))
         if play_next:
             for row in reversed(rows):  # each one goes right after the playing track
                 self.play_order.play_next(row)
-            self.show_status(f"Playing next: {what}")
+            self.show_status(tr("Playing next: {what}").format(what=what))
         elif at_end:
             for row in rows:
                 self.play_order.add_to_end(row)
-            self.show_status(f"Added to end of queue: {what}")
+            self.show_status(tr("Added to end of queue: {what}").format(what=what))
         else:
             for row in rows:
                 self.play_order.add_to_queue(row)
-            self.show_status(f"Added to queue: {what}")
+            self.show_status(tr("Added to queue: {what}").format(what=what))
         self.refresh_upcoming(keep_scroll=True)
 
     def drop_into_upcoming(self, rows: list[int], offset: int) -> None:
@@ -3159,8 +3209,8 @@ class MusicHive:
             self.queue_tracks(rows)  # nothing is playing: the first song starts
             return
         self.play_order.insert_upcoming(offset, rows)
-        what = self.library_model.info(rows[0]).title if len(rows) == 1 else f"{len(rows)} songs"
-        self.show_status(f"Added to queue: {what}")
+        what = self.library_model.info(rows[0]).title if len(rows) == 1 else tr("%n song(s)", "", len(rows))
+        self.show_status(tr("Added to queue: {what}").format(what=what))
         self.refresh_upcoming(keep_scroll=True)
 
     def move_in_upcoming(self, offsets: list[int], offset: int) -> None:
@@ -3183,9 +3233,9 @@ class MusicHive:
         enabled = self.play_order.toggle_stop_after(offset)
         self.refresh_upcoming(keep_scroll=True)
         if enabled:
-            self.show_status("Playback will end after that song")
+            self.show_status(tr("Playback will end after that song"))
         else:
-            self.show_status("Playback will no longer end after that song")
+            self.show_status(tr("Playback will no longer end after that song"))
 
     def go_to(self, row: int, field: str) -> None:
         """Open the tab for a song's `field`, with that value picked in its filter bar.
@@ -3201,7 +3251,7 @@ class MusicHive:
             self.show_tab_of(page.view)
             self.on_group_filter_chosen(page, field, group_key(field, info, self.tracks[row].parent))
             self.highlight_row(page.tracks, page.proxy, page.view, row)
-            self.show_status(f"Went to '{page.current.name}'")
+            self.show_status(tr("Went to '{name}'").format(name=page.current.name))
             return
 
         library_view = self.window.libraryList
@@ -3210,11 +3260,11 @@ class MusicHive:
         if field == "title":
             if not self.table_index(row).isValid():  # the Songs filter hides this track
                 self.on_song_filter_chosen(self.load_filter(SONGS_FILTER_OWNER)[0], "")
-            self.show_status(f"Went to '{info.title}'")
+            self.show_status(tr("Went to '{title}'").format(title=info.title))
         else:
             key = group_key(field, info, self.tracks[row].parent)
             self.on_song_filter_chosen(field, key)
-            self.show_status(f"Went to '{self.song_filter.group(key).name}'")
+            self.show_status(tr("Went to '{name}'").format(name=self.song_filter.group(key).name))
         self.select_in_table(row, at_top=True)
         library_view.setFocus()
 
@@ -3228,8 +3278,8 @@ class MusicHive:
 
         answer = QMessageBox.question(
             self.window,
-            "Delete file",
-            f"Move this file to the Trash?\n\n{path}",
+            tr("Delete file"),
+            tr("Move this file to the Trash?\n\n{path}").format(path=path),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -3238,7 +3288,7 @@ class MusicHive:
         if not self.trash_files([path]):
             return
         self.forget_songs([path])
-        self.show_status(f"Deleted '{title}'")
+        self.show_status(tr("Deleted '{title}'").format(title=title))
 
     def trash_files(self, paths: list[Path]) -> list[Path]:
         """Move files to the Trash; where that cannot be done, offer to delete them
@@ -3254,12 +3304,14 @@ class MusicHive:
             (gone if trashed else stuck).append(path)
         if not stuck:
             return gone
-        what = f"'{stuck[0].name}' could" if len(stuck) == 1 else f"{len(stuck)} files could"
+        if len(stuck) == 1:
+            what = tr("'{name}' could not be moved to the Trash.").format(name=stuck[0].name)
+        else:
+            what = tr("%n file(s) could not be moved to the Trash.", "", len(stuck))
         answer = QMessageBox.question(
             self.window,
-            "Trash not available",
-            f"{what} not be moved to the Trash.\n\n"
-            "Delete permanently instead? This cannot be undone.",
+            tr("Trash not available"),
+            what + "\n\n" + tr("Delete permanently instead? This cannot be undone."),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -3270,7 +3322,7 @@ class MusicHive:
                 path.unlink()
                 gone.append(path)
             except OSError as error:
-                QMessageBox.warning(self.window, "Cannot delete file", f"{path.name}: {error}")
+                QMessageBox.warning(self.window, tr("Cannot delete file"), f"{path.name}: {error}")
         return gone
 
     def forget_songs(self, paths: list[Path], replacements: dict[Path, Path] | None = None) -> None:
@@ -3337,7 +3389,7 @@ class MusicHive:
         row_of = {path: row for row, path in enumerate(self.tracks)}
         keep_row = row_of.get(keep)
         if keep_row is None:
-            self.show_status("That song is no longer in the library")
+            self.show_status(tr("That song is no longer in the library"))
             return 0
         best_rating = max(
             (self.library_model.info(row_of[path]).rating for path in others if path in row_of),
@@ -3353,7 +3405,7 @@ class MusicHive:
                 [self.relative_path(path) for path in gone],
             )
         except sqlite3.Error as error:
-            self.show_status(f"Could not pass on the play counts: {error}")
+            self.show_status(tr("Could not pass on the play counts: {error}").format(error=error))
         else:
             self.library_model.set_play_count(keep_row, count)
             if last_played is not None:
@@ -3499,18 +3551,18 @@ class MusicHive:
         menu = QMenu(self.window)
         menu.setToolTipsVisible(True)
         add = self.add_menu_item
-        add(menu, "Play now", "play_now", lambda: self.play_rows(rows))
-        add(menu, "Play next", "play_next", lambda: self.queue_tracks(rows, play_next=True))
-        add(menu, "Add to queue", "add_to_queue", lambda: self.queue_tracks(rows, play_next=False))
+        add(menu, tr("Play now"), "play_now", lambda: self.play_rows(rows))
+        add(menu, tr("Play next"), "play_next", lambda: self.queue_tracks(rows, play_next=True))
+        add(menu, tr("Add to queue"), "add_to_queue", lambda: self.queue_tracks(rows, play_next=False))
         self.add_playlist_submenu(menu, rows)
         menu.addSeparator()
-        add(menu, "Copy", "copy", lambda: self.copy_rows(rows))
+        add(menu, tr("Copy"), "copy", lambda: self.copy_rows(rows))
         menu.addSeparator()
         scanning = self.scan_task is not None
         add(
-            menu, "Edit…", "edit", lambda: self.edit_tags(rows),
+            menu, tr("Edit…"), "edit", lambda: self.edit_tags(rows),
             enabled=not scanning,
-            tip="Wait for the scan to finish" if scanning else "",
+            tip=tr("Wait for the scan to finish") if scanning else "",
         )
         menu.exec(position)
 
@@ -3558,9 +3610,11 @@ class MusicHive:
         if editor.preset_changes:
             self.save_song_presets(editor.preset_changes)
         if jobs:
-            self.show_status(f"Saving tags of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
-            what = jobs[0].path.stem if len(jobs) == 1 else f"{len(jobs)} songs"
-            self.tag_writer.save_tags(jobs, library.root, library.db_path, f"Tag editor: {what}")
+            self.show_status(tr("Saving tags of %n song(s)…", "", len(jobs)))
+            what = jobs[0].path.stem if len(jobs) == 1 else tr("%n song(s)", "", len(jobs))
+            self.tag_writer.save_tags(
+                jobs, library.root, library.db_path, tr("Tag editor: {what}").format(what=what)
+            )
 
     def load_song_presets(self, paths: list[Path]) -> dict[Path, SoundPresets]:
         """The equaliser and visualiser presets of these songs (Edit, Settings)."""
@@ -3585,7 +3639,7 @@ class MusicHive:
         try:
             library_db.save_track_settings(library.db_path, rows)
         except sqlite3.Error as error:
-            self.show_status(f"Cannot save the song settings: {error}")
+            self.show_status(tr("Cannot save the song settings: {error}").format(error=error))
             return
         if 0 <= self.current_index < len(self.tracks) and self.tracks[self.current_index] in presets:
             self.apply_sound_presets()  # the playing song changed
@@ -3613,10 +3667,10 @@ class MusicHive:
         library = self.loaded_library
         rows = self.selected_song_rows()
         if library is None or not rows:
-            self.show_status("Select the songs to tag in a table first")
+            self.show_status(tr("Select the songs to tag in a table first"))
             return
         if self.scan_task is not None:
-            self.show_status("Wait for the scan to finish")
+            self.show_status(tr("Wait for the scan to finish"))
             return
         limit = ask_auto_tag_count(AUTO_TAG_UI_FILE, self.window, len(rows))
         if limit == AUTO_TAG_CANCELLED:
@@ -3627,31 +3681,35 @@ class MusicHive:
             artist = info.artist or info.album_artist
             songs.append(AutoTagSong(self.tracks[row], artist, info.title, info.album))
         self.auto_tag_library = library
-        self.window.actionAutoTagGenres.setText("Stop Auto-Tagging Genres")
+        self.window.actionAutoTagGenres.setText(tr("Stop Auto-Tagging Genres"))
         self.online_search.auto_tag(songs, limit)
 
     def on_auto_tag_progress(self, done: int, total: int) -> None:
-        self.show_status(f"Looking up genres: {done} of {total}…")
+        self.show_status(tr("Looking up genres: {done} of {total}…").format(done=done, total=total))
 
     def on_auto_tag_finished(self, results: list, not_found: int, error: str, stopped: bool) -> None:
         library = self.auto_tag_library
         self.auto_tag_library = None
         self.window.actionAutoTagGenres.setText(self.auto_tag_text)
         if stopped:
-            self.show_status("Stopped auto-tagging. No files were changed.")
+            self.show_status(tr("Stopped auto-tagging. No files were changed."))
             return
         if error:
-            QMessageBox.warning(self.window, "Auto-tag genres", f"The lookup stopped early: {error}")
+            QMessageBox.warning(self.window, tr("Auto-tag genres"), tr("The lookup stopped early: {error}").format(
+                error=error,
+            ))
         if not results:
-            self.show_status("No genres were found for the selected songs")
+            self.show_status(tr("No genres were found for the selected songs"))
             return
-        self.tags_saved_note = f" (no genres found for {not_found})" if not_found else ""
+        self.tags_saved_note = tr(" (no genres found for {not_found})").format(
+            not_found=not_found,
+        ) if not_found else ""
         jobs = [
             TagJob(path, TagChanges({"genre": "; ".join(genres)})) for path, genres in results
         ]
-        self.show_status(f"Saving the genres of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
+        self.show_status(tr("Saving the genres of %n song(s)…", "", len(jobs)))
         self.tag_writer.save_tags(
-            jobs, library.root, library.db_path, f"Auto-tag genres: {len(jobs)} songs"
+            jobs, library.root, library.db_path, tr("Auto-tag genres: %n song(s)", "", len(jobs))
         )
 
     # ----- finding lyrics for many songs -----
@@ -3664,10 +3722,10 @@ class MusicHive:
         library = self.loaded_library
         rows = self.selected_song_rows()
         if library is None or not rows:
-            self.show_status("Select the songs to find lyrics for in a table first")
+            self.show_status(tr("Select the songs to find lyrics for in a table first"))
             return
         if self.scan_task is not None:
-            self.show_status("Wait for the scan to finish")
+            self.show_status(tr("Wait for the scan to finish"))
             return
         answer = ask_auto_lyrics(AUTO_LYRICS_UI_FILE, self.window, len(rows), self.settings)
         if answer is None:
@@ -3684,11 +3742,11 @@ class MusicHive:
                 (info.duration_ms or 0) / 1000,
             ))
         self.auto_lyrics_library = library
-        self.window.actionAutoLyrics.setText("Stop Finding Lyrics")
+        self.window.actionAutoLyrics.setText(tr("Stop Finding Lyrics"))
         self.online_search.auto_lyrics(songs, preference, skip_existing, upgrade_plain)
 
     def on_auto_lyrics_progress(self, done: int, total: int) -> None:
-        self.show_status(f"Looking up lyrics: {done} of {total}…")
+        self.show_status(tr("Looking up lyrics: {done} of {total}…").format(done=done, total=total))
 
     def on_auto_lyrics_finished(
         self, results: list, not_found: int, skipped: int, upgraded: int, error: str, stopped: bool
@@ -3697,22 +3755,26 @@ class MusicHive:
         self.auto_lyrics_library = None
         self.window.actionAutoLyrics.setText(self.auto_lyrics_text)
         if stopped:
-            self.show_status("Stopped finding lyrics. No files were changed.")
+            self.show_status(tr("Stopped finding lyrics. No files were changed."))
             return
         if error:
-            QMessageBox.warning(self.window, "Find lyrics", f"The lookup stopped early: {error}")
+            QMessageBox.warning(self.window, tr("Find lyrics"), tr("The lookup stopped early: {error}").format(
+                error=error,
+            ))
         instrumentals = sum(1 for _path, text, _where in results if text is None)
         notes = []
         if instrumentals:
-            notes.append(f"{instrumentals} marked as instrumental")
+            notes.append(tr("{instrumentals} marked as instrumental").format(
+                instrumentals=instrumentals,
+            ))
         if upgraded:
-            notes.append(f"{upgraded} upgraded to timed lyrics")
+            notes.append(tr("{upgraded} upgraded to timed lyrics").format(upgraded=upgraded))
         if not_found:
-            notes.append(f"none found for {not_found}")
+            notes.append(tr("none found for {not_found}").format(not_found=not_found))
         if skipped:
-            notes.append(f"{skipped} already had lyrics")
+            notes.append(tr("{skipped} already had lyrics").format(skipped=skipped))
         if not results:
-            self.show_status("No lyrics were saved" + (f" ({', '.join(notes)})" if notes else ""))
+            self.show_status(tr("No lyrics were saved") + (f" ({', '.join(notes)})" if notes else ""))
             return
         self.tags_saved_note = f" ({', '.join(notes)})" if notes else ""
         default = LRC if self.auto_lyrics_save_to == SAVE_TO_LRC else EMBEDDED
@@ -3725,8 +3787,10 @@ class MusicHive:
             else:
                 jobs.append(TagJob(path, TagChanges({"lyrics": text, HAS_LYRICS_TAG: "true"})))
         count = len(jobs)
-        self.show_status(f"Saving the lyrics of {count} song{'' if count == 1 else 's'}…")
-        self.tag_writer.save_tags(jobs, library.root, library.db_path, f"Find lyrics: {count} songs")
+        self.show_status(tr("Saving the lyrics of %n song(s)…", "", count))
+        self.tag_writer.save_tags(
+            jobs, library.root, library.db_path, tr("Find lyrics: %n song(s)", "", count)
+        )
 
     # ----- organising files -----
 
@@ -3734,29 +3798,32 @@ class MusicHive:
         """Tools menu: move the library's files to where a naming template says."""
         library = self.loaded_library
         if library is None:
-            self.show_status("Open a library first")
+            self.show_status(tr("Open a library first"))
             return
         if self.scan_task is not None:
-            self.show_status("Wait for the scan to finish")
+            self.show_status(tr("Wait for the scan to finish"))
             return
         if self.auto_tag_library is not None or self.auto_lyrics_library is not None or (
             self.tag_writer.is_busy()
         ):
-            self.show_status("Wait for the tags to finish saving")
+            self.show_status(tr("Wait for the tags to finish saving"))
             return
         if self.level_tool is not None and self.level_tool.is_running:
-            self.show_status("Wait for the volume levelling to finish")
+            self.show_status(tr("Wait for the volume levelling to finish"))
             return
         if self.convert_tool is not None and self.convert_tool.is_running:
-            self.show_status("Wait for the conversion to finish")
+            self.show_status(tr("Wait for the conversion to finish"))
             return
         if self.device_sync.is_running:
-            self.show_status("Wait for the synchronisation to finish")
+            self.show_status(tr("Wait for the synchronisation to finish"))
             return
         try:
             titled = set(library_db.load_tag_values(library.db_path, ["title"]))
         except sqlite3.Error as error:
-            self.show_status(f"Cannot read library '{library.name}': {error}")
+            self.show_status(tr("Cannot read library '{name}': {error}").format(
+                name=library.name,
+                error=error,
+            ))
             return
         self.organise_error = ""
         result = OrganiseDialog(
@@ -3775,12 +3842,15 @@ class MusicHive:
         """Every song of the open library, for sending elsewhere. None if there is no library."""
         library = self.loaded_library
         if library is None:
-            self.show_status("Open a library first")
+            self.show_status(tr("Open a library first"))
             return None
         try:
             titled = set(library_db.load_tag_values(library.db_path, ["title"]))
         except sqlite3.Error as error:
-            self.show_status(f"Cannot read library '{library.name}': {error}")
+            self.show_status(tr("Cannot read library '{name}': {error}").format(
+                name=library.name,
+                error=error,
+            ))
             return None
         songs = []
         for row, path in enumerate(self.tracks):
@@ -3814,7 +3884,7 @@ class MusicHive:
     def show_check_covers(self) -> None:
         library = self.loaded_library
         if library is None:
-            self.show_status("Open a library first")
+            self.show_status(tr("Open a library first"))
             return
         if self.check_covers_tool is None:
             self.check_covers_tool = CheckCoversTool(
@@ -3831,7 +3901,7 @@ class MusicHive:
     def show_check_tags(self) -> None:
         library = self.loaded_library
         if library is None:
-            self.show_status("Open a library first")
+            self.show_status(tr("Open a library first"))
             return
         if self.check_tags_tool is None:
             self.check_tags_tool = CheckTagsTool(
@@ -3849,7 +3919,7 @@ class MusicHive:
     def show_find_duplicates(self) -> None:
         library = self.loaded_library
         if library is None:
-            self.show_status("Open a library first")
+            self.show_status(tr("Open a library first"))
             return
         if self.duplicates_tool is None:
             self.duplicates_tool = FindDuplicatesTool(
@@ -3869,7 +3939,7 @@ class MusicHive:
         """Play one song of the library, given by its file."""
         row = next((row for row, track in enumerate(self.tracks) if track == path), None)
         if row is None:
-            self.show_status("That song is no longer in the library")
+            self.show_status(tr("That song is no longer in the library"))
             return
         self.play_rows([row])
 
@@ -3880,14 +3950,16 @@ class MusicHive:
             return None
         return library, [(path, self.library_model.info(row)) for row, path in enumerate(self.tracks)]
 
-    def save_tag_jobs(self, jobs: list[TagJob], description: str = "Tag changes") -> None:
+    def save_tag_jobs(self, jobs: list[TagJob], description: str = "") -> None:
         """Write these tag changes to songs of the open library, keeping them in
         the tag history under `description` so they can be undone."""
         library = self.loaded_library
         if library is None or not jobs:
             return
-        self.show_status(f"Saving tags of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
-        self.tag_writer.save_tags(jobs, library.root, library.db_path, description)
+        self.show_status(tr("Saving tags of %n song(s)…", "", len(jobs)))
+        self.tag_writer.save_tags(
+            jobs, library.root, library.db_path, description or tr("Tag changes")
+        )
 
     def show_tag_history(self) -> None:
         if self.tag_history_window is None:
@@ -3901,14 +3973,14 @@ class MusicHive:
         row_of = {path: row for row, path in enumerate(self.tracks)}
         rows = [row_of[path] for path in paths if path in row_of]
         if not rows:
-            self.show_status("Those songs are no longer in the library")
+            self.show_status(tr("Those songs are no longer in the library"))
             return
         self.edit_tags(rows, find_cover=find_cover)
 
     def show_level_volume(self) -> None:
         library = self.loaded_library
         if library is None:
-            self.show_status("Open a library first")
+            self.show_status(tr("Open a library first"))
             return
         if self.level_tool is None:
             self.level_tool = LevelVolumeTool(
@@ -3924,11 +3996,11 @@ class MusicHive:
     def level_volume_busy_reason(self) -> str | None:
         """Why levelling cannot start right now, or None if it can."""
         if self.scan_task is not None:
-            return "Wait for the scan to finish."
+            return tr("Wait for the scan to finish.")
         if self.auto_tag_library is not None:
-            return "Wait for the auto-tagging to finish."
+            return tr("Wait for the auto-tagging to finish.")
         if self.auto_lyrics_library is not None:
-            return "Wait for the lyrics to be found."
+            return tr("Wait for the lyrics to be found.")
         return None
 
     def on_level_volume_finished(self, library: LibraryInfo, message: str) -> None:
@@ -3978,22 +4050,29 @@ class MusicHive:
         if self.organise_error:
             QMessageBox.warning(
                 self.window,
-                "Organise files",
-                "Files were moved, but the library could not be updated:\n"
-                f"{self.organise_error}",
+                tr("Organise files"),
+                tr(
+                    "Files were moved, but the library could not be updated:\n"
+                    "{organise_error}"
+                ).format(organise_error=self.organise_error),
             )
         if result.failures:
             lines = [f"{name}: {reason}" for name, reason in result.failures[:10]]
             if len(result.failures) > len(lines):
-                lines.append(f"…and {len(result.failures) - len(lines)} more")
+                lines.append(tr("…and {count} more").format(
+                    count=len(result.failures) - len(lines),
+                ))
             QMessageBox.warning(
-                self.window, "Some files could not be moved", "\n".join(lines)
+                self.window, tr("Some files could not be moved"), "\n".join(lines)
             )
         if result.moved or result.failures:
             count = len(result.moved)
-            note = " before stopping" if result.stopped else ""
-            failed = f", {len(result.failures)} failed" if result.failures else ""
-            self.show_status(f"Moved {count} file{'' if count == 1 else 's'}{note}{failed}")
+            message = tr("Moved %n file(s)", "", count)
+            if result.stopped:
+                message += tr(" before stopping")
+            if result.failures:
+                message += tr(", {count} failed").format(count=len(result.failures))
+            self.show_status(message)
 
     def on_tags_saved(self, result: SaveResult) -> None:
         """Files were edited: bring the database and everything on screen up to date."""
@@ -4001,7 +4080,9 @@ class MusicHive:
         try:
             library_db.update_tracks(result.db_path, result.tracks, result.covers)
         except sqlite3.Error as error:
-            self.show_status(f"Tags were written, but the library could not be updated: {error}")
+            self.show_status(tr("Tags were written, but the library could not be updated: {error}").format(
+                error=error,
+            ))
             return
         library = self.loaded_library
         if library is not None and library.db_path == result.db_path:
@@ -4010,11 +4091,15 @@ class MusicHive:
             return  # the levelling tool reports its own progress
         if result.failures:
             name, reason = result.failures[0]
-            more = f" and {len(result.failures) - 1} more" if len(result.failures) > 1 else ""
-            self.show_status(f"Could not save {name}{more}: {reason}")
+            if len(result.failures) > 1:
+                message = tr("Could not save {name} and %n more: {reason}", "", len(result.failures) - 1)
+            else:
+                message = tr("Could not save {name}: {reason}")
+            self.show_status(message.format(name=name, reason=reason))
         else:
-            count = f"{len(result.tracks)} song{'' if len(result.tracks) == 1 else 's'}"
-            self.show_status(f"Saved tags of {count}{self.tags_saved_note}")
+            self.show_status(
+                tr("Saved tags of %n song(s)", "", len(result.tracks)) + self.tags_saved_note
+            )
         self.tags_saved_note = ""
 
     def show_saved_tags(self, result: SaveResult) -> None:
@@ -4345,13 +4430,17 @@ class MusicHive:
 
     def open_device(self, folder: str) -> None:
         if not open_in_dolphin(folder):
-            self.show_status(f"Could not open {folder}" if WINDOWS else "Could not start Dolphin")
+            self.show_status(tr("Could not open {folder}").format(
+                folder=folder,
+            ) if WINDOWS else tr("Could not start Dolphin"))
 
     def safely_remove_device(self, folder: str) -> None:
         if self.device_sync.is_running:
-            self.show_status("Wait for the synchronisation to finish")
+            self.show_status(tr("Wait for the synchronisation to finish"))
             return
-        self.show_status(f"Safely removing {self.device_name(folder)}…")
+        self.show_status(tr("Safely removing {device_name}…").format(
+            device_name=self.device_name(folder),
+        ))
         self.device_ejector.eject(self.device_name(folder), folder)
 
     def on_device_ejected(self, message: str) -> None:
@@ -4390,34 +4479,36 @@ class MusicHive:
             action.triggered.connect(lambda _checked=False: callback())
 
         if kind == PIN or (kind == SECTION and value == COMPUTER_SECTION):
-            add("Pin a folder…", "pin_folder", self.pin_folder)
+            add(tr("Pin a folder…"), "pin_folder", self.pin_folder)
             if kind == PIN:
                 menu.addSeparator()
-                add("Open", "open_folder", lambda: self.open_pinned_folder(value))
-                add("Copy path", "copy", lambda: self.copy_text(value, "Path copied"))
-                add("Unpin", "unpin_folder", lambda: self.unpin_folder(value))
+                add(tr("Open"), "open_folder", lambda: self.open_pinned_folder(value))
+                add(tr("Copy path"), "copy", lambda: self.copy_text(value, tr("Path copied")))
+                add(tr("Unpin"), "unpin_folder", lambda: self.unpin_folder(value))
         elif kind == DEVICE:
-            add("Synchronise…", "sync_device", lambda: self.show_device_tab(value))
-            add("Open in Dolphin", "open_device", lambda: self.open_device(value))
-            add("Safely Remove", "remove_device", lambda: self.safely_remove_device(value))
+            add(tr("Synchronise…"), "sync_device", lambda: self.show_device_tab(value))
+            add(tr("Open in Dolphin"), "open_device", lambda: self.open_device(value))
+            add(tr("Safely Remove"), "remove_device", lambda: self.safely_remove_device(value))
         elif kind == SECTION and value == DEVICES_SECTION:
             pass  # nothing to offer yet
         elif kind in (PODCAST, STATION):
-            menu.addAction(asset_icon("play"), "Play").triggered.connect(
+            menu.addAction(asset_icon("play"), tr("Play")).triggered.connect(
                 lambda _checked=False: self.play_pinned(kind, value)
             )
-            menu.addAction(asset_icon("mic" if kind == PODCAST else "radio"), "Show").triggered.connect(
+            menu.addAction(asset_icon("mic" if kind == PODCAST else "radio"), tr("Show")).triggered.connect(
                 lambda _checked=False: self.show_pinned(kind, value)
             )
             menu.addSeparator()
-            menu.addAction(asset_icon("pin-off"), "Unpin from Sidebar").triggered.connect(
+            menu.addAction(asset_icon("pin-off"), tr("Unpin from Sidebar")).triggered.connect(
                 lambda _checked=False: self.toggle_pin(kind, int(value))
             )
         elif kind == SECTION and value in (PODCASTS_SECTION, STATIONS_SECTION):
-            what = "podcasts" if value == PODCASTS_SECTION else "stations"
-            hint = menu.addAction(f"Pin {what} from their right-click menus")
+            if value == PODCASTS_SECTION:
+                hint = menu.addAction(tr("Pin podcasts from their right-click menus"))
+            else:
+                hint = menu.addAction(tr("Pin stations from their right-click menus"))
             hint.setEnabled(False)
-            menu.addAction("Drag a section's title onto another to move it there").setEnabled(False)
+            menu.addAction(tr("Drag a section's title onto another to move it there")).setEnabled(False)
         elif self.playlist_store is not None:
             self.fill_playlist_menu(menu, add, kind, value)
         if not menu.isEmpty():
@@ -4434,14 +4525,14 @@ class MusicHive:
             menu.addSeparator()
 
         folder = value if kind == FOLDER else ""
-        add("New playlist…", "new_playlist", lambda: self.new_playlist(folder=folder))
-        add("New auto-playlist…", "new_playlist", lambda: self.new_auto_playlist(folder=folder))
-        add("New folder…", "new_folder", self.new_playlist_folder)
-        add("Import playlist…", "import_playlist", self.import_playlist)
+        add(tr("New playlist…"), "new_playlist", lambda: self.new_playlist(folder=folder))
+        add(tr("New auto-playlist…"), "new_playlist", lambda: self.new_auto_playlist(folder=folder))
+        add(tr("New folder…"), "new_folder", self.new_playlist_folder)
+        add(tr("Import playlist…"), "import_playlist", self.import_playlist)
         if kind == FOLDER:
             menu.addSeparator()
-            add("Rename folder…", "rename_folder", lambda: self.rename_playlist_folder(value))
-            add("Delete folder", "delete_folder", lambda: self.delete_playlist_folder(value))
+            add(tr("Rename folder…"), "rename_folder", lambda: self.rename_playlist_folder(value))
+            add(tr("Delete folder"), "delete_folder", lambda: self.delete_playlist_folder(value))
 
     def fill_single_playlist_menu(self, menu: QMenu, add, name: str) -> None:
         """The entries about one playlist: playing it, its songs, and managing it."""
@@ -4451,44 +4542,44 @@ class MusicHive:
         has_songs = bool(rows)
         locked = self.side_model.is_locked(name)
 
-        add("Play", "play_playlist", lambda: self.play_playlist(name), enabled=has_songs)
+        add(tr("Play"), "play_playlist", lambda: self.play_playlist(name), enabled=has_songs)
         add(
-            "Play next", "play_next",
+            tr("Play next"), "play_next",
             lambda: self.queue_tracks(rows, play_next=True), enabled=has_songs,
         )
         add(
-            "Add to queue", "add_to_queue",
+            tr("Add to queue"), "add_to_queue",
             lambda: self.queue_tracks(rows, play_next=False), enabled=has_songs,
         )
         menu.addSeparator()
 
-        add("Copy songs", "copy", lambda: self.copy_rows(rows), enabled=has_songs)
+        add(tr("Copy songs"), "copy", lambda: self.copy_rows(rows), enabled=has_songs)
         if not playlist.is_auto:
             add(
-                "Paste", "paste",
+                tr("Paste"), "paste",
                 lambda: self.add_to_playlist(name, self.clipboard_rows()),
                 enabled=bool(self.clipboard_rows()) and not locked,
             )
         menu.addSeparator()
 
-        add("Edit…", "edit_playlist", lambda: self.edit_playlist(name))
-        add("Duplicate", "duplicate_playlist", lambda: self.duplicate_playlist(name))
-        add("Change icon…", "playlist_icon", self.choose_playlist_icon)
+        add(tr("Edit…"), "edit_playlist", lambda: self.edit_playlist(name))
+        add(tr("Duplicate"), "duplicate_playlist", lambda: self.duplicate_playlist(name))
+        add(tr("Change icon…"), "playlist_icon", self.choose_playlist_icon)
         add(
-            "Remove icon", "remove_playlist_icon",
+            tr("Remove icon"), "remove_playlist_icon",
             lambda: self.remove_playlist_icon(name),
             enabled=store.icon_file(name).exists(),
         )
         if not playlist.is_auto:
             add(
-                "Unlock playlist" if locked else "Lock playlist", "lock_playlist",
+                tr("Unlock playlist") if locked else tr("Lock playlist"), "lock_playlist",
                 lambda: self.set_playlist_locked(name, not locked),
             )
-        add("Export playlist…", "export_playlist", lambda: self.export_playlist(name))
+        add(tr("Export playlist…"), "export_playlist", lambda: self.export_playlist(name))
 
-        move_menu = menu.addMenu(self.menu_icons["move_to_folder"], "Move to folder")
+        move_menu = menu.addMenu(self.menu_icons["move_to_folder"], tr("Move to folder"))
         add(
-            "No folder", None, lambda: self.move_to_folder(name, ""),
+            tr("No folder"), None, lambda: self.move_to_folder(name, ""),
             enabled=bool(playlist.folder), target=move_menu,
         )
         for target in store.folders():
@@ -4498,37 +4589,37 @@ class MusicHive:
                 enabled=target != playlist.folder, target=move_menu,
             )
         menu.addSeparator()
-        add("Delete playlist…", "delete_playlist", lambda: self.delete_playlist(name))
+        add(tr("Delete playlist…"), "delete_playlist", lambda: self.delete_playlist(name))
 
     def ask_folder_name(self, title: str, initial: str = "", ignore: str | None = None) -> str | None:
         """Ask for a folder name until it is valid. None if the user cancels."""
         text = initial
         while True:
-            text, accepted = QInputDialog.getText(self.window, title, "Folder name:", text=text)
+            text, accepted = QInputDialog.getText(self.window, title, tr("Folder name:"), text=text)
             if not accepted:
                 return None
             problem = self.playlist_store.check_folder_name(text, ignore)
             if problem is None:
                 return text.strip()
-            QMessageBox.warning(self.window, "Folder name", problem)
+            QMessageBox.warning(self.window, tr("Folder name"), problem)
 
     def change_playlist_folders(self, change) -> None:
         """Run a change to the folders and show the result."""
         try:
             change()
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot update folders", str(error))
+            QMessageBox.warning(self.window, tr("Cannot update folders"), str(error))
             return
         self.refresh_playlist_list(select=self.current_playlist)
 
     def new_playlist_folder(self) -> None:
-        name = self.ask_folder_name("New folder")
+        name = self.ask_folder_name(tr("New folder"))
         if name is not None:
             self.open_side_entries(entry_id(SECTION, PLAYLISTS_SECTION))
             self.change_playlist_folders(lambda: self.playlist_store.create_folder(name))
 
     def rename_playlist_folder(self, old: str) -> None:
-        new = self.ask_folder_name("Rename folder", initial=old, ignore=old)
+        new = self.ask_folder_name(tr("Rename folder"), initial=old, ignore=old)
         if new is None or new == old:
             return
         if entry_id(FOLDER, old) in self.side_expanded:
@@ -4539,8 +4630,10 @@ class MusicHive:
     def delete_playlist_folder(self, name: str) -> None:
         answer = QMessageBox.question(
             self.window,
-            "Delete folder",
-            f"Delete the folder '{name}'?\n\nThe playlists in it are kept, outside any folder.",
+            tr("Delete folder"),
+            tr("Delete the folder '{name}'?\n\nThe playlists in it are kept, outside any folder.").format(
+                name=name,
+            ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -4558,7 +4651,7 @@ class MusicHive:
 
     def pin_folder(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.HomeLocation)
-        path = QFileDialog.getExistingDirectory(self.window, "Pin a folder", start_dir)
+        path = QFileDialog.getExistingDirectory(self.window, tr("Pin a folder"), start_dir)
         if path and path not in self.pinned_folders:
             self.pinned_folders.append(path)
             self.open_side_entries(entry_id(SECTION, COMPUTER_SECTION))
@@ -4576,7 +4669,7 @@ class MusicHive:
         """
         existing = [path for path in paths if path.exists()]
         if not existing:
-            self.show_status("The file no longer exists")
+            self.show_status(tr("The file no longer exists"))
             return
         if WINDOWS:
             # Explorer selects one file; it wants the command line exactly like this.
@@ -4592,14 +4685,14 @@ class MusicHive:
         reply = QDBusConnection.sessionBus().call(call, QDBus.CallMode.Block, 3000)
         if reply.type() == QDBusMessage.MessageType.ErrorMessage:
             if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(existing[0].parent))):
-                self.show_status(f"Could not open {existing[0].parent}")
+                self.show_status(tr("Could not open {parent}").format(parent=existing[0].parent))
 
     def open_pinned_folder(self, path: str) -> None:
         """Open a pinned folder in the system's file manager."""
         if not Path(path).is_dir():
-            self.show_status(f"This folder no longer exists: {path}")
+            self.show_status(tr("This folder no longer exists: {path}").format(path=path))
         elif not QDesktopServices.openUrl(QUrl.fromLocalFile(path)):
-            self.show_status(f"Could not open {path}")
+            self.show_status(tr("Could not open {path}").format(path=path))
 
     # ----- playlists -----
 
@@ -4766,7 +4859,7 @@ class MusicHive:
         if not name or store is None:
             self.playlist_tracks.set_playlist(None, [], False)
             self.playlist_filter.clear()
-            w.playlistsTabPlaylistName.setText(NO_PLAYLIST_TEXT)
+            w.playlistsTabPlaylistName.setText(tr(NO_PLAYLIST_TEXT))
             w.playlistsTabStats.setText("")
             self.playlist_description.set_text("")
             self.show_playlist_icon(None)
@@ -4781,7 +4874,7 @@ class MusicHive:
         self.show_lock_state(name, playlist.locked or playlist.is_auto)
         if playlist.is_auto:
             w.playlistLockButton.setEnabled(False)
-            w.playlistLockButton.setToolTip("An auto-playlist fills itself from its rules.")
+            w.playlistLockButton.setToolTip(tr("An auto-playlist fills itself from its rules."))
         w.playlistsTabPlaylistName.setText(name)
         w.playlistsTabStats.setText(self.describe_playlist(shown))
         self.playlist_description.set_text(playlist.description)
@@ -4804,14 +4897,15 @@ class MusicHive:
         try:
             store.set_filter(name, kind, value)
         except OSError as error:
-            self.show_status(f"Cannot save the filter: {error}")
+            self.show_status(tr("Cannot save the filter: {error}").format(error=error))
             return
         self.playlist_edited(name)
 
     def describe_playlist(self, rows: list[int]) -> str:
         total_ms = sum(self.library_model.info(row).duration_ms or 0 for row in rows)
-        noun = "Song" if len(rows) == 1 else "Songs"
-        return f"{len(rows)} {noun}, {format_long_duration(total_ms, seconds=True)}"
+        return tr("%n Song(s), {duration}", "", len(rows)).format(
+            duration=format_long_duration(total_ms, seconds=True)
+        )
 
     def playlist_pixmap(self, name: str | None, side: int) -> QPixmap:
         """The playlist's icon at `side` pixels, or the placeholder if it has none."""
@@ -4880,20 +4974,20 @@ class MusicHive:
         store = self.playlist_store
         name = self.current_playlist
         if store is None or name is None:
-            self.show_status("Select or create a playlist first")
+            self.show_status(tr("Select or create a playlist first"))
             return
         start_dir = QStandardPaths.writableLocation(QStandardPaths.PicturesLocation)
         path, _ = QFileDialog.getOpenFileName(
             self.window,
-            "Choose an icon for the playlist",
+            tr("Choose an icon for the playlist"),
             start_dir,
-            "Images (*.png *.jpg *.jpeg *.webp *.bmp *.gif)",
+            tr("Images (*.png *.jpg *.jpeg *.webp *.bmp *.gif)"),
         )
         if not path:
             return
         image = QImage(path)
         if image.isNull():
-            QMessageBox.warning(self.window, "Playlist icon", "That image could not be read.")
+            QMessageBox.warning(self.window, tr("Playlist icon"), tr("That image could not be read."))
             return
         animation = Path(path) if is_animated_gif(path) else None
         if self.save_playlist_icon(name, make_square_icon(image), animation):
@@ -4915,7 +5009,7 @@ class MusicHive:
         except OSError:
             saved = False
         if not saved:
-            QMessageBox.warning(self.window, "Playlist icon", "The icon could not be saved.")
+            QMessageBox.warning(self.window, tr("Playlist icon"), tr("The icon could not be saved."))
         return saved
 
     def remove_playlist_icon(self, name: str) -> None:
@@ -4935,14 +5029,14 @@ class MusicHive:
             problem = self.playlist_store.check_name(text, ignore)
             if problem is None:
                 return text.strip()
-            QMessageBox.warning(self.window, "Playlist name", problem)
+            QMessageBox.warning(self.window, tr("Playlist name"), problem)
 
     def new_playlist(self, add_rows: list[int] | None = None, folder: str = "") -> None:
         """Create a playlist, in `folder` if given, and add songs if `add_rows` is given."""
         store = self.playlist_store
         if store is None:
             return
-        details = self.ask_playlist_details("New playlist")
+        details = self.ask_playlist_details(tr("New playlist"))
         if details is None:
             return
         name = details.name
@@ -4950,14 +5044,17 @@ class MusicHive:
             store.save(Playlist(name, self.relative_paths(add_rows or []), folder=folder))
             self.save_playlist_details(name, details)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot create playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot create playlist"), str(error))
             return
         self.open_side_entries(entry_id(SECTION, PLAYLISTS_SECTION))
         if folder:
             self.open_side_entries(entry_id(FOLDER, folder))
         self.refresh_playlist_list(select=name)
         if add_rows:
-            self.show_status(f"Added {self.describe_songs(add_rows)} to {name}")
+            self.show_status(tr("Added {songs} to {name}").format(
+                songs=self.describe_songs(add_rows),
+                name=name,
+            ))
 
     def ask_playlist_details(
         self,
@@ -5025,14 +5122,14 @@ class MusicHive:
         store = self.playlist_store
         if store is None:
             return
-        details = self.ask_playlist_details("New auto-playlist", rules=[])
+        details = self.ask_playlist_details(tr("New auto-playlist"), rules=[])
         if details is None:
             return
         try:
             store.save(Playlist(details.name, folder=folder, rules=details.rules))
             self.save_playlist_details(details.name, details)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot create playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot create playlist"), str(error))
             return
         self.open_side_entries(entry_id(SECTION, PLAYLISTS_SECTION))
         if folder:
@@ -5060,11 +5157,11 @@ class MusicHive:
         store = self.playlist_store
         name = name or self.current_playlist
         if store is None or name is None:
-            self.show_status("Select or create a playlist first")
+            self.show_status(tr("Select or create a playlist first"))
             return
         playlist = store.load(name)
         details = self.ask_playlist_details(
-            "Edit auto-playlist" if playlist.is_auto else "Edit playlist",
+            tr("Edit auto-playlist") if playlist.is_auto else tr("Edit playlist"),
             name,
             playlist.description,
             playlist.rules,
@@ -5084,7 +5181,7 @@ class MusicHive:
                 current = details.name
             self.save_playlist_details(current, details)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot update playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot update playlist"), str(error))
         bar = self.window.playlistSongList.verticalScrollBar()
         scroll = bar.value()
         self.refresh_playlist_list(select=current)
@@ -5111,10 +5208,10 @@ class MusicHive:
         try:
             store.duplicate(name, new)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot duplicate playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot duplicate playlist"), str(error))
             return
         self.refresh_playlist_list(select=new)
-        self.show_status(f"Created '{new}'")
+        self.show_status(tr("Created '{new}'").format(new=new))
 
     def delete_playlist(self, name: str) -> None:
         store = self.playlist_store
@@ -5122,8 +5219,10 @@ class MusicHive:
             return
         answer = QMessageBox.question(
             self.window,
-            "Delete playlist",
-            f"Delete the playlist '{name}'?\n\nThe songs themselves are not deleted.",
+            tr("Delete playlist"),
+            tr("Delete the playlist '{name}'?\n\nThe songs themselves are not deleted.").format(
+                name=name,
+            ),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -5132,7 +5231,7 @@ class MusicHive:
         try:
             store.delete(name)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot delete playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot delete playlist"), str(error))
             return
         if self.play_source == name:
             self.play_source = None
@@ -5148,7 +5247,7 @@ class MusicHive:
         """For messages: a song's title in quotes, or "3 songs"."""
         if len(rows) == 1:
             return f"'{self.library_model.info(rows[0]).title}'"
-        return f"{len(rows)} songs"
+        return tr("%n song(s)", "", len(rows))
 
     def add_to_playlist(self, name: str, rows: list[int], before: int = -1) -> None:
         """Add songs to a playlist, in front of library row `before` (-1 means the end)."""
@@ -5156,22 +5255,32 @@ class MusicHive:
         if store is None:
             return
         if self.side_model.is_locked(name):
-            self.show_status(f"'{name}' is locked")
+            self.show_status(tr("'{name}' is locked").format(name=name))
             return
         paths = self.relative_paths(rows)
         anchor = self.relative_paths([before])
         try:
             added = store.add_tracks(name, paths, anchor[0] if anchor else None)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot add to playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot add to playlist"), str(error))
             return
         if added == len(paths):
-            self.show_status(f"Added {self.describe_songs(rows)} to {name}")
+            self.show_status(tr("Added {songs} to {name}").format(
+                songs=self.describe_songs(rows),
+                name=name,
+            ))
         elif added == 0:
-            what = self.describe_songs(rows)
-            self.show_status(f"{what} {'is' if len(rows) == 1 else 'are'} already in {name}")
+            if len(rows) == 1:
+                message = tr("{what} is already in {name}")
+            else:
+                message = tr("{what} are already in {name}")
+            self.show_status(message.format(what=self.describe_songs(rows), name=name))
         else:
-            self.show_status(f"Added {added} songs to {name} ({len(paths) - added} already there)")
+            self.show_status(tr("Added {added} songs to {name} ({already} already there)").format(
+                added=added,
+                name=name,
+                already=len(paths) - added,
+            ))
         self.playlist_edited(name)
 
     def add_to_shown_playlist(self, rows: list[int], before: int) -> None:
@@ -5189,7 +5298,7 @@ class MusicHive:
         try:
             store.move_tracks(name, self.relative_paths(rows), anchor[0] if anchor else None)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot update playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot update playlist"), str(error))
             return
         self.playlist_edited(name, select=rows)
 
@@ -5243,7 +5352,7 @@ class MusicHive:
         try:
             store.remove_tracks(name, self.relative_paths(rows))
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot update playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot update playlist"), str(error))
             return
         self.playlist_edited(name, select=[])
 
@@ -5257,9 +5366,9 @@ class MusicHive:
         # The button has no background, so its icon shows whether the playlist is locked.
         button.setIcon(asset_icon("lock" if locked else "lock-open"))
         button.setToolTip(
-            "Locked: songs cannot be added or rearranged. Click to unlock."
+            tr("Locked: songs cannot be added or rearranged. Click to unlock.")
             if locked
-            else "Lock this playlist so songs cannot be added or rearranged."
+            else tr("Lock this playlist so songs cannot be added or rearranged.")
         )
 
     def on_playlist_lock_clicked(self, checked: bool) -> None:
@@ -5273,13 +5382,16 @@ class MusicHive:
         try:
             store.set_locked(name, locked)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot update playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot update playlist"), str(error))
         locked = store.load(name).locked  # what was really saved
         self.refresh_playlist_entry(name)
         if name == self.current_playlist:
             self.playlist_tracks.locked = locked
             self.show_lock_state(name, locked)
-        self.show_status(f"{'Locked' if locked else 'Unlocked'} '{name}'")
+        if locked:
+            self.show_status(tr("Locked '{name}'").format(name=name))
+        else:
+            self.show_status(tr("Unlocked '{name}'").format(name=name))
 
     # ----- importing and exporting -----
 
@@ -5287,11 +5399,11 @@ class MusicHive:
         """Make a new playlist from the songs of an .m3u or .m3u8 file."""
         store = self.playlist_store
         if store is None:
-            self.show_status("Choose a library first")
+            self.show_status(tr("Choose a library first"))
             return
         start_dir = QStandardPaths.writableLocation(QStandardPaths.MusicLocation)
         chosen, _ = QFileDialog.getOpenFileName(
-            self.window, "Import playlist", start_dir, "Playlists (*.m3u8 *.m3u);;All files (*)"
+            self.window, tr("Import playlist"), start_dir, tr("Playlists (*.m3u8 *.m3u);;All files (*)")
         )
         if not chosen:
             return
@@ -5299,7 +5411,7 @@ class MusicHive:
         try:
             listed = list(dict.fromkeys(read_m3u(file)))
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot import playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot import playlist"), str(error))
             return
 
         rows_by_path = {path: row for row, path in enumerate(self.tracks)}
@@ -5312,43 +5424,45 @@ class MusicHive:
         if not rows:
             QMessageBox.information(
                 self.window,
-                "Import playlist",
-                "None of the songs in that playlist are in the current library.",
+                tr("Import playlist"),
+                tr("None of the songs in that playlist are in the current library."),
             )
             return
 
-        name = self.ask_playlist_name("Import playlist", "Name of the new playlist:", file.stem)
+        name = self.ask_playlist_name(tr("Import playlist"), tr("Name of the new playlist:"), file.stem)
         if name is None:
             return
         try:
             store.save(Playlist(name, self.relative_paths(rows)))
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot import playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot import playlist"), str(error))
             return
         self.refresh_playlist_list(select=name)
         self.show_tab_of(self.window.playlistSongList)
         missing = len(listed) - len(rows)
-        note = f" ({missing} not found in this library)" if missing else ""
-        self.show_status(f"Imported {len(rows)} songs into {name}{note}")
+        message = tr("Imported %n song(s) into {name}", "", len(rows)).format(name=name)
+        if missing:
+            message += tr(" ({missing} not found in this library)").format(missing=missing)
+        self.show_status(message)
 
     def export_playlist(self, name: str | None = None) -> None:
         """Save a playlist (by default the one on screen) as .m3u8 or .m3u."""
         name = name or self.current_playlist
         if name is None or self.playlist_store is None:
-            self.show_status("Select a playlist to export first")
+            self.show_status(tr("Select a playlist to export first"))
             return
         start_dir = Path(QStandardPaths.writableLocation(QStandardPaths.MusicLocation))
         chosen, used_filter = QFileDialog.getSaveFileName(
             self.window,
-            "Export playlist",
+            tr("Export playlist"),
             str(start_dir / f"{name}.m3u8"),
-            f"{M3U8_FILTER};;{M3U_FILTER}",
+            f"{tr(M3U8_FILTER)};;{tr(M3U_FILTER)}",
         )
         if not chosen:
             return
         file = Path(chosen)
         if file.suffix.lower() not in (".m3u", ".m3u8"):
-            suffix = ".m3u" if used_filter == M3U_FILTER else ".m3u8"
+            suffix = ".m3u" if used_filter == tr(M3U_FILTER) else ".m3u8"
             file = file.with_name(file.name + suffix)
 
         tracks = []
@@ -5360,9 +5474,12 @@ class MusicHive:
         try:
             write_m3u(file, tracks)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot export playlist", str(error))
+            QMessageBox.warning(self.window, tr("Cannot export playlist"), str(error))
             return
-        self.show_status(f"Exported {len(tracks)} songs to {file}")
+        self.show_status(tr("Exported {count} songs to {file}").format(
+            count=len(tracks),
+            file=file,
+        ))
 
     def playlist_display_rows(self) -> list[int]:
         """Library rows of the playlist on screen, in the order its table shows them."""
@@ -5384,7 +5501,7 @@ class MusicHive:
             self.select_playlist(name)
         rows = self.playlist_display_rows()
         if not rows:
-            self.show_status(f"'{name}' has no songs yet")
+            self.show_status(tr("'{name}' has no songs yet").format(name=name))
             return
         first = random.choice(rows) if self.play_order.shuffle else rows[0]
         self.play_now(first, context=rows)
@@ -5439,7 +5556,7 @@ class MusicHive:
         if self.current_library is not None:
             self.open_library(self.current_library, restore=True)
         else:
-            self.show_status("Add a library to get started (File → Add Library…)")
+            self.show_status(tr("Add a library to get started (File → Add Library…)"))
 
     def refresh_libraries(self, select_id: str | None = None) -> None:
         """Re-read the saved libraries and rebuild the drop-down."""
@@ -5485,7 +5602,10 @@ class MusicHive:
             self.load_playlists()
             self.update_controls()
             self.update_library_stats()
-            self.show_status(f"Cannot read library '{info.name}': {error}")
+            self.show_status(tr("Cannot read library '{name}': {error}").format(
+                name=info.name,
+                error=error,
+            ))
             return
 
         self.loaded_library = info
@@ -5510,7 +5630,10 @@ class MusicHive:
         try:
             loaded = library_db.load_library(info, self.shown_tag_names())
         except sqlite3.Error as error:
-            self.show_status(f"Cannot read library '{info.name}': {error}")
+            self.show_status(tr("Cannot read library '{name}': {error}").format(
+                name=info.name,
+                error=error,
+            ))
             return
 
         playing = (
@@ -5539,7 +5662,7 @@ class MusicHive:
     def add_library(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.MusicLocation)
         folder = QFileDialog.getExistingDirectory(
-            self.window, "Choose a music folder to add as a library", start_dir
+            self.window, tr("Choose a music folder to add as a library"), start_dir
         )
         if not folder:  # the user cancelled the dialog
             return
@@ -5549,15 +5672,15 @@ class MusicHive:
         except (OSError, sqlite3.Error) as error:
             QMessageBox.warning(
                 self.window,
-                "Cannot add library",
-                f"The library could not be created:\n{error}",
+                tr("Cannot add library"),
+                tr("The library could not be created:\n{error}").format(error=error),
             )
             return
 
         self.refresh_libraries(select_id=info.id)
         self.open_library(info)  # starts the first scan if it was never scanned
         if not created:
-            self.show_status(f"'{info.name}' is already in your libraries")
+            self.show_status(tr("'{name}' is already in your libraries").format(name=info.name))
 
     def remove_library(self) -> None:
         info = self.current_library
@@ -5565,10 +5688,12 @@ class MusicHive:
             return
         answer = QMessageBox.question(
             self.window,
-            "Remove library",
-            f"Remove the library '{info.name}'?\n\n"
-            "This only deletes MusicHive's saved data for it. "
-            "Your music files are not touched.",
+            tr("Remove library"),
+            tr(
+                "Remove the library '{name}'?\n\n"
+                "This only deletes MusicHive's saved data for it. "
+                "Your music files are not touched."
+            ).format(name=info.name),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -5578,7 +5703,7 @@ class MusicHive:
         try:
             library_db.remove_library(info)
         except OSError as error:
-            QMessageBox.warning(self.window, "Cannot remove library", str(error))
+            QMessageBox.warning(self.window, tr("Cannot remove library"), str(error))
             return
 
         self.player.unload()
@@ -5591,7 +5716,7 @@ class MusicHive:
         self.settings.remove(self.last_playlist_key(info))
         self.settings.remove("lastLibrary")
         self.refresh_libraries(select_id=None)
-        self.show_status(f"Removed library '{info.name}'")
+        self.show_status(tr("Removed library '{name}'").format(name=info.name))
 
     def update_library_stats(self) -> None:
         """Show the library's file count, size and length at the right of the status bar."""
@@ -5608,20 +5733,25 @@ class MusicHive:
             label.setToolTip("")
             return
 
-        noun = "file" if stats.file_count == 1 else "files"
         label.setText(
-            f"{stats.file_count} {noun}, {format_size(stats.total_bytes)}, "
-            f"{format_long_duration(stats.total_ms)}"
+            tr("%n file(s), {size}, {duration}", "", stats.file_count).format(
+                size=format_size(stats.total_bytes), duration=format_long_duration(stats.total_ms)
+            )
         )
         label.setToolTip(
-            f"{stats.file_count:,} {noun}\n"
-            f"{stats.total_bytes:,} bytes\n"
-            f"{format_long_duration(stats.total_ms, seconds=True)}"
+            tr("%n file(s)\n{bytes} bytes\n{duration}", "", stats.file_count).format(
+                bytes=f"{stats.total_bytes:,}",
+                duration=format_long_duration(stats.total_ms, seconds=True),
+            )
         )
 
     def describe(self, info: LibraryInfo, track_count: int) -> str:
-        scanned = info.scanned_at.replace("T", " ") if info.scanned_at else "never"
-        return f"{info.name}: {track_count} songs · last scanned {scanned}"
+        scanned = info.scanned_at.replace("T", " ") if info.scanned_at else tr("never")
+        return tr("{name}: {track_count} songs · last scanned {scanned}").format(
+            name=info.name,
+            track_count=track_count,
+            scanned=scanned,
+        )
 
     def update_controls(self) -> None:
         """Enable or disable the library controls to match the current state."""
@@ -5640,7 +5770,7 @@ class MusicHive:
 
     def rescan(self) -> None:
         if self.current_library is None:
-            self.show_status("Add a library first (File → Add Library…)")
+            self.show_status(tr("Add a library first (File → Add Library…)"))
             return
         self.start_scan(self.current_library)
 
@@ -5650,12 +5780,16 @@ class MusicHive:
         self.scan_library = info
         self.scan_task = ScanTask(info, self.scan_signals)
         self.update_controls()
-        self.show_status(f"Scanning '{info.name}'…")
+        self.show_status(tr("Scanning '{name}'…").format(name=info.name))
         self.scan_pool.start(self.scan_task)
 
     def on_scan_progress(self, library_id: str, done: int, total: int) -> None:
         name = self.scan_library.name if self.scan_library else "library"
-        self.show_status(f"Scanning '{name}': {done} of {total} songs")
+        self.show_status(tr("Scanning '{name}': {done} of {total} songs").format(
+            name=name,
+            done=done,
+            total=total,
+        ))
 
     def on_scan_finished(self, library_id: str, count: int) -> None:
         name = self.scan_library.name if self.scan_library else "library"
@@ -5668,16 +5802,21 @@ class MusicHive:
             self.reload_current_library()
 
         if count:
-            self.show_status(f"Scan complete: {count} songs in '{name}'")
+            self.show_status(tr("Scan complete: {count} songs in '{name}'").format(
+                count=count,
+                name=name,
+            ))
         else:
-            self.show_status(f"Scan complete: no supported audio files in '{name}'")
+            self.show_status(tr("Scan complete: no supported audio files in '{name}'").format(
+                name=name,
+            ))
 
     def on_scan_failed(self, library_id: str, message: str) -> None:
         self.scan_task = None
         self.scan_library = None
         self.update_controls()
-        self.show_status("Scan failed")
-        QMessageBox.warning(self.window, "Scan failed", message)
+        self.show_status(tr("Scan failed"))
+        QMessageBox.warning(self.window, tr("Scan failed"), message)
 
     def on_scan_cancelled(self, library_id: str) -> None:
         self.scan_task = None
@@ -5812,7 +5951,7 @@ class MusicHive:
                 self.play_episode(following)
                 return
         if finished is not None:
-            self.show_status(f"Finished “{finished.title}”")
+            self.show_status(tr("Finished “{title}”").format(title=finished.title))
 
     def show_episode_info(self) -> None:
         """Fill the track info panel for the episode that just started."""
@@ -5826,13 +5965,17 @@ class MusicHive:
         w.trackInfoArtistAlbumArtist.setText(html.escape(podcast.title))
         released = format_date(episode.published)
         w.trackInfoAlbumYear.setText(
-            html.escape(f"Podcast episode, {released}" if released else "Podcast episode")
+            html.escape(
+                tr("Podcast episode, {released}").format(released=released)
+                if released
+                else tr("Podcast episode")
+            )
         )
         streaming = self.podcasts.file_path(episode) is None
         self.track_audio_format = ""
+        source = tr("Streaming") if streaming else tr("Downloaded")
         w.trackInfoFile.setText(
-            f'<span style="color: {theme.dimmed_text_on_panel()}; font-size: 8pt">'
-            f"{'Streaming' if streaming else 'Downloaded'}</span>"
+            f'<span style="color: {theme.dimmed_text_on_panel()}; font-size: 8pt">{source}</span>'
         )
         self.update_window_title(episode.title, podcast.title)
         cover = self.podcast_tab.cover_image(podcast.id)
@@ -5900,11 +6043,11 @@ class MusicHive:
         key = f"{kind}:{item_id}"
         if key in self.pinned_media:
             self.pinned_media.remove(key)
-            self.show_status("Unpinned from the sidebar")
+            self.show_status(tr("Unpinned from the sidebar"))
         else:
             self.pinned_media.append(key)
             self.open_side_entries(entry_id(SECTION, SECTION_OF[kind]))
-            self.show_status("Pinned to the sidebar")
+            self.show_status(tr("Pinned to the sidebar"))
         self.settings.setValue("pinnedMedia", json.dumps(self.pinned_media))
         self.refresh_pinned_media()
         self.apply_side_expansion()
@@ -5983,7 +6126,7 @@ class MusicHive:
         self.radio.played(station_id)
         self.radio_title = ""
         self._radio_song_position = 0
-        self.show_status(f"Tuning in to {station.name}…")
+        self.show_status(tr("Tuning in to {name}…").format(name=station.name))
         if station.hls:
             self.play_station_directly(station.url)
             return
@@ -6031,7 +6174,10 @@ class MusicHive:
             return
         self.radio_stream = None
         self.player.stop()
-        self.show_status(f"{station.name if station else 'The station'} cannot be played: {message}")
+        self.show_status(tr("{station} cannot be played: {message}").format(
+            station=station.name if station else tr("The station"),
+            message=message,
+        ))
 
     def on_player_stream_title(self, title: str) -> None:
         """Titles from the player itself count only for a station it plays directly."""
@@ -6081,7 +6227,7 @@ class MusicHive:
         """Next/Previous on the radio: the next or previous favourite station."""
         ids = [s.id for s in self.radio.store.favourites()]
         if not ids:
-            self.show_status("Add stations to your favourites to switch between them")
+            self.show_status(tr("Add stations to your favourites to switch between them"))
             return
         index = ids.index(self.station_id) + step if self.station_id in ids else 0
         self.play_station(ids[index % len(ids)])
@@ -6090,7 +6236,7 @@ class MusicHive:
         behind = self.radio_stream.behind_seconds() if self.radio_stream is not None else 0.0
         self.radio_tab.set_behind(behind)
         w = self.window
-        w.durationLabel.setText("LIVE" if behind < 2 else f"−{format_time(int(behind * 1000))}")
+        w.durationLabel.setText(tr("LIVE") if behind < 2 else f"−{format_time(int(behind * 1000))}")
 
     def radio_go_live(self) -> None:
         stream = self.radio_stream
@@ -6107,10 +6253,10 @@ class MusicHive:
         if on:
             s = self.radio.settings
             stream.start_taping(s.tapes_folder(), s.tape_per_song, s.tape_from_song_start)
-            self.show_status(f"Taping into {s.tapes_folder()}")
+            self.show_status(tr("Taping into {tapes_folder}").format(tapes_folder=s.tapes_folder()))
         else:
             stream.stop_taping()
-            self.show_status("Taping stopped")
+            self.show_status(tr("Taping stopped"))
 
     def on_tape_file_done(self, path: Path, title: str) -> None:
         """A taped file is finished: give it tags, so the library knows what it is."""
@@ -6134,12 +6280,12 @@ class MusicHive:
                 tags.save(str(path))
             except Exception as error:  # a tape without tags is still a tape
                 print(f"MusicHive: could not tag {path.name}: {error}", file=sys.stderr)
-        self.show_status(f"Taped “{title or path.stem}”")
+        self.show_status(tr("Taped “{title}”").format(title=title or path.stem))
 
     def remember_radio_song(self) -> None:
         if self.station_id is not None and self.radio_title:
             self.radio.remember(self.station_id, self.radio_title)
-            self.show_status(f"Remembered “{self.radio_title}”")
+            self.show_status(tr("Remembered “{radio_title}”").format(radio_title=self.radio_title))
 
     def show_station_info(self) -> None:
         """Fill the track info panel for the station (and the song heard on it)."""
@@ -6152,12 +6298,12 @@ class MusicHive:
         w.currentTrackLabel.setText(title)
         w.trackInfoTitle.setText(html.escape(title))
         w.trackInfoArtistAlbumArtist.setText(html.escape(artist or (station.name if self.radio_title else "")))
-        w.trackInfoAlbumYear.setText(html.escape(f"Radio: {station.name}"))
+        w.trackInfoAlbumYear.setText(html.escape(tr("Radio: {name}").format(name=station.name)))
         self.track_audio_format = ""
         quality = " ".join(p for p in (station.codec, f"{station.bitrate} kbps" if station.bitrate else "") if p)
+        quality = html.escape(quality or tr("Live radio"))
         w.trackInfoFile.setText(
-            f'<span style="color: {theme.dimmed_text_on_panel()}; font-size: 8pt">'
-            f"{html.escape(quality or 'Live radio')}</span>"
+            f'<span style="color: {theme.dimmed_text_on_panel()}; font-size: 8pt">{quality}</span>'
         )
         self.update_window_title(title, artist or station.name)
         logo = self.radio_tab.logo_image(station.id)
@@ -6241,7 +6387,7 @@ class MusicHive:
         self.cast_searched = True
         if self.cast_finder.search():
             self.window.actionCastSearch.setEnabled(False)
-            self.show_status("Looking for TVs and speakers…")
+            self.show_status(tr("Looking for TVs and speakers…"))
 
     def on_cast_devices_found(self, devices: list[CastDevice]) -> None:
         w = self.window
@@ -6270,11 +6416,11 @@ class MusicHive:
         self.update_cast_ui()
         if devices:
             count = len(devices)
-            message = f"Found {count} TV{'s' if count != 1 else ''} or speaker{'s' if count != 1 else ''}"
+            message = tr("Found %n TV(s) or speaker(s)", "", count)
         else:
-            message = "No TVs or speakers found. Are they switched on and on the same network?"
+            message = tr("No TVs or speakers found. Are they switched on and on the same network?")
         if not self.cast_finder.chromecast_support:
-            message += " (Chromecasts need the PyChromecast package)"
+            message += tr(" (Chromecasts need the PyChromecast package)")
         self.show_status(message)
 
     def cast_to(self, device: CastDevice | None, again: bool = False) -> None:
@@ -6288,7 +6434,7 @@ class MusicHive:
                 player.stop_casting()
                 self.cast_screen.stop()
                 self.back_on_computer()
-                self.show_status(f"Stopped casting to {current.name}")
+                self.show_status(tr("Stopped casting to {name}").format(name=current.name))
         elif again or current is None or current.id != device.id:
             video = w.actionCastVideo.isChecked() and device.kind != BROWSER
             try:
@@ -6298,7 +6444,10 @@ class MusicHive:
                     self.cast_screen.stop()
                 if current is not None and not player.casting:  # it was ended on the way
                     self.back_on_computer()
-                self.show_status(f"Cannot cast to {device.name}: {error}")
+                self.show_status(tr("Cannot cast to {name}: {error}").format(
+                    name=device.name,
+                    error=error,
+                ))
                 self.update_cast_ui()
                 return
             if current is None:
@@ -6314,18 +6463,24 @@ class MusicHive:
                 self.send_screen_style()
                 self.prepare_next_bars()
                 self.show_status(
-                    f"Open {player.browser_address} in the TV's browser "
-                    "(click the address in the Cast To menu to copy it)"
+                    tr(
+                        "Open {browser_address} in the TV's browser "
+                        "(click the address in the Cast To menu to copy it)"
+                    ).format(browser_address=player.browser_address)
                 )
             elif video:
                 self.show_status(
-                    f"Casting to {device.name} ({kind}) with the visualiser and lyrics. "
-                    "Pausing and skipping take a few seconds to reach the TV."
+                    tr(
+                        "Casting to {name} ({kind}) with the visualiser and lyrics. "
+                        "Pausing and skipping take a few seconds to reach the TV."
+                    ).format(name=device.name, kind=kind)
                 )
             else:
                 self.show_status(
-                    f"Casting to {device.name} ({kind}). The equaliser, crossfade and "
-                    "visualiser only work on this computer."
+                    tr(
+                        "Casting to {name} ({kind}). The equaliser, crossfade and "
+                        "visualiser only work on this computer."
+                    ).format(name=device.name, kind=kind)
                 )
         self.update_cast_ui()
 
@@ -6335,7 +6490,7 @@ class MusicHive:
         if not (len(code) == 6 and code.isdigit()):
             code = f"{100000 + secrets.randbelow(900000)}"  # short, to type on a TV remote
             self.settings.setValue(CAST_BROWSER_CODE_KEY, code)
-        self.cast_to(CastDevice(kind=BROWSER, id="browser", name="the web browser", host="", code=code))
+        self.cast_to(CastDevice(kind=BROWSER, id="browser", name=tr("the web browser"), host="", code=code))
 
     def prepare_next_bars(self) -> None:
         """While casting to a browser: the next song's bar map is made meanwhile,
@@ -6375,7 +6530,9 @@ class MusicHive:
         device = self.player.cast_device
         w.castButton.setChecked(device is not None)
         w.castButton.setToolTip(
-            f"Casting to {device.name}." if device is not None else "Cast to a TV or speaker."
+            tr("Casting to {device}.").format(device=device.name)
+            if device is not None
+            else tr("Cast to a TV or speaker.")
         )
         w.actionCastComputer.setChecked(device is None)
         browser = device is not None and device.kind == BROWSER
@@ -6463,19 +6620,21 @@ class MusicHive:
         if minutes > 0:
             fade = self.settings.value(FADE_KEY, DEFAULT_FADE_SECONDS, type=int)
             self.sleep_timer.start(minutes, fade)
-            self.show_status(f"Sleep timer: playback pauses in {minutes} minutes")
+            self.show_status(tr("Sleep timer: playback pauses in {minutes} minutes").format(
+                minutes=minutes,
+            ))
         elif self.sleep_at_end:
             self.show_sleep_remaining(-1)
-            self.show_status("Sleep timer: playback pauses when this ends")
+            self.show_status(tr("Sleep timer: playback pauses when this ends"))
         else:
-            self.show_status("Sleep timer off")
+            self.show_status(tr("Sleep timer off"))
 
     def show_sleep_remaining(self, minutes: int) -> None:
         label = self.sleep_label
         if minutes >= 0:
-            label.setText(f"Sleep in {minutes} min")
+            label.setText(tr("Sleep in {minutes} min").format(minutes=minutes))
         elif self.sleep_at_end:
-            label.setText("Sleep at the end")
+            label.setText(tr("Sleep at the end"))
         label.setVisible(minutes >= 0 or self.sleep_at_end)
 
     def on_sleep_fade(self, factor: float) -> None:
@@ -6494,7 +6653,7 @@ class MusicHive:
             self.player.set_volume(w.volumeSlider.value())
         w.actionSleepOff.setChecked(True)
         self.show_sleep_remaining(-1)
-        self.show_status("Sleep timer: paused. Good night!")
+        self.show_status(tr("Sleep timer: paused. Good night!"))
 
     def episode_mpris_metadata(self) -> dict:
         episode = self.podcasts.store.episode(self.episode_id)
@@ -6543,7 +6702,7 @@ class MusicHive:
             if row not in shown:
                 row = shown[0] if shown else -1
             if row < 0:
-                self.show_status("Choose a library with music first")
+                self.show_status(tr("Choose a library with music first"))
                 return
             self.play_order.start_at(row, shown)
             self.play_index(row)
@@ -6555,7 +6714,7 @@ class MusicHive:
         if self.episode_id is not None:
             following = self.episode_beside(newer=True)
             if following is None:
-                self.show_status("This is the newest episode")
+                self.show_status(tr("This is the newest episode"))
             else:
                 self.play_episode(following)
             return
@@ -6567,7 +6726,7 @@ class MusicHive:
             return
         row = self.play_order.next()
         if row is None:
-            self.show_status("This is the last song")
+            self.show_status(tr("This is the last song"))
         else:
             self.play_index(row)
 
@@ -6704,7 +6863,7 @@ class MusicHive:
         self.update_stop_after_action()
         row = self.play_order.next(ended_naturally=True)
         if row is None:
-            self.show_status("Reached the end of the library")
+            self.show_status(tr("Reached the end of the library"))
         elif stop_here:
             # "End playback after song": the next track waits, paused.
             self.load_track_paused(row)
@@ -6730,13 +6889,13 @@ class MusicHive:
         # The single transport button shows what clicking it will do.
         if state == "playing":
             w.playButton.setIcon(self.icon_pause)
-            w.playButton.setToolTip("Pause")
-            self.show_status(f"Playing {w.currentTrackLabel.text()}")
+            w.playButton.setToolTip(tr("Pause"))
+            self.show_status(tr("Playing {text}").format(text=w.currentTrackLabel.text()))
         else:
             w.playButton.setIcon(self.icon_play)
-            w.playButton.setToolTip("Play")
+            w.playButton.setToolTip(tr("Play"))
             if state == "paused" and not self.restoring_session:
-                self.show_status("Paused")
+                self.show_status(tr("Paused"))
             else:  # stopped
                 self.position_ms = 0
                 w.progressSlider.setValue(0)
@@ -6811,7 +6970,9 @@ def main() -> int:
 
         ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID("MusicHive.MusicHive")
         app.setWindowIcon(QIcon(str(APP_ICON_FILE)))
-    # Dark or light mode and the highlight colour, before any window is loaded.
+    # The language, and dark or light mode and the highlight colour, before any
+    # window is loaded.
+    i18n.setup(QSettings("MusicHive", "MusicHive"))
     theme.setup(QSettings("MusicHive", "MusicHive"), UI_DIR)
     music_hive = MusicHive()
     # Menus and dialogs only see the application palette, so give them the

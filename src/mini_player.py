@@ -1,5 +1,6 @@
 """The mini player: a small window with the basic controls that stays on top."""
 
+import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -166,7 +167,13 @@ class MiniPlayer(QObject):
         """
         position = self._saved_position()
         saved = f"{{x: {position[0]}, y: {position[1]}}}" if position else "null"
-        text = KWIN_SCRIPT.read_text(encoding="utf-8").replace("__SAVED_POSITION__", saved)
+        # The script finds the window by its title, which is translated.
+        title = json.dumps(self.window.windowTitle())
+        text = (
+            KWIN_SCRIPT.read_text(encoding="utf-8")
+            .replace("__SAVED_POSITION__", saved)
+            .replace("__TITLE__", title)
+        )
         folder = QStandardPaths.writableLocation(QStandardPaths.StandardLocation.RuntimeLocation)
         script = Path(folder) / f"{KWIN_SCRIPT_NAME}.js"
         script.write_text(text, encoding="utf-8")

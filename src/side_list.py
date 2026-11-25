@@ -24,6 +24,7 @@ from PySide6.QtGui import QDrag, QIcon, QPainter, QPixmap, QStandardItem, QStand
 from PySide6.QtWidgets import QApplication, QStyledItemDelegate, QTreeView
 
 from src.drag_label import drag_pixmap
+from src.i18n import QT_TR_NOOP, tr
 from src.track_list import TRACK_DRAG_MIME, read_track_drag
 
 SECTION, FOLDER, PLAYLIST, PIN, DEVICE = "section", "folder", "playlist", "pin", "device"
@@ -31,11 +32,11 @@ PODCAST, STATION = "podcast", "station"  # pinned podcasts and radio stations
 PLAYLISTS_SECTION, COMPUTER_SECTION, DEVICES_SECTION = "playlists", "computer", "devices"
 PODCASTS_SECTION, STATIONS_SECTION = "podcasts", "stations"
 SECTIONS = (  # the sections and their titles, in the order they start in
-    (PLAYLISTS_SECTION, "Playlists"),
-    (PODCASTS_SECTION, "Podcasts"),
-    (STATIONS_SECTION, "Radio Stations"),
-    (COMPUTER_SECTION, "Computer"),
-    (DEVICES_SECTION, "Devices"),
+    (PLAYLISTS_SECTION, QT_TR_NOOP("Playlists")),
+    (PODCASTS_SECTION, QT_TR_NOOP("Podcasts")),
+    (STATIONS_SECTION, QT_TR_NOOP("Radio Stations")),
+    (COMPUTER_SECTION, QT_TR_NOOP("Computer")),
+    (DEVICES_SECTION, QT_TR_NOOP("Devices")),
 )
 SECTION_OF = {PODCAST: PODCASTS_SECTION, STATION: STATIONS_SECTION}  # pinned kind -> section
 ROW_DRAG_MIME = "application/x-musichive-side-row"  # a section being moved
@@ -166,7 +167,7 @@ class SideListModel(QStandardItemModel):
 
         sections = {}
         for value, title in SECTIONS:
-            sections[value] = self._opening_item(title, SECTION, value)
+            sections[value] = self._opening_item(tr(title), SECTION, value)
             sections[value].setDragEnabled(True)  # the sections can be put in another order
             sections[value].setDropEnabled(True)
         order = [v for v in self.section_order if v in sections]
@@ -310,7 +311,7 @@ class SideListModel(QStandardItemModel):
             return False
         name = self.value(parent)
         if self.is_locked(name):
-            self.drop_refused.emit(f"'{name}' is locked")
+            self.drop_refused.emit(tr("'{name}' is locked").format(name=name))
             return False
         return read_track_drag(data)[1] != name
 

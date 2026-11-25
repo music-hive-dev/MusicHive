@@ -42,6 +42,7 @@ from PySide6.QtWidgets import (
 from src import theme
 from src.lyrics import parse_lyrics
 from src.cover_colours import CoverColours, cover_colours
+from src.i18n import QT_TR_NOOP, tr
 from src.lyrics_settings import LyricsSettings
 from src.visualiser_settings import (
     COVER,
@@ -74,7 +75,7 @@ _ARRAY_TYPES = {
     QAudioFormat.SampleFormat.Float: ("f", 1.0, 0.0),
 }
 
-NO_LYRICS_TEXT = "No lyrics for this song"
+NO_LYRICS_TEXT = QT_TR_NOOP("No lyrics for this song")
 INSTRUMENTAL_LINE = "♪"
 DIM_ALPHA = 120
 CURRENT_LINE_EXTRA_POINTS = 20
@@ -615,7 +616,7 @@ class LyricsView(QObject):
         self._times = lyrics.times_ms
         self._current = -1
         self.text = "\n".join(lyrics.texts)  # for copying; empty if there are no lyrics
-        lines = lyrics.texts or [NO_LYRICS_TEXT]
+        lines = lyrics.texts or [tr(NO_LYRICS_TEXT)]
         if self._times:
             view.addItem(self._make_gap())
         for line in lines:

@@ -17,6 +17,7 @@ from pathlib import Path
 from PySide6.QtCore import QSettings, QTimer
 from PySide6.QtWidgets import QApplication, QHeaderView, QTableWidgetItem, QWidget
 
+from src.i18n import tr
 from src.lastfm_dialog import load_dialog
 from src.music_library import find_audio_files
 from src.track_metadata import TrackInfo, find_folder_cover, forget_folder_covers
@@ -75,16 +76,18 @@ def template_problem(template: str) -> str | None:
     """Why this template cannot be used, or None if it can."""
     template = template.strip()
     if not template:
-        return "Enter a naming template."
+        return tr("Enter a naming template.")
     if template.endswith("/"):
-        return "The template must end with a file name, not a folder."
+        return tr("The template must end with a file name, not a folder.")
     unknown = [name for name in _TAG.findall(template) if name.lower() not in TAG_NAMES]
     if unknown:
-        return f"Unknown tag: <{unknown[0]}>"
+        return tr("Unknown tag: <{tag}>").format(tag=unknown[0])
     if re.search("[<>]", _TAG.sub("", template)):
-        return "A tag is missing its < or >."
+        return tr("A tag is missing its < or >.")
     if not _TAG.search(template.rsplit("/", 1)[-1]):
-        return "The file name needs at least one tag, or every song would get the same name."
+        return tr(
+                "The file name needs at least one tag, or every song would get the same name."
+            )
     return None
 
 
@@ -343,8 +346,9 @@ class OrganiseDialog:
             d.organiseSummary.setText(problem)
         else:
             d.organiseSummary.setText(
-                f"{moving} to move, {len(rows) - moving} skipped, "
-                f"{self._plan.unchanged} already in place"
+                tr("{moving} to move, {skipped} skipped, {unchanged} already in place").format(
+                    moving=moving, skipped=len(rows) - moving, unchanged=self._plan.unchanged
+                )
             )
 
     def _show_rows(self, rows: list[FileMove]) -> None:
@@ -353,7 +357,9 @@ class OrganiseDialog:
         table.setUpdatesEnabled(False)
         table.setRowCount(len(rows))
         for index, row in enumerate(rows):
-            new = QTableWidgetItem(row.new or f"Skipped: no {', '.join(row.missing)}")
+            new = QTableWidgetItem(
+                row.new or tr("Skipped: no {tags}").format(tags=", ".join(row.missing))
+            )
             if not row.new:
                 new.setForeground(dim)
             table.setItem(index, 0, QTableWidgetItem(row.old))
@@ -389,7 +395,7 @@ class OrganiseDialog:
                     move_song(self._root, move)
                 except OSError as error:
                     if getattr(error, "winerror", None) == _WINDOWS_FILE_IN_USE:
-                        reason = "it is open, maybe playing; try again once it is not"
+                        reason = tr("it is open, maybe playing; try again once it is not")
                     else:
                         reason = str(error)
                     result.failures.append((move.old, reason))

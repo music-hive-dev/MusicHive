@@ -18,6 +18,7 @@ from pathlib import Path
 from PySide6.QtCore import QObject, QRunnable, QSettings, QThreadPool, Signal
 
 from src import library_db
+from src.i18n import tr
 
 USER_AGENT = "MusicHive/1.0 (radio)"
 SERVERS_URL = "https://all.api.radio-browser.info/json/servers"
@@ -329,14 +330,14 @@ def _get_json(path: str, params: dict | None = None):
             last_error = error
             if _server == server:
                 _server = None
-    raise last_error or OSError("Radio Browser cannot be reached")
+    raise last_error or OSError(tr("Radio Browser cannot be reached"))
 
 
 def _station_from(entry: dict) -> Station:
     return Station(
         id=0,
         uuid=entry.get("stationuuid") or "",
-        name=(entry.get("name") or "").strip() or "Unnamed station",
+        name=(entry.get("name") or "").strip() or tr("Unnamed station"),
         url=entry.get("url_resolved") or entry.get("url") or "",
         homepage=entry.get("homepage") or "",
         favicon=entry.get("favicon") or "",
@@ -478,18 +479,22 @@ class RadioManager(QObject):
     # ----- finding stations -----
 
     def search(self, name: str, country_code: str, language: str, tag: str, heading: str) -> None:
-        self.status.emit("Looking for stations…")
+        self.status.emit(tr("Looking for stations…"))
         self._run(
             lambda: search_stations(name, country_code, language, tag),
             lambda found: self._found(heading, found),
-            lambda message: self.failed.emit(f"Radio Browser: {message}"),
+            lambda message: self.failed.emit(tr("Radio Browser: {message}").format(
+                message=message,
+            )),
         )
 
     def popular(self) -> None:
         self._run(
             popular_stations,
-            lambda found: self._found("Popular stations", found),
-            lambda message: self.failed.emit(f"Radio Browser: {message}"),
+            lambda found: self._found(tr("Popular stations"), found),
+            lambda message: self.failed.emit(tr("Radio Browser: {message}").format(
+                message=message,
+            )),
         )
 
     def _found(self, heading: str, stations: list[Station]) -> None:

@@ -12,11 +12,13 @@ from PySide6.QtCore import QEvent, QModelIndex, QObject, QPoint, Qt
 from PySide6.QtGui import QCursor
 from PySide6.QtWidgets import QAbstractItemView, QComboBox, QTableView, QToolTip, QWidget
 
+from src.i18n import QT_TR_NOOP, tr
+
 FIND_RESET_KEY = "general/findResetSeconds"
 DEFAULT_RESET_SECONDS = 1.0
 _reset_seconds = DEFAULT_RESET_SECONDS  # after a pause this long, typing starts a new search
 FIND_TIP_OFFSET = (6, 0)  # pixels right of and below the mouse pointer
-TITLE_COLUMN = "Title"
+TITLE_COLUMN = QT_TR_NOOP("Title")  # as the table header says it
 _COMMAND_MODIFIERS = (
     Qt.KeyboardModifier.ControlModifier
     | Qt.KeyboardModifier.AltModifier
@@ -97,7 +99,7 @@ class TypeAheadSearch(QObject):
         if self._text:
             # Beside the mouse pointer, where the eyes are; QToolTip keeps it on screen.
             position = QCursor.pos() + QPoint(*FIND_TIP_OFFSET)
-            QToolTip.showText(position, f"Find: {self._text}", view)
+            QToolTip.showText(position, tr("Find: {text}").format(text=self._text), view)
         else:
             QToolTip.hideText()
 
@@ -120,7 +122,7 @@ class TypeAheadSearch(QObject):
             titles = [
                 column
                 for column in range(model.columnCount())
-                if model.headerData(column, Qt.Orientation.Horizontal) == TITLE_COLUMN
+                if model.headerData(column, Qt.Orientation.Horizontal) == tr(TITLE_COLUMN)
             ]
             first = titles[0] if titles else (visible[0] if visible else 0)
         return [first, *(column for column in visible if column != first)]

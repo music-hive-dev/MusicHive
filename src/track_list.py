@@ -33,6 +33,7 @@ from PySide6.QtWidgets import (
 
 from src import theme
 from src.formatting import format_time
+from src.i18n import QT_TR_NOOP, tr
 from src.track_metadata import TrackInfo
 
 PLACEHOLDER_ICON = "eighth-notes.svg"  # shown when a track has no cover
@@ -76,6 +77,11 @@ class Column:
         """Identifies the column in saved layouts."""
         return f"{TAG_KEY_PREFIX}{self.tag}" if self.tag else self.title
 
+    @property
+    def label(self) -> str:
+        """The title as shown, in the chosen language."""
+        return tr(self.title)
+
 
 def text_key(text: str) -> str:
     """Sort key for text: ignores case and accents (so "Ärzte" sorts under A)."""
@@ -103,50 +109,50 @@ COLUMNS = (
         width=44,
     ),
     Column(
-        "Title",
+        QT_TR_NOOP("Title"),
         text=lambda info: info.title,
         sort_key=lambda info: text_key(info.title),
         width=260,
     ),
     Column(
-        "Artist",
+        QT_TR_NOOP("Artist"),
         text=lambda info: info.artist,
         sort_key=lambda info: text_key(info.artist),
         width=170,
     ),
     Column(
-        "Album",
+        QT_TR_NOOP("Album"),
         text=lambda info: info.album,
         sort_key=lambda info: text_key(info.album),
         width=200,
     ),
     Column(
-        "Year",
+        QT_TR_NOOP("Year"),
         text=lambda info: info.year,
         sort_key=_year_key,
         width=60,
     ),
     Column(
-        "Time",
+        QT_TR_NOOP("Time"),
         text=lambda info: format_time(info.duration_ms) if info.duration_ms else "",
         sort_key=lambda info: info.duration_ms or 0,
         width=64,
     ),
     Column(
-        "Genre",
+        QT_TR_NOOP("Genre"),
         text=lambda info: _first_genre(info.genre),
         sort_key=lambda info: text_key(info.genre),
         width=130,
     ),
     Column(
-        "Plays",
+        QT_TR_NOOP("Plays"),
         text=lambda info: str(info.play_count) if info.play_count else "",
         sort_key=lambda info: info.play_count,
         width=56,
     ),
 )
 
-RATING_COLUMN_KEY = "Rating"
+RATING_COLUMN_KEY = QT_TR_NOOP("Rating")
 
 
 def _date_text(seconds: float | None) -> str:
@@ -154,7 +160,7 @@ def _date_text(seconds: float | None) -> str:
 
 
 LAST_PLAYED_COLUMN = Column(
-    "Last Played",
+    QT_TR_NOOP("Last Played"),
     text=lambda info: _date_text(info.last_played),
     sort_key=lambda info: info.last_played or 0,
     width=130,
@@ -163,7 +169,7 @@ LAST_PLAYED_COLUMN = Column(
 # Built-in columns that are only offered in the column window, not shown by default.
 OPTIONAL_COLUMNS = (
     Column(
-        "Date Added",
+        QT_TR_NOOP("Date Added"),
         text=lambda info: _date_text(info.added_at),
         sort_key=lambda info: info.added_at or 0,
         width=130,
@@ -185,23 +191,23 @@ _TAGS_WITH_A_COLUMN = {"album", "artist", "genre", "rating", "title", "tracknumb
 
 # Tag names are stored in lower case without spaces; these need more than a capital.
 _TAG_TITLES = {
-    "albumartist": "Album Artist",
-    "albumartistsort": "Album Artist Sort",
-    "albumsort": "Album Sort",
-    "artistsort": "Artist Sort",
+    "albumartist": QT_TR_NOOP("Album Artist"),
+    "albumartistsort": QT_TR_NOOP("Album Artist Sort"),
+    "albumsort": QT_TR_NOOP("Album Sort"),
+    "artistsort": QT_TR_NOOP("Artist Sort"),
     "bpm": "BPM",
-    "composersort": "Composer Sort",
-    "discnumber": "Disc Number",
-    "discsubtitle": "Disc Subtitle",
-    "encodedby": "Encoded By",
-    "initialkey": "Initial Key",
+    "composersort": QT_TR_NOOP("Composer Sort"),
+    "discnumber": QT_TR_NOOP("Disc Number"),
+    "discsubtitle": QT_TR_NOOP("Disc Subtitle"),
+    "encodedby": QT_TR_NOOP("Encoded By"),
+    "initialkey": QT_TR_NOOP("Initial Key"),
     "isrc": "ISRC",
-    "originalalbum": "Original Album",
-    "originalartist": "Original Artist",
-    "originaldate": "Original Date",
-    "playcount": "Play Count",
-    "releasedate": "Release Date",
-    "titlesort": "Title Sort",
+    "originalalbum": QT_TR_NOOP("Original Album"),
+    "originalartist": QT_TR_NOOP("Original Artist"),
+    "originaldate": QT_TR_NOOP("Original Date"),
+    "playcount": QT_TR_NOOP("Play Count"),
+    "releasedate": QT_TR_NOOP("Release Date"),
+    "titlesort": QT_TR_NOOP("Title Sort"),
 }
 
 
@@ -237,7 +243,7 @@ def all_columns(tag_names: list[str]) -> list[Column]:
     return [
         *COLUMNS,
         *OPTIONAL_COLUMNS,
-        *sorted(tags, key=lambda column: column.title.casefold()),
+        *sorted(tags, key=lambda column: column.label.casefold()),
     ]
 
 # ----- models -----
@@ -385,7 +391,7 @@ class TrackListModel(QAbstractTableModel):
         if orientation != Qt.Orientation.Horizontal or not 0 <= section < len(self.columns):
             return None
         if role == Qt.ItemDataRole.DisplayRole:
-            return self.columns[section].title
+            return self.columns[section].label
         if role == Qt.ItemDataRole.TextAlignmentRole:
             return _LEFT_ALIGNED
         return None

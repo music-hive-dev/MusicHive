@@ -8,10 +8,11 @@ from pathlib import Path
 from PySide6.QtCore import QAbstractListModel, QModelIndex, QObject, Qt
 from PySide6.QtGui import QImage
 
+from src.i18n import QT_TR_NOOP, tr
 from src.track_list import TrackListModel
 from src.track_metadata import TrackInfo
 
-VARIOUS_ARTISTS = "Various Artists"
+VARIOUS_ARTISTS = QT_TR_NOOP("Various Artists")
 
 
 @dataclass
@@ -27,7 +28,7 @@ class TrackGroup:
 
 
 def songs_text(count: int) -> str:
-    return f"{count} song{'' if count == 1 else 's'}"
+    return tr("%n song(s)", "", count)
 
 
 def _album_order(info: TrackInfo) -> tuple:
@@ -110,7 +111,7 @@ def _album_artist(infos: list[TrackInfo]) -> str:
     if infos[0].album_artist:
         return infos[0].album_artist
     artists = {info.artist.casefold() for info in infos}
-    return infos[0].artist if len(artists) == 1 else VARIOUS_ARTISTS
+    return infos[0].artist if len(artists) == 1 else tr(VARIOUS_ARTISTS)
 
 
 # The names a song belongs to, for each kind of list that goes by name.

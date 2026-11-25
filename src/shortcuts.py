@@ -19,8 +19,10 @@ from PySide6.QtWidgets import (
     QTreeWidgetItem,
 )
 
+from src.i18n import QT_TR_NOOP, tr
+
 SETTINGS_GROUP = "shortcuts"
-OTHER_GROUP_TITLE = "Other"  # actions that are in no menu
+OTHER_GROUP_TITLE = QT_TR_NOOP("Other")  # actions that are in no menu
 ACTION_ROLE = Qt.ItemDataRole.UserRole
 KEYS_COLUMN_WIDTH = 150  # pixels, for the shortcut next to each action
 HEADING_ROWS = 2  # a group's heading takes about as much room as this many rows
@@ -77,7 +79,7 @@ class Shortcuts:
         ]
         if others:
             others.sort(key=lambda action: action_title(action).casefold())
-            groups.append((OTHER_GROUP_TITLE, others))
+            groups.append((tr(OTHER_GROUP_TITLE), others))
         return groups
 
     def _key(self, action: QAction) -> str:
@@ -234,9 +236,10 @@ class ShortcutsSettingsTab:
             keys = sequence.toString(QKeySequence.NativeText)
             answer = QMessageBox.question(
                 self._dialog,
-                "Shortcut in use",
-                f"{keys} is the shortcut of “{action_title(owner)}”.\n"
-                f"Move it to “{action_title(action)}”?",
+                tr("Shortcut in use"),
+                tr("{keys} is the shortcut of “{owner}”.\nMove it to “{action}”?").format(
+                    keys=keys, owner=action_title(owner), action=action_title(action)
+                ),
             )
             if answer != QMessageBox.StandardButton.Yes:
                 self._show_selected()  # put the old shortcut back in the field
@@ -254,7 +257,7 @@ class ShortcutsSettingsTab:
 
     def _reset_all(self) -> None:
         answer = QMessageBox.question(
-            self._dialog, "Reset shortcuts", "Put every shortcut back as it was at first?"
+            self._dialog, tr("Reset shortcuts"), tr("Put every shortcut back as it was at first?")
         )
         if answer != QMessageBox.StandardButton.Yes:
             return

@@ -8,6 +8,7 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtWidgets import QHeaderView, QMessageBox, QTableWidgetItem, QWidget
 
 from src import tag_history
+from src.i18n import tr
 from src.lastfm_dialog import load_dialog
 from src.tag_history import HistoryEntry
 from src.tag_writer import TagWriter
@@ -20,9 +21,9 @@ def _when(seconds: float) -> str:
     moment = datetime.fromtimestamp(seconds)
     today = datetime.now().date()
     if moment.date() == today:
-        return f"Today {moment:%H:%M}"
+        return tr("Today {time}").format(time=f"{moment:%H:%M}")
     if (today - moment.date()).days == 1:
-        return f"Yesterday {moment:%H:%M}"
+        return tr("Yesterday {time}").format(time=f"{moment:%H:%M}")
     return f"{moment:%Y-%m-%d %H:%M}"
 
 
@@ -77,7 +78,7 @@ class TagHistoryWindow(QObject):
             change.setToolTip(f"{entry.description}\n{entry.root}")
             songs = QTableWidgetItem()
             songs.setData(Qt.ItemDataRole.DisplayRole, entry.songs)
-            state = QTableWidgetItem("Undone" if entry.undone else "")
+            state = QTableWidgetItem(tr("Undone") if entry.undone else "")
             table.setItem(row, WHEN_COLUMN, when)
             table.setItem(row, CHANGE_COLUMN, change)
             table.setItem(row, SONGS_COLUMN, songs)
@@ -103,29 +104,42 @@ class TagHistoryWindow(QObject):
             return
         if not entry.db_path.exists():
             QMessageBox.information(
-                self.dialog, "Undo", "The library these songs belonged to is no longer there."
+                self.dialog,
+                tr("Undo"),
+                tr("The library these songs belonged to is no longer there."),
             )
             return
         jobs = tag_history.restore_jobs(entry)
         if not jobs:
-            QMessageBox.warning(self.dialog, "Undo", "What these songs had before could not be read.")
+            QMessageBox.warning(
+                self.dialog, tr("Undo"), tr("What these songs had before could not be read.")
+            )
             return
-        count = f"{len(jobs)} song{'' if len(jobs) == 1 else 's'}"
         answer = QMessageBox.question(
             self.dialog,
-            "Undo",
-            f"Put back what {count} had before “{entry.description}”?\n\n"
-            "If those tags were changed again since, that is replaced too.",
+            tr("Undo"),
+            tr(
+                "Put back what %n song(s) had before “{change}”?\n\n"
+                "If those tags were changed again since, that is replaced too.",
+                "",
+                len(jobs),
+            ).format(change=entry.description),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
         if answer != QMessageBox.StandardButton.Yes:
             return
         self._tag_writer.save_tags(
-            jobs, entry.root, entry.db_path, f"Undo: {entry.description}", undoes=entry.id
+            jobs,
+            entry.root,
+            entry.db_path,
+            tr("Undo: {change}").format(change=entry.description),
+            undoes=entry.id,
         )
         tag_history.set_undone(entry.id, True)
         if entry.undoes:  # undoing an undo brings the change back
             tag_history.set_undone(entry.undoes, False)
-        self._show_status(f"Undoing “{entry.description}” in {count}…")
+        self._show_status(
+            tr("Undoing “{change}” in %n song(s)…", "", len(jobs)).format(change=entry.description)
+        )
         self._refresh()

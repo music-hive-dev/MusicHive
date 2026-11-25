@@ -15,6 +15,8 @@ from mutagen import File as MutagenFile
 from mutagen.flac import Picture
 from mutagen.id3 import APIC, COMM, ID3, POPM, TXXX, USLT, Frames
 
+from src.i18n import tr
+
 # Image files looked for next to the music when a track has no embedded art.
 COVER_FILE_STEMS = ("cover", "folder", "front", "album", "albumart")
 COVER_FILE_EXTENSIONS = (".jpg", ".jpeg", ".png", ".webp")
@@ -257,7 +259,7 @@ def write_tag_changes(path: Path, changes: TagChanges) -> None:
     """Apply changes to a file's tags. Raises on failure."""
     audio = MutagenFile(str(path))
     if audio is None:
-        raise ValueError("unknown file format")
+        raise ValueError(tr("unknown file format"))
     if audio.tags is None:
         audio.add_tags()
     tags = audio.tags
@@ -786,4 +788,4 @@ def _describe_format(audio, path: Path) -> str:
 
 
 def _channel_name(channels: int) -> str:
-    return {1: "Mono", 2: "Stereo", 6: "5.1", 8: "7.1"}.get(channels, f"{channels} ch")
+    return {1: tr("Mono"), 2: tr("Stereo"), 6: "5.1", 8: "7.1"}.get(channels, f"{channels} ch")

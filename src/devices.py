@@ -12,8 +12,9 @@ from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QWidget
 
 from src.formatting import format_size
+from src.i18n import QT_TR_NOOP, tr
 
-BATTERY_NOT_REPORTED = "Not reported by the device"
+BATTERY_NOT_REPORTED = QT_TR_NOOP("Not reported by the device")
 SCSI_VENDOR_LENGTH = 8  # a name that fills this field runs on into the model field
 BATTERY_CHECK_SECONDS = 60
 BATTERY_RETRY_SECONDS = 300  # for a device that has not been answering
@@ -76,7 +77,7 @@ class DeviceEjector(QObject):
 
     def eject(self, name: str, folder: str) -> None:
         if self._busy:
-            self.finished.emit(f"Still removing {self._name}")
+            self.finished.emit(tr("Still removing {name}").format(name=self._name))
             return
         self._busy = True
         self._name = name
@@ -100,7 +101,7 @@ class DeviceEjector(QObject):
         def on_error(error: QProcess.ProcessError) -> None:
             if error == QProcess.ProcessError.FailedToStart:  # finished is not sent then
                 process.deleteLater()
-                then(False, f"{program} could not be started")
+                then(False, tr("{program} could not be started").format(program=program))
 
         process.finished.connect(on_finished)
         process.errorOccurred.connect(on_error)
@@ -109,9 +110,12 @@ class DeviceEjector(QObject):
     def _eject_on_windows(self, folder: str) -> None:
         def on_done(succeeded: bool, error: str) -> None:
             if succeeded:
-                self._finish(f"Asked Windows to safely remove {self._name}")
+                self._finish(tr("Asked Windows to safely remove {name}").format(name=self._name))
             else:
-                self._finish(f"Could not safely remove {self._name}: {error}")
+                self._finish(tr("Could not safely remove {name}: {error}").format(
+                    name=self._name,
+                    error=error,
+                ))
 
         command = _WINDOWS_EJECT.format(drive=folder[:2])  # the root is "E:/"
         self._start("powershell", ["-NoProfile", "-Command", command], on_done)
@@ -120,11 +124,14 @@ class DeviceEjector(QObject):
         if succeeded:
             self._run(["power-off", "--block-device", self._node], self._on_powered_off)
         else:
-            self._finish(f"Could not safely remove {self._name}: {error}")
+            self._finish(tr("Could not safely remove {name}: {error}").format(
+                name=self._name,
+                error=error,
+            ))
 
     def _on_powered_off(self, succeeded: bool, _error: str) -> None:
         # Once unmounted, everything is written out, so unplugging is safe either way.
-        self._finish(f"{self._name} can now be unplugged")
+        self._finish(tr("{name} can now be unplugged").format(name=self._name))
 
     def _finish(self, message: str) -> None:
         self._busy = False
@@ -322,6 +329,6 @@ class DevicesTab:
         if folder != self._window.deviceCombo.currentData():
             self.refresh_levels()  # another device was selected in the meantime
             return
-        self._set_row("Battery", battery)
+        self._set_row("Battery", tr(battery) if battery == BATTERY_NOT_REPORTED else battery)
         wait = BATTERY_RETRY_SECONDS if battery == BATTERY_NOT_REPORTED else BATTERY_CHECK_SECONDS
         self._next_battery_check = time.monotonic() + wait

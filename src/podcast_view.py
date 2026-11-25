@@ -47,6 +47,7 @@ from PySide6.QtWidgets import (
 from src import theme
 from src.elided_label import ElidedLabel
 from src.header_box import HeaderBox
+from src.i18n import tr
 from src.number_field import NumberField
 from src.podcasts import Episode, Podcast, PodcastManager, PodcastSettings, SearchResult
 
@@ -79,8 +80,8 @@ def plain_text(text: str) -> str:
 def format_length(ms: int) -> str:
     minutes = round(ms / 60_000)
     if minutes < 60:
-        return f"{minutes} min"
-    return f"{minutes // 60} h {minutes % 60:02d} min"
+        return tr("{minutes} min").format(minutes=minutes)
+    return tr("{hours} h {minutes:02d} min").format(hours=minutes // 60, minutes=minutes % 60)
 
 
 def format_date(seconds: float) -> str:
@@ -311,7 +312,7 @@ class PodcastsTab(QObject):
         view.clear()
         for podcast in self.manager.store.podcasts():
             new = self.manager.store.new_count(podcast.id)
-            second = f"{new} new" if new else podcast.author
+            second = tr("{new} new").format(new=new) if new else podcast.author
             item = QListWidgetItem(QIcon(self.cover_icon(podcast.id, LIST_ICON)), podcast.title)
             item.setData(LINES_ROLE, [podcast.title, second] if second else [podcast.title])
             item.setData(ID_ROLE, podcast.id)
@@ -345,33 +346,33 @@ class PodcastsTab(QObject):
         if podcast is None:
             return
         menu = QMenu(self.w.podcastList)
-        menu.addAction(self._icon("play"), "Play").triggered.connect(
+        menu.addAction(self._icon("play"), tr("Play")).triggered.connect(
             lambda _checked=False: self._continue(podcast)
         )
         menu.addSeparator()
         pinned = self.is_pinned(podcast.id)
         menu.addAction(
             self._icon("pin-off" if pinned else "pin"),
-            "Unpin from Sidebar" if pinned else "Pin to Sidebar",
+            tr("Unpin from Sidebar") if pinned else tr("Pin to Sidebar"),
         ).triggered.connect(lambda _checked=False: self.pin_toggled.emit(podcast.id))
         menu.addSeparator()
-        menu.addAction(self._icon("refresh-cw"), "Check for New Episodes").triggered.connect(
+        menu.addAction(self._icon("refresh-cw"), tr("Check for New Episodes")).triggered.connect(
             lambda _checked=False: self.manager.check(podcast.id)
         )
-        menu.addAction(self._icon("download"), "Download the Next Episodes").triggered.connect(
+        menu.addAction(self._icon("download"), tr("Download the Next Episodes")).triggered.connect(
             lambda _checked=False: self.manager.auto_download(podcast.id)
         )
-        menu.addAction(self._icon("list-check"), "Mark All as Played").triggered.connect(
+        menu.addAction(self._icon("list-check"), tr("Mark All as Played")).triggered.connect(
             lambda _checked=False: self.manager.set_played(
                 [e.id for e in self.manager.store.episodes(podcast.id)], True
             )
         )
         if podcast.link:
-            menu.addAction(self._icon("globe"), "Open Website").triggered.connect(
+            menu.addAction(self._icon("globe"), tr("Open Website")).triggered.connect(
                 lambda _checked=False: QDesktopServices.openUrl(QUrl(podcast.link))
             )
         menu.addSeparator()
-        menu.addAction(self._icon("calendar-off"), "Unsubscribe...").triggered.connect(
+        menu.addAction(self._icon("calendar-off"), tr("Unsubscribe...")).triggered.connect(
             lambda _checked=False: self._unsubscribe(podcast)
         )
         menu.exec(self.w.podcastList.viewport().mapToGlobal(position))
@@ -395,7 +396,9 @@ class PodcastsTab(QObject):
         """Carry on where you left off, or with the next episode if that one ended."""
         episode_id = self.manager.episode_to_continue(podcast.id)
         if episode_id is None:
-            self._show_status(f"You have heard every episode of {podcast.title}")
+            self._show_status(tr("You have heard every episode of {title}").format(
+                title=podcast.title,
+            ))
         else:
             self.play_requested.emit(episode_id)
 
@@ -408,7 +411,7 @@ class PodcastsTab(QObject):
         if "://" in text or text.lower().startswith("www."):
             self.manager.open_feed(text if "://" in text else f"https://{text}")
             return
-        self._search_title.set_text(f"Searching for “{text}”…")
+        self._search_title.set_text(tr("Searching for “{text}”…").format(text=text))
         self.w.podcastSearchResults.clear()
         self.w.podcastPages.setCurrentWidget(self.w.podcastSearchPage)
         self.manager.search(text)
@@ -419,7 +422,11 @@ class PodcastsTab(QObject):
         view.clear()
         text = self.w.podcastSearch.text().strip()
         self._search_title.set_text(
-            f"Results for “{text}”" if results else f"Nothing found for “{text}”"
+            tr("Results for “{text}”").format(
+                text=text,
+            ) if results else tr("Nothing found for “{text}”").format(
+                text=text,
+            )
         )
         self._show_status("")
         placeholder = QIcon(self._placeholder.pixmap(SEARCH_ICON, SEARCH_ICON))
@@ -428,7 +435,9 @@ class PodcastsTab(QObject):
                 part for part in (
                     result.author,
                     result.genre,
-                    f"{result.episode_count} episodes" if result.episode_count else "",
+                    tr("{count} episodes").format(
+                        count=result.episode_count,
+                    ) if result.episode_count else "",
                 ) if part
             )
             item = QListWidgetItem(placeholder, result.title)  # the text type-to-find looks at
@@ -474,7 +483,7 @@ class PodcastsTab(QObject):
         w.podcastSubscribeButton.setIcon(
             self._icon("calendar-off" if podcast.subscribed else "calendar")
         )
-        w.podcastSubscribeButton.setToolTip("Unsubscribe..." if podcast.subscribed else "Subscribe")
+        w.podcastSubscribeButton.setToolTip(tr("Unsubscribe...") if podcast.subscribed else tr("Subscribe"))
         self._showing = True
         self._keep_count.setValue(self.manager.keep_count(podcast))
         self._showing = False
@@ -500,12 +509,17 @@ class PodcastsTab(QObject):
         w = self.w
         w.podcastProgress.setRange(0, max(1, progress.total))
         w.podcastProgress.setValue(progress.played)
-        w.podcastProgressLabel.setText(f"{progress.played} of {progress.total} played")
+        w.podcastProgressLabel.setText(tr("{played} of {total} played").format(
+            played=progress.played,
+            total=progress.total,
+        ))
         details = []
         if progress.started:
-            details.append(f"{progress.started} started")
+            details.append(tr("{started} started").format(started=progress.started))
         if progress.time_left_ms:
-            details.append(f"{format_length(progress.time_left_ms)} left")
+            details.append(tr("{time} left").format(
+                time=format_length(progress.time_left_ms),
+            ))
         self._progress_details.set_text(" · ".join(["", *details]).strip() if details else "")
 
     def _toggle_subscription(self) -> None:
@@ -516,19 +530,21 @@ class PodcastsTab(QObject):
             self._unsubscribe(podcast)
         else:
             self.manager.subscribe(podcast.id)
-            self._show_status(f"Subscribed to {podcast.title}")
+            self._show_status(tr("Subscribed to {title}").format(title=podcast.title))
 
     def _unsubscribe(self, podcast: Podcast) -> None:
         box = QMessageBox(self.w)
         box.setIcon(QMessageBox.Icon.Question)
-        box.setWindowTitle("Unsubscribe")
-        box.setText(f"Unsubscribe from “{podcast.title}”?")
+        box.setWindowTitle(tr("Unsubscribe"))
+        box.setText(tr("Unsubscribe from “{title}”?").format(title=podcast.title))
         box.setInformativeText(
-            "Its downloaded episodes can be deleted or kept. "
-            "Deleting includes the episodes marked Keep."
+            tr(
+                "Its downloaded episodes can be deleted or kept. "
+                "Deleting includes the episodes marked Keep."
+            )
         )
-        delete = box.addButton("Unsubscribe and Delete", QMessageBox.ButtonRole.DestructiveRole)
-        keep = box.addButton("Unsubscribe and Keep", QMessageBox.ButtonRole.AcceptRole)
+        delete = box.addButton(tr("Unsubscribe and Delete"), QMessageBox.ButtonRole.DestructiveRole)
+        keep = box.addButton(tr("Unsubscribe and Keep"), QMessageBox.ButtonRole.AcceptRole)
         delete.setIcon(self._icon("trash"))
         keep.setIcon(self._icon("calendar-off"))
         box.addButton(QMessageBox.StandardButton.Cancel)
@@ -537,7 +553,7 @@ class PodcastsTab(QObject):
         if box.clickedButton() not in (delete, keep):
             return  # Cancel, or the window was closed
         self.manager.unsubscribe(podcast.id, delete_downloads=box.clickedButton() is delete)
-        self._show_status(f"Unsubscribed from {podcast.title}")
+        self._show_status(tr("Unsubscribed from {title}").format(title=podcast.title))
 
     def _on_keep_count_changed(self, value: int) -> None:
         if not self._showing and self.shown_podcast is not None:
@@ -583,13 +599,15 @@ class PodcastsTab(QObject):
         length.setText(format_length(episode.duration_ms) if episode.duration_ms else "")
 
         if episode.played:
-            progress.setText("Played")
+            progress.setText(tr("Played"))
             progress.setData(PROGRESS_ROLE, None)
         elif episode.position_ms > 0 and episode.duration_ms:
-            progress.setText(f"{format_length(episode.time_left_ms)} left")
+            progress.setText(tr("{time} left").format(
+                time=format_length(episode.time_left_ms),
+            ))
             progress.setData(PROGRESS_ROLE, episode.position_ms / episode.duration_ms)
         elif episode.position_ms > 0:
-            progress.setText("Started")
+            progress.setText(tr("Started"))
             progress.setData(PROGRESS_ROLE, None)
         else:
             progress.setText("")
@@ -605,15 +623,17 @@ class PodcastsTab(QObject):
     def _download_text(self, episode: Episode) -> str:
         fraction = self.manager.progress_of.get(episode.id)
         if fraction is not None:
-            text = f"Downloading {round(fraction * 100)} %" if fraction >= 0 else "Downloading…"
+            text = tr("Downloading {percent} %").format(
+                percent=round(fraction * 100),
+            ) if fraction >= 0 else tr("Downloading…")
             if fraction == 0 and not self.manager.is_active_download(episode.id):
-                text = "Waiting to download"
+                text = tr("Waiting to download")
         elif self.manager.file_path(episode) is not None:
-            text = "Downloaded"
+            text = tr("Downloaded")
         else:
             text = ""
         if episode.keep:
-            text = f"{text} · Keep" if text else "Keep"
+            text = tr("{text} · Keep").format(text=text) if text else tr("Keep")
         return text
 
     def update_episode(self, episode_id: int) -> None:
@@ -661,7 +681,7 @@ class PodcastsTab(QObject):
         menu = QMenu(table)
         first = episodes[0]
         if len(episodes) == 1:
-            menu.addAction(self._icon("play"), "Play").triggered.connect(
+            menu.addAction(self._icon("play"), tr("Play")).triggered.connect(
                 lambda _checked=False: self.play_requested.emit(first.id)
             )
             menu.addSeparator()
@@ -669,36 +689,36 @@ class PodcastsTab(QObject):
         downloaded = [e for e in episodes if manager.file_path(e) is not None]
         missing = [e for e in episodes if e not in downloaded and e not in downloading]
         if missing:
-            menu.addAction(self._icon("download"), "Download").triggered.connect(
+            menu.addAction(self._icon("download"), tr("Download")).triggered.connect(
                 lambda _checked=False: [manager.download(e.id) for e in missing]
             )
         if downloading:
-            menu.addAction(self._icon("circle-x"), "Cancel Download").triggered.connect(
+            menu.addAction(self._icon("circle-x"), tr("Cancel Download")).triggered.connect(
                 lambda _checked=False: [manager.cancel_download(e.id) for e in downloading]
             )
         if downloaded:
-            menu.addAction(self._icon("trash"), "Delete Download").triggered.connect(
+            menu.addAction(self._icon("trash"), tr("Delete Download")).triggered.connect(
                 lambda _checked=False: self._delete_downloads(downloaded)
             )
         menu.addSeparator()
         if any(not e.played for e in episodes):
-            menu.addAction(self._icon("check"), "Mark as Played").triggered.connect(
+            menu.addAction(self._icon("check"), tr("Mark as Played")).triggered.connect(
                 lambda _checked=False: manager.set_played(ids, True)
             )
         if any(e.played or e.position_ms for e in episodes):
-            menu.addAction(self._icon("rotate-ccw"), "Mark as Unplayed").triggered.connect(
+            menu.addAction(self._icon("rotate-ccw"), tr("Mark as Unplayed")).triggered.connect(
                 lambda _checked=False: manager.set_played(ids, False)
             )
         # Like the other items, it says what clicking it does.
         all_kept = all(e.keep for e in episodes)
         if all_kept:
-            keep = menu.addAction(self._icon("pin-off"), "Stop Keeping (Delete Automatically Again)")
+            keep = menu.addAction(self._icon("pin-off"), tr("Stop Keeping (Delete Automatically Again)"))
         else:
-            keep = menu.addAction(self._icon("pin"), "Keep (Never Delete Automatically)")
+            keep = menu.addAction(self._icon("pin"), tr("Keep (Never Delete Automatically)"))
         keep.triggered.connect(lambda _checked=False: manager.set_keep(ids, not all_kept))
         if len(episodes) == 1 and first.link:
             menu.addSeparator()
-            menu.addAction(self._icon("globe"), "Open Episode Web Page").triggered.connect(
+            menu.addAction(self._icon("globe"), tr("Open Episode Web Page")).triggered.connect(
                 lambda _checked=False: QDesktopServices.openUrl(QUrl(first.link))
             )
         menu.exec(table.viewport().mapToGlobal(position))
@@ -706,7 +726,7 @@ class PodcastsTab(QObject):
     def _delete_downloads(self, episodes: list[Episode]) -> None:
         for episode in episodes:
             if episode.id == self.playing_episode:
-                self._show_status("The episode that is playing cannot be deleted")
+                self._show_status(tr("The episode that is playing cannot be deleted"))
                 continue
             self.manager.delete_download(episode.id)
 
@@ -753,7 +773,7 @@ class PodcastSettingsTab:
 
     def _choose_folder(self) -> None:
         folder = QFileDialog.getExistingDirectory(
-            self._dialog, "Folder for podcast downloads",
+            self._dialog, tr("Folder for podcast downloads"),
             str(self._manager.settings.download_folder()),
         )
         if folder:
@@ -772,8 +792,8 @@ class PodcastSettingsTab:
             QApplication.restoreOverrideCursor()
         if failed:
             QMessageBox.warning(
-                self._dialog, "Podcast folder",
-                f"{failed} download{'' if failed == 1 else 's'} could not be moved to the new folder.",
+                self._dialog, tr("Podcast folder"),
+                tr("%n download(s) could not be moved to the new folder.", "", failed),
             )
         self._show_folder(manager.settings)
 

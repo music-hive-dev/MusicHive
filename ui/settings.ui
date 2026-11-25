@@ -425,10 +425,24 @@
             </item>
            </layout>
           </item>
-          <item row="2" column="0" colspan="2">
+          <item row="2" column="0">
+           <widget class="QLabel" name="interfaceLanguageLabel">
+            <property name="text">
+             <string>Language:</string>
+            </property>
+           </widget>
+          </item>
+          <item row="2" column="1">
+           <widget class="QComboBox" name="interfaceLanguage">
+            <property name="toolTip">
+             <string>System default uses your desktop's language when there is a translation for it, and English otherwise</string>
+            </property>
+           </widget>
+          </item>
+          <item row="3" column="0" colspan="2">
            <widget class="QLabel" name="interfaceRestartNote">
             <property name="text">
-             <string>The new look is used the next time MusicHive starts.</string>
+             <string>The new look and language are used the next time MusicHive starts.</string>
             </property>
             <property name="wordWrap">
              <bool>true</bool>

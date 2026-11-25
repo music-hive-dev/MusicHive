@@ -35,6 +35,7 @@ from PySide6.QtWidgets import (
 
 from src import library_db
 from src.check_tags import artist_key
+from src.i18n import tr
 from src.lastfm_dialog import load_dialog
 from src.library_db import LibraryInfo
 from src.number_field import NumberField
@@ -145,7 +146,7 @@ class Group:
 
     @property
     def albums(self) -> str:
-        names = dict.fromkeys(copy.info.album or "(no album)" for copy in self.copies)
+        names = dict.fromkeys(copy.info.album or tr("(no album)") for copy in self.copies)
         return " · ".join(names)
 
     @property
@@ -318,7 +319,7 @@ class FindDuplicatesTool(QObject):
         d = self.dialog
         found = self._library_songs()
         if found is None:
-            d.findDupesSummary.setText("Open a library first.")
+            d.findDupesSummary.setText(tr("Open a library first."))
             return
         library, pairs = found
         chosen = self._selected_group()
@@ -337,7 +338,7 @@ class FindDuplicatesTool(QObject):
                 copies.append(Copy(path, info, skipped))
             self._groups = find_groups(copies, self._options_chosen())
         except Exception as error:
-            d.findDupesSummary.setText(f"Cannot read this library: {error}")
+            d.findDupesSummary.setText(tr("Cannot read this library: {error}").format(error=error))
             return
         finally:
             QApplication.restoreOverrideCursor()
@@ -348,11 +349,13 @@ class FindDuplicatesTool(QObject):
             extra = sum(len(group.copies) - 1 for group in self._groups)
             count = len(self._groups)
             d.findDupesSummary.setText(
-                f"{count} song{'' if count == 1 else 's'} {'is' if count == 1 else 'are'} "
-                f"in the library more than once: {extra} cop{'y' if extra == 1 else 'ies'} too many."
+                tr("%n song(s) (is/are) in the library more than once: ", "", count)
+                + tr("%n cop(y/ies) too many.", "", extra)
             )
         else:
-            d.findDupesSummary.setText(f"None of the {len(copies)} songs are in the library twice.")
+            d.findDupesSummary.setText(tr("None of the {count} songs are in the library twice.").format(
+                count=len(copies),
+            ))
 
     def _on_tags_saved(self, _result) -> None:
         """Tags were saved (the library is already up to date): search again."""
@@ -442,7 +445,7 @@ class FindDuplicatesTool(QObject):
                     font = best.font()
                     font.setBold(True)
                     best.setFont(font)
-                    best.setToolTip("The best quality of these copies")
+                    best.setToolTip(tr("The best quality of these copies"))
             table.resizeColumnsToContents()
             table.selectRow(0)
 
@@ -480,10 +483,13 @@ class FindDuplicatesTool(QObject):
         names = "\n".join(str(path) for path in others)
         answer = QMessageBox.question(
             self.dialog,
-            "Keep this one",
-            f"Keep\n{keep.path}\n\nand move {'this copy' if len(others) == 1 else 'these copies'} "
-            f"to the Trash?\n{names}\n\n"
-            "Their plays, rating and places in playlists pass to the one you keep.",
+            tr("Keep this one"),
+            tr(
+                "Keep\n{path}\n\nand move %n cop(y/ies) to the Trash?\n{names}\n\n"
+                "Their plays, rating and places in playlists pass to the one you keep.",
+                "",
+                len(others),
+            ).format(path=keep.path, names=names),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
             QMessageBox.StandardButton.No,
         )
@@ -492,7 +498,9 @@ class FindDuplicatesTool(QObject):
         removed = self._remove_duplicates(keep.path, others)
         if removed:
             self._show_status(
-                f"Kept '{keep.info.title}' and moved {removed} cop{'y' if removed == 1 else 'ies'} to the Trash"
+                tr("Kept '{title}' and moved %n cop(y/ies) to the Trash", "", removed).format(
+                    title=keep.info.title
+                )
             )
             self._search()
 
@@ -509,7 +517,7 @@ class FindDuplicatesTool(QObject):
     def _open_folder(self) -> None:
         copy = self._selected_copy()
         if copy is not None and not QDesktopServices.openUrl(QUrl.fromLocalFile(str(copy.path.parent))):
-            self._show_status(f"Cannot open {copy.path.parent}")
+            self._show_status(tr("Cannot open {parent}").format(parent=copy.path.parent))
 
     def _set_skipped(self) -> None:
         """Write or remove the "not a duplicate" mark in every copy of the chosen song."""
@@ -525,7 +533,7 @@ class FindDuplicatesTool(QObject):
             if copy.skipped != skip
         ]
         if jobs:
-            what = "Not duplicates" if skip else "Maybe duplicates"
+            what = tr("Not duplicates") if skip else tr("Maybe duplicates")
             self._save_tags(jobs, f"{what}: {group.title}")
 
     # ----- handing the list on -----
@@ -533,7 +541,7 @@ class FindDuplicatesTool(QObject):
     def _rows_as_text(self) -> list[list[str]]:
         """Every copy on its own line, numbered by the song it is a copy of."""
         table = self.dialog.findDupesList
-        rows = [["Song", "Title", "Artist", "Album", "Length", "Size", "Plays", "Rating", "File"]]
+        rows = [[tr("Song"), tr("Title"), tr("Artist"), tr("Album"), tr("Length"), tr("Size"), tr("Plays"), tr("Rating"), tr("File")]]
         for row in range(table.rowCount()):
             group = self._groups[table.item(row, TITLE_COLUMN).data(INDEX_ROLE)]
             for copy in group.copies:
@@ -548,17 +556,19 @@ class FindDuplicatesTool(QObject):
     def _copy_list(self) -> None:
         text = "\n".join("\t".join(cells) for cells in self._rows_as_text())
         QApplication.clipboard().setText(text + "\n")
-        self._show_status("The list of duplicates was copied")
+        self._show_status(tr("The list of duplicates was copied"))
 
     def _save_list(self) -> None:
-        start = str(Path.home() / "duplicate songs.csv")
-        path, _ = QFileDialog.getSaveFileName(self.dialog, "Save list", start, "CSV files (*.csv)")
+        start = str(Path.home() / tr("duplicate songs.csv"))
+        path, _ = QFileDialog.getSaveFileName(self.dialog, tr("Save list"), start, tr("CSV files (*.csv)"))
         if not path:
             return
         try:
             with open(path, "w", newline="", encoding="utf-8") as file:
                 csv.writer(file).writerows(self._rows_as_text())
         except OSError as error:
-            QMessageBox.warning(self.dialog, "Save list", f"The list could not be saved: {error}")
+            QMessageBox.warning(self.dialog, tr("Save list"), tr("The list could not be saved: {error}").format(
+                error=error,
+            ))
             return
-        self._show_status(f"Saved the list to {path}")
+        self._show_status(tr("Saved the list to {path}").format(path=path))

@@ -14,6 +14,7 @@ from PySide6.QtCore import (
 from PySide6.QtGui import QImage, QImageReader, QMovie
 from PySide6.QtWidgets import QWidget
 
+from src.i18n import tr
 from src.track_list import (
     LAST_PLAYED_COLUMN,
     POSITION_COLUMN_KEY,
@@ -273,11 +274,11 @@ class PlaylistSortedModel(SortedTrackModel):
     def _refusal(self, data: QMimeData) -> str | None:
         playlist = self.sourceModel()
         if playlist.name is None:
-            return "Select a playlist first"
+            return tr("Select a playlist first")
         if playlist.locked:
-            return f"'{playlist.name}' is locked"
+            return tr("'{name}' is locked").format(name=playlist.name)
         if read_track_drag(data)[1] == playlist.name and not self.in_saved_order():
-            return "To rearrange songs, click the # column to sort by playlist order"
+            return tr("To rearrange songs, click the # column to sort by playlist order")
         return None
 
     def canDropMimeData(self, data, action, row, column, parent) -> bool:

@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.7.2
+Version:        1.8.0
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        GPL-3.0-or-later
@@ -42,7 +42,7 @@ Last.fm scrobbling and a mini player.
 
 %install
 install -d %{buildroot}%{_datadir}/%{name}
-cp -a main.py days.json *.svg *.png src ui assets %{buildroot}%{_datadir}/%{name}/
+cp -a main.py days.json *.svg *.png src ui assets translations %{buildroot}%{_datadir}/%{name}/
 %py_byte_compile %{__python3} %{buildroot}%{_datadir}/%{name}
 
 install -d %{buildroot}%{_bindir}
@@ -67,6 +67,14 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Wed Nov 25 2026 MusicHive - 1.8.0-1
+- MusicHive can be translated: choose the language in Settings > Interface, or follow the desktop's language
+- German translation, by music-hive-dev
+- Translations are made with Qt Linguist; translations/update.sh starts a new language and keeps them up to date
+- Texts with a number now say "1 song" and "2 songs" properly in every language
+- Fixed the mini player not keeping its place and staying on top when its title is translated
+- The About window lists the translators
+
 * Wed Nov 25 2026 MusicHive - 1.7.2-1
 - MusicHive is now free software under the GNU General Public License, version 3 or later
 - The About window is larger, and scrolls when its text does not fit

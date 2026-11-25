@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QColorDialog, QDialog, QFileDialog, QMessageBox, Q
 
 from src.auto_playlist import COMPARISONS, LIMIT_ORDERS, LIMIT_UNITS
 from src.header_box import box_colour
+from src.i18n import tr
 from src.lastfm_dialog import load_dialog
 from src.number_field import NumberField
 from src.playlist_models import (
@@ -128,7 +129,7 @@ class PlaylistEditDialog:
         d = self.dialog
         problem = self._check_name(d.playlistEditTitle.text())
         if problem is not None:
-            QMessageBox.warning(d, "Playlist name", problem)
+            QMessageBox.warning(d, tr("Playlist name"), problem)
             d.playlistEditTitle.setFocus()
             return
         d.accept()
@@ -168,7 +169,9 @@ class PlaylistEditDialog:
         d = self.dialog
         button = d.playlistEditColourButton
         colour = self._shown_colour()
-        button.setText(f"Custom {self._colour}" if self._colour else "Automatic")
+        button.setText(
+            tr("Custom {colour}").format(colour=self._colour) if self._colour else tr("Automatic")
+        )
         if colour is not None and colour.isValid():
             text = "#000000" if colour.lightness() > 150 else "#ffffff"  # readable on the swatch
             button.setStyleSheet(
@@ -183,7 +186,7 @@ class PlaylistEditDialog:
         colour = QColorDialog.getColor(
             start if start is not None and start.isValid() else QColor("#312d34"),
             self.dialog,
-            "Header colour",
+            tr("Header colour"),
         )
         if colour.isValid():
             self._colour = colour.name()
@@ -197,15 +200,17 @@ class PlaylistEditDialog:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.PicturesLocation)
         path, _ = QFileDialog.getOpenFileName(
             self.dialog,
-            "Choose an image for the playlist",
+            tr("Choose an image for the playlist"),
             start_dir,
-            "Images (*.png *.jpg *.jpeg *.webp *.bmp *.gif)",
+            tr("Images (*.png *.jpg *.jpeg *.webp *.bmp *.gif)"),
         )
         if not path:
             return
         image = QImage(path)
         if image.isNull():
-            QMessageBox.warning(self.dialog, "Playlist image", "That image could not be read.")
+            QMessageBox.warning(
+                self.dialog, tr("Playlist image"), tr("That image could not be read.")
+            )
             return
         self._icon = make_square_icon(image)
         self._icon_changed = True

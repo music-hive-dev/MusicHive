@@ -20,6 +20,8 @@ from collections.abc import Callable
 from PySide6.QtCore import QObject, QTimer, Signal
 from PySide6.QtNetwork import QLocalSocket
 
+from src.i18n import tr
+
 # The key of an image you upload under "Rich Presence > Art Assets" in the
 # Discord Developer Portal. Leave it empty to show the application's icon.
 LARGE_IMAGE_KEY = "mh"
@@ -293,7 +295,7 @@ class DiscordPresence(QObject):
         elif opcode == OP_CLOSE:
             text = message.get("message", "no reason given")
             print(f"MusicHive: Discord closed the connection: {text}", file=sys.stderr)
-            self.status_message.emit(f"Discord closed the connection: {text}")
+            self.status_message.emit(tr("Discord closed the connection: {text}").format(text=text))
             self._blocked = True  # do not keep retrying (for example a wrong id)
             self._socket.abort()
         elif opcode == OP_FRAME:
@@ -305,7 +307,9 @@ class DiscordPresence(QObject):
                 data = message.get("data") or {}
                 text = data.get("message", "unknown error")
                 print(f"MusicHive: Discord rejected the presence: {text}", file=sys.stderr)
-                self.status_message.emit(f"Discord rejected the presence: {text}")
+                self.status_message.emit(tr("Discord rejected the presence: {text}").format(
+                    text=text,
+                ))
 
     def _on_disconnected(self) -> None:
         self._ready = False

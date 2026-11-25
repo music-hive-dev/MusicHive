@@ -44,6 +44,7 @@ from src.cast_bars import BarMaps, describe as describe_bar_map  # noqa: E402
 from src.cast_video import AUDIO_CAPS, VideoStream  # noqa: E402
 from src.default_output import default_output_id  # noqa: E402
 from src.equaliser import BAND_FREQUENCIES, BAND_OCTAVES, MAX_BANDS, EqSettings  # noqa: E402
+from src.i18n import tr  # noqa: E402
 from src.sound_settings import SoundSettings  # noqa: E402
 from src.track_metadata import read_track_gain  # noqa: E402
 
@@ -538,7 +539,7 @@ class AudioPlayer(QObject):
         """
         track = Path(path)
         if not track.is_file():
-            self.error_occurred.emit(f"File not found: {track.name}")
+            self.error_occurred.emit(tr("File not found: {name}").format(name=track.name))
             return False
         if self._cast is not None:
             self._cast_open(track, 0, "playing")
@@ -564,7 +565,7 @@ class AudioPlayer(QObject):
         hour-long episode would take long to scan).
         """
         if isinstance(source, Path) and not source.is_file():
-            self.error_occurred.emit(f"File not found: {source.name}")
+            self.error_occurred.emit(tr("File not found: {name}").format(name=source.name))
             return False
         if self._cast is not None:
             self._cast_open(source, position_ms, "playing")
@@ -597,7 +598,7 @@ class AudioPlayer(QObject):
         """
         track = Path(path)
         if not track.is_file():
-            self.error_occurred.emit(f"File not found: {track.name}")
+            self.error_occurred.emit(tr("File not found: {name}").format(name=track.name))
             return False
         if self._cast is not None:
             self._cast_open(track, position_ms, "paused")
@@ -942,9 +943,12 @@ class AudioPlayer(QObject):
         if not reason:
             problem = stream.take_error()
             if problem:
-                reason = f"The video for {session.device.name} stopped: {problem}"
+                reason = tr("The video for {name} stopped: {problem}").format(
+                    name=session.device.name,
+                    problem=problem,
+                )
         if not reason and (session.take_finished() or session.take_interrupted()):
-            reason = f"{session.device.name} stopped playing"
+            reason = tr("{name} stopped playing").format(name=session.device.name)
         if reason:
             if self._state == "playing":
                 self.pause()  # never burst out of the computer's speakers
@@ -1027,7 +1031,7 @@ class AudioPlayer(QObject):
                 else:
                     bars_coming = self._bar_maps.make(track, urgent=True)
         except (CastError, OSError) as error:
-            self.error_occurred.emit(f"Cannot cast: {error}")
+            self.error_occurred.emit(tr("Cannot cast: {error}").format(error=error))
             return
         title = details.title or (track.stem if isinstance(track, Path) else "")
         session.load(CastMedia(
@@ -1340,7 +1344,10 @@ class AudioPlayer(QObject):
                     error, _details = message.parse_error()
                     name = deck.track.name if deck.track else "song"
                     self._halt_active()
-                    self.error_occurred.emit(f"Cannot play {name}: {error.message}")
+                    self.error_occurred.emit(tr("Cannot play {name}: {message}").format(
+                        name=name,
+                        message=error.message,
+                    ))
                 else:
                     deck.halt(Gst.State.READY)
             elif kind == Gst.MessageType.ASYNC_DONE:

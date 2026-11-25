@@ -6,11 +6,21 @@ from PySide6.QtCore import QModelIndex, QObject, QSettings, Qt, Signal
 from PySide6.QtGui import QImage
 from PySide6.QtWidgets import QAbstractButton, QComboBox, QListView
 
+from src.i18n import QT_TR_NOOP, tr
 from src.library_groups import GroupListModel, TrackGroup, songs_text
 from src.track_list import TrackDelegate, setup_track_view
 
 # The tag each entry of a filter combo box stands for, in the order player.ui lists them.
 FILTER_KINDS = ("album", "album_artist", "artist", "decade", "genre", "year")
+# The first entry of the list, which shows every song.
+ALL_TEXTS = {
+    "album": QT_TR_NOOP("All Albums"),
+    "album_artist": QT_TR_NOOP("All Album Artists"),
+    "artist": QT_TR_NOOP("All Artists"),
+    "decade": QT_TR_NOOP("All Decades"),
+    "genre": QT_TR_NOOP("All Genres"),
+    "year": QT_TR_NOOP("All Years"),
+}
 
 # The image of a filter row that has no picture of its own.
 PLACEHOLDERS = {
@@ -94,7 +104,7 @@ class FilterBar(QObject):
         if signature != self._signature:
             self._signature = signature
             everything = TrackGroup(
-                "", f"All {self._combo.currentText()}s", [], subtitle=songs_text(len(rows))
+                "", tr(ALL_TEXTS[kind]), [], subtitle=songs_text(len(rows))
             )
             model.set_groups([everything, *self._groups_for(kind, rows)])
             self._view.setItemDelegate(self._delegates[kind])

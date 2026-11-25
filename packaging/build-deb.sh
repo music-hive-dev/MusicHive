@@ -22,7 +22,7 @@ mkdir -p "$top/src" "$app" "$root/usr/bin" "$root/DEBIAN" dist
 git archive --format=tar HEAD | tar -x -C "$top/src"
 
 cd "$top/src"
-cp -a main.py days.json ./*.svg ./*.png src ui assets "$app/"
+cp -a main.py days.json ./*.svg ./*.png src ui assets translations "$app/"
 install -Dm644 LICENSE "$root/usr/share/doc/musichive/copyright"
 install -Dm644 musichive_colour.svg \
     "$root/usr/share/icons/hicolor/scalable/apps/musichive.svg"

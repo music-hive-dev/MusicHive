@@ -37,6 +37,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
+from src.i18n import tr
+
 try:
     import pychromecast
     from pychromecast.discovery import CastBrowser, SimpleCastListener
@@ -382,7 +384,7 @@ class MediaServer:
             except OSError:
                 continue
         else:
-            raise CastError("MusicHive could not offer its sound on the network")
+            raise CastError(tr("MusicHive could not offer its sound on the network"))
         server.media = self  # type: ignore[attr-defined]
         self._server = server
         threading.Thread(target=server.serve_forever, name="cast server", daemon=True).start()
@@ -825,7 +827,10 @@ class CastSession:
         try:
             self._connect()
         except Exception as error:
-            self._lose(f"Cannot connect to {self.device.name}: {_describe(error)}")
+            self._lose(tr("Cannot connect to {name}: {describe}").format(
+                name=self.device.name,
+                describe=_describe(error),
+            ))
             return
         while self._running:
             try:
@@ -855,7 +860,10 @@ class CastSession:
         except Exception as error:
             self._failures += 1
             if self._failures >= LOST_AFTER_FAILURES:
-                self._lose(f"Lost the connection to {self.device.name}: {_describe(error)}")
+                self._lose(tr("Lost the connection to {name}: {describe}").format(
+                    name=self.device.name,
+                    describe=_describe(error),
+                ))
 
     def _lose(self, reason: str) -> None:
         self._running = False
@@ -889,7 +897,9 @@ class CastSession:
                 if ended == "interrupted":
                     self._interrupted += 1
                 elif ended == "error":
-                    self._errors.append(f"{self.device.name} could not play this")
+                    self._errors.append(tr("{name} could not play this").format(
+                        name=self.device.name,
+                    ))
                     self._interrupted += 1
                 else:
                     self._finished += 1
@@ -981,7 +991,7 @@ def open_session(device: CastDevice, server: MediaServer | None = None) -> CastS
 class ChromecastSession(CastSession):
     def _connect(self) -> None:
         if pychromecast is None:
-            raise CastError("PyChromecast is not installed")
+            raise CastError(tr("PyChromecast is not installed"))
         self._cast = pychromecast.get_chromecast_from_cast_info(
             self.device.cast_info, self.device.zeroconf, tries=2, timeout=NETWORK_TIMEOUT
         )
@@ -1098,7 +1108,7 @@ class ChromecastSession(CastSession):
             if self._disconnected_since is None:
                 self._disconnected_since = now
             elif now - self._disconnected_since > LOST_AFTER_FAILURES * 3:
-                raise CastError("the device stopped answering")
+                raise CastError(tr("the device stopped answering"))
             return
         self._disconnected_since = None
         status = self._media.status
@@ -1148,7 +1158,7 @@ class ChromecastSession(CastSession):
         ):
             self._loaded_url = ""
             with self._lock:
-                self._errors.append(f"{self.device.name} could not play this")
+                self._errors.append(tr("{name} could not play this").format(name=self.device.name))
                 self._interrupted += 1
 
 
@@ -1187,7 +1197,9 @@ class DlnaSession(CastSession):
             with urllib.request.urlopen(request, timeout=NETWORK_TIMEOUT) as response:
                 data = response.read()
         except urllib.error.HTTPError as error:
-            raise CastError(_soap_fault(error.read()) or f"{action} was refused") from None
+            raise CastError(_soap_fault(error.read()) or tr("{action} was refused").format(
+                action=action,
+            )) from None
         answer = {}
         for element in ElementTree.fromstring(data).iter():
             if len(element) == 0:
@@ -1203,7 +1215,7 @@ class DlnaSession(CastSession):
     def _render(self, action: str, args: list) -> dict[str, str]:
         device = self.device
         if not device.rendering_url:
-            raise CastError("no volume control")
+            raise CastError(tr("no volume control"))
         return self._soap(
             device.rendering_url, device.rendering_type, action, [("InstanceID", 0), *args]
         )

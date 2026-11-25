@@ -24,6 +24,7 @@ from PySide6.QtCore import QObject, QRunnable, QThread, QThreadPool, Signal  # n
 from PySide6.QtWidgets import QMessageBox, QWidget  # noqa: E402
 
 from src import library_db  # noqa: E402
+from src.i18n import tr  # noqa: E402
 from src.lastfm_dialog import load_dialog  # noqa: E402
 from src.library_db import LibraryInfo  # noqa: E402
 from src.tag_writer import TagJob, TagWriter  # noqa: E402
@@ -221,14 +222,17 @@ class LevelVolumeTool(QObject):
         try:
             paths, gains, target = self._read_state()
         except sqlite3.Error as error:
-            d.levelSummary.setText(f"Cannot read this library: {error}")
+            d.levelSummary.setText(tr("Cannot read this library: {error}").format(error=error))
             self._show_busy(False)
             return
         new = sum(1 for path in paths if path not in gains)
-        volume = f"{target:.1f} dB" if target is not None else "set when you first level it"
+        volume = f"{target:.1f} dB" if target is not None else tr("set when you first level it")
         d.levelSummary.setText(
-            f"{self._library.name}: {len(paths)} songs, {len(paths) - new} levelled, {new} new.\n"
-            f"Library volume: {volume}"
+            tr(
+                "{library}: %n song(s), {levelled} levelled, {new} new.\nLibrary volume: {volume}",
+                "",
+                len(paths),
+            ).format(library=self._library.name, levelled=len(paths) - new, new=new, volume=volume)
         )
         d.levelStartButton.setEnabled(bool(paths) and (new > 0 or target is None))
         d.levelRescanButton.setEnabled(bool(paths))
@@ -262,9 +266,11 @@ class LevelVolumeTool(QObject):
 
     def _rescan_everything(self) -> None:
         if self._confirmed(
-            "Re-scan entire library",
-            "Measure every song in this library again?\n\n"
-            "This replaces all of their volume tags and sets a new library volume.",
+            tr("Re-scan entire library"),
+            tr(
+                "Measure every song in this library again?\n\n"
+                "This replaces all of their volume tags and sets a new library volume."
+            ),
         ):
             self._start(everything=True)
 
@@ -277,7 +283,7 @@ class LevelVolumeTool(QObject):
         try:
             paths, gains, target = self._read_state()
         except sqlite3.Error as error:
-            d.levelStatus.setText(f"Cannot read this library: {error}")
+            d.levelStatus.setText(tr("Cannot read this library: {error}").format(error=error))
             return
         root = self._library.root
         tracks = deque(root / path for path in paths if everything or path not in gains)
@@ -303,7 +309,7 @@ class LevelVolumeTool(QObject):
     def _stop(self) -> None:
         self._cancel.set()
         self.dialog.levelStopButton.setEnabled(False)
-        self.dialog.levelStatus.setText("Stopping…")
+        self.dialog.levelStatus.setText(tr("Stopping…"))
 
     def _on_measured(self, track: Path, result: tuple[float, float] | None) -> None:
         self._done += 1
@@ -350,20 +356,24 @@ class LevelVolumeTool(QObject):
         try:
             paths, gains, _target = self._read_state()
         except sqlite3.Error as error:
-            d.levelStatus.setText(f"Cannot read this library: {error}")
+            d.levelStatus.setText(tr("Cannot read this library: {error}").format(error=error))
             return
         tagged = [library.root / path for path in paths if path in gains]
         if not self._confirmed(
-            "Reset volume levels",
-            f"Remove the volume tags from {len(tagged)} songs and forget this library's volume?"
-            "\n\nSongs go back to their original volume. All of them would have to be "
-            "measured again to level them.",
+            tr("Reset volume levels"),
+            tr(
+                "Remove the volume tags from %n song(s) and forget this library's volume?"
+                "\n\nSongs go back to their original volume. All of them would have to be "
+                "measured again to level them.",
+                "",
+                len(tagged),
+            ),
         ):
             return
         try:
             library_db.clear_level_target(library.db_path)
         except sqlite3.Error as error:
-            d.levelStatus.setText(f"Could not reset this library: {error}")
+            d.levelStatus.setText(tr("Could not reset this library: {error}").format(error=error))
             return
         self._total = self._measured = len(tagged)
         self._failed = self._saved = self._save_failed = 0
@@ -392,7 +402,7 @@ class LevelVolumeTool(QObject):
         # While songs are still being measured, some of the rest may yet fail.
         measuring = self._workers and not self._cancel.is_set()
         total = self._total - self._failed if measuring else self._measured
-        text = f"Saving volume tags: {self._saved} of {total}"
+        text = tr("Saving volume tags: {saved} of {total}").format(saved=self._saved, total=total)
         d.levelStatus.setText(text)
         self._show_status(text)
         if self._resetting:
@@ -403,12 +413,12 @@ class LevelVolumeTool(QObject):
         d = self.dialog
         if self._resetting:
             count = self._total - self._save_failed
-            message = f"Reset {count} song{'' if count == 1 else 's'}"
+            message = tr("Reset %n song(s)", "", count)
             self._resetting = False
         else:
             message = self._final_message
         if self._save_failed:
-            message += f", {self._save_failed} could not be saved"
+            message += tr(", {count} could not be saved").format(count=self._save_failed)
         d.levelProgress.hide()
         d.levelStatus.setText(message)
         self._show_summary()
@@ -420,9 +430,9 @@ class LevelVolumeTool(QObject):
         stopped = self._cancel.is_set()
         library = self._library
         target = None
-        message = f"Levelled {self._measured} song{'' if self._measured == 1 else 's'}"
+        message = tr("Levelled %n song(s)", "", self._measured)
         if self._failed:
-            message += f", {self._failed} could not be measured"
+            message += tr(", {count} could not be measured").format(count=self._failed)
         if self._set_target and not stopped and self._gains:
             target = round(statistics.median(self._gains), 2)
             try:

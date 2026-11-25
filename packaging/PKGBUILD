@@ -36,7 +36,7 @@ package() {
     local app="$pkgdir/usr/share/$pkgname"
 
     install -d "$app"
-    cp -a main.py days.json ./*.svg ./*.png src ui assets "$app/"
+    cp -a main.py days.json ./*.svg ./*.png src ui assets translations "$app/"
     python -m compileall -q -d "/usr/share/$pkgname" "$app"
 
     install -d "$pkgdir/usr/bin"

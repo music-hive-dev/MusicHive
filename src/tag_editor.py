@@ -12,6 +12,7 @@ from PySide6.QtCore import QSettings, QStandardPaths, Qt, QTimer
 from PySide6.QtGui import QIcon, QImage, QPixmap
 from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QTableWidgetItem, QWidget
 
+from src.i18n import QT_TR_NOOP, tr
 from src.lastfm_dialog import load_dialog
 from src.online_search import (
     LYRICS_PREFERENCE_KEY,
@@ -47,7 +48,7 @@ FIELD_NAMES = (
     "language", "grouping", "subtitle", "bpm", "initialkey",
     "lyricist", "remixer", "copyright", "encodedby", "isrc",
 )
-MULTIPLE_VALUES = "(multiple values)"
+MULTIPLE_VALUES = QT_TR_NOOP("(multiple values)")
 LRC_SOURCE, EMBEDDED_SOURCE = 0, 1  # the entries of tagEditLyricsSource, in order
 IMAGE_PREVIEW_SIDE = 320
 
@@ -138,12 +139,17 @@ class TagEditorDialog:
         """Fill the window from the current song or songs."""
         d = self.dialog
         if self._siblings:
-            d.setWindowTitle(f"Edit tags ({self._position + 1} of {len(self._siblings)})")
+            d.setWindowTitle(tr("Edit tags ({position} of {count})").format(
+                position=self._position + 1,
+                count=len(self._siblings),
+            ))
             d.tagEditPreviousButton.setEnabled(self._position > 0)
             d.tagEditNextButton.setEnabled(self._position < len(self._siblings) - 1)
         else:
             count = len(self._paths)
-            d.setWindowTitle("Edit tags" if count == 1 else f"Edit tags of {count} songs")
+            d.setWindowTitle(tr("Edit tags") if count == 1 else tr("Edit tags of {count} songs").format(
+                count=count,
+            ))
 
         self._initial: dict[str, str] = {}
         for name in FIELD_NAMES:
@@ -211,7 +217,7 @@ class TagEditorDialog:
         else:
             widget.setText(text)
         if not same:
-            widget.setPlaceholderText(MULTIPLE_VALUES)
+            widget.setPlaceholderText(tr(MULTIPLE_VALUES))
 
     def _field_text(self, name: str) -> str:
         widget = self._field(name)
@@ -238,7 +244,7 @@ class TagEditorDialog:
             name_item.setFlags(name_item.flags() & ~Qt.ItemFlag.ItemIsEditable)
         value_item = QTableWidgetItem(text)
         if not same:
-            value_item.setToolTip(MULTIPLE_VALUES)
+            value_item.setToolTip(tr(MULTIPLE_VALUES))
         table.setItem(row, 0, name_item)
         table.setItem(row, 1, value_item)
         if not name:
@@ -344,13 +350,13 @@ class TagEditorDialog:
     def _choose_image(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.PicturesLocation)
         path, _ = QFileDialog.getOpenFileName(
-            self.dialog, "Choose an image", start_dir, "Images (*.png *.jpg *.jpeg)"
+            self.dialog, tr("Choose an image"), start_dir, tr("Images (*.png *.jpg *.jpeg)")
         )
         if not path:
             return
         data = Path(path).read_bytes()
         if QImage.fromData(data).isNull():
-            QMessageBox.warning(self.dialog, "Image", "That image could not be read.")
+            QMessageBox.warning(self.dialog, tr("Image"), tr("That image could not be read."))
             return
         self._cover = data
         self._cover_changed = True
@@ -371,7 +377,7 @@ class TagEditorDialog:
 
     def _set_searching(self, button: QWidget, searching: bool) -> None:
         button.setEnabled(not searching)
-        button.setText("Searching…" if searching else self._find_button_text)
+        button.setText(tr("Searching…") if searching else self._find_button_text)
 
     def _search_artist(self) -> str:
         return self._field_text("albumartist").strip() or self._field_text("artist").strip()
@@ -379,7 +385,7 @@ class TagEditorDialog:
     def _find_covers(self) -> None:
         album = self._field_text("album").strip()
         if not album:
-            QMessageBox.information(self.dialog, "Find image", "Enter the album's name first.")
+            QMessageBox.information(self.dialog, tr("Find image"), tr("Enter the album's name first."))
             return
         self._set_searching(self.dialog.tagEditFindImageButton, True)
         self._cover_search = self._online.find_covers(self._search_artist(), album)
@@ -390,8 +396,10 @@ class TagEditorDialog:
         self._cover_search = None
         self._set_searching(self.dialog.tagEditFindImageButton, False)
         if error or not covers:
-            text = f"The search failed: {error}" if error else "No image was found for this album."
-            QMessageBox.information(self.dialog, "Find image", text)
+            text = tr("The search failed: {error}").format(
+                error=error,
+            ) if error else tr("No image was found for this album.")
+            QMessageBox.information(self.dialog, tr("Find image"), text)
             return
         chosen = compare_covers(
             self._ui_folder / "cover_compare.ui", self.dialog, self._cover, covers
@@ -404,7 +412,7 @@ class TagEditorDialog:
     def _find_genres(self) -> None:
         artist = self._field_text("artist").strip() or self._field_text("albumartist").strip()
         if not artist:
-            QMessageBox.information(self.dialog, "Find genres", "Enter the artist's name first.")
+            QMessageBox.information(self.dialog, tr("Find genres"), tr("Enter the artist's name first."))
             return
         self._set_searching(self.dialog.tagEditFindGenreButton, True)
         self._genre_search = self._online.find_genres(
@@ -417,8 +425,10 @@ class TagEditorDialog:
         self._genre_search = None
         self._set_searching(self.dialog.tagEditFindGenreButton, False)
         if error or not genres:
-            text = f"The search failed: {error}" if error else "No genres were found."
-            QMessageBox.information(self.dialog, "Find genres", text)
+            text = tr("The search failed: {error}").format(
+                error=error,
+            ) if error else tr("No genres were found.")
+            QMessageBox.information(self.dialog, tr("Find genres"), text)
             return
         chosen = compare_genres(
             self._ui_folder / "genre_compare.ui",
@@ -435,7 +445,7 @@ class TagEditorDialog:
         title = self._field_text("title").strip()
         artist = self._field_text("artist").strip() or self._field_text("albumartist").strip()
         if not title or not artist:
-            QMessageBox.information(self.dialog, "Find lyrics", "Enter the title and artist first.")
+            QMessageBox.information(self.dialog, tr("Find lyrics"), tr("Enter the title and artist first."))
             return
         try:
             duration_ms = read_track_info(self._paths[0])[0].duration_ms or 0
@@ -453,7 +463,9 @@ class TagEditorDialog:
         d = self.dialog
         self._set_searching(d.tagEditFindLyricsButton, False)
         if error:
-            QMessageBox.information(d, "Find lyrics", f"The search failed: {error}")
+            QMessageBox.information(d, tr("Find lyrics"), tr("The search failed: {error}").format(
+                error=error,
+            ))
             return
         preference = d.tagEditLyricsPreference.currentIndex()
         text = pick_lyrics(found, preference)
@@ -461,19 +473,21 @@ class TagEditorDialog:
             if is_instrumental(found):
                 self._set_other_tag(HAS_LYRICS_TAG, "false")
                 message = (
-                    "LRCLIB lists this song as an instrumental: it has no lyrics. "
-                    f"Its “{HAS_LYRICS_TAG}” tag was set to false (saved with Save)."
+                    tr(
+                        "LRCLIB lists this song as an instrumental: it has no lyrics. "
+                        "Its “{has_lyrics_tag}” tag was set to false (saved with Save)."
+                    ).format(has_lyrics_tag=HAS_LYRICS_TAG)
                 )
             elif found and preference == ONLY_TIMED:
-                message = "Only plain lyrics were found for this song, no timed ones."
+                message = tr("Only plain lyrics were found for this song, no timed ones.")
             else:
-                message = "No lyrics were found for this song."
-            QMessageBox.information(d, "Find lyrics", message)
+                message = tr("No lyrics were found for this song.")
+            QMessageBox.information(d, tr("Find lyrics"), message)
             return
         current = d.tagEditLyrics.toPlainText().strip()
         if current and current != text.strip():
             answer = QMessageBox.question(
-                d, "Find lyrics", "Replace the lyrics shown with the ones found?"
+                d, tr("Find lyrics"), tr("Replace the lyrics shown with the ones found?")
             )
             if answer != QMessageBox.StandardButton.Yes:
                 return
@@ -525,7 +539,9 @@ class TagEditorDialog:
                 continue  # an empty row that was added and left alone
             if not name or name in PROTECTED_TAGS:
                 QMessageBox.warning(
-                    self.dialog, "Tag name", f"'{table.item(row, 0).text()}' can't be used as a tag name."
+                    self.dialog, tr("Tag name"), tr("'{text}' can't be used as a tag name.").format(
+                        text=table.item(row, 0).text(),
+                    )
                 )
                 return None
             changes[name] = value

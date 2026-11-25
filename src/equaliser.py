@@ -10,6 +10,7 @@ from pathlib import Path
 from PySide6.QtCore import QSettings
 from PySide6.QtWidgets import QDialogButtonBox, QInputDialog, QMessageBox, QWidget
 
+from src.i18n import tr
 from src.lastfm_dialog import load_dialog
 
 BAND_FREQUENCIES = {
@@ -362,15 +363,17 @@ class EqualiserWindow:
     def _save_preset(self) -> None:
         d = self.dialog
         suggestion = self._current.preset if self._current.preset in self._user_presets else ""
-        name, accepted = QInputDialog.getText(d, "Save preset", "Preset name:", text=suggestion)
+        name, accepted = QInputDialog.getText(d, tr("Save preset"), tr("Preset name:"), text=suggestion)
         name = name.strip()
         if not accepted or not name:
             return
         if name in PRESETS:
-            QMessageBox.warning(d, "Save preset", "A built-in preset already has that name.")
+            QMessageBox.warning(d, tr("Save preset"), tr("A built-in preset already has that name."))
             return
         if name in self._user_presets and name != self._current.preset:
-            answer = QMessageBox.question(d, "Save preset", f"Replace the preset '{name}'?")
+            answer = QMessageBox.question(d, tr("Save preset"), tr("Replace the preset '{name}'?").format(
+                name=name,
+            ))
             if answer != QMessageBox.StandardButton.Yes:
                 return
         self._current.preset = name
@@ -385,7 +388,9 @@ class EqualiserWindow:
         name = self._current.preset
         if name not in self._user_presets:
             return
-        answer = QMessageBox.question(d, "Delete preset", f"Delete the preset '{name}'?")
+        answer = QMessageBox.question(d, tr("Delete preset"), tr("Delete the preset '{name}'?").format(
+            name=name,
+        ))
         if answer != QMessageBox.StandardButton.Yes:
             return
         del self._user_presets[name]

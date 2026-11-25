@@ -10,6 +10,7 @@ from PySide6.QtGui import QDrag, QPixmap, QRegion
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QAbstractItemView, QLabel, QListView, QTableView, QTreeView, QWidget
 
+from src.i18n import tr
 from src.track_list import TrackListModel
 
 NAME_WIDTH = 360  # longer names are cut off with "…"
@@ -35,8 +36,9 @@ def drag_text(indexes: list[QModelIndex], font_metrics=None) -> str:
     more = len(rows) - 1
     if more <= 0:
         return name
-    noun = ("song" if more == 1 else "songs") if is_song else ("item" if more == 1 else "items")
-    return f"{name} and {more} more {noun}…"
+    if is_song:
+        return tr("{name} and %n more song(s)…", "", more).format(name=name)
+    return tr("{name} and %n more item(s)…", "", more).format(name=name)
 
 
 def drag_pixmap(widget: QWidget, indexes: list[QModelIndex]) -> QPixmap:

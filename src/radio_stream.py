@@ -24,6 +24,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QObject, Signal
 
+from src.i18n import tr
+
 USER_AGENT = "MusicHive/1.0 (radio)"
 CONNECT_TIMEOUT_SECONDS = 15
 READ_BYTES = 16 * 1024
@@ -50,7 +52,7 @@ class NotStreamable(Exception):
 
 def _request(url: str, icy: bool = True):
     if urllib.parse.urlparse(url).scheme not in ("http", "https"):
-        raise ValueError("Only http and https addresses can be played")
+        raise ValueError(tr("Only http and https addresses can be played"))
     headers = {"User-Agent": USER_AGENT}
     if icy:
         headers["Icy-MetaData"] = "1"
@@ -77,7 +79,7 @@ def resolve_playlist(url: str, depth: int = 0) -> str:
             line = line.split("=", 1)[1].strip()
         if line.startswith(("http://", "https://")):
             return resolve_playlist(line, depth + 1)
-    raise ValueError("The playlist names no stream")
+    raise ValueError(tr("The playlist names no stream"))
 
 
 def parse_icy_title(metadata: bytes) -> str | None:
@@ -290,7 +292,7 @@ class RadioStream(QObject):
                     if kind in HLS_TYPES:
                         raise NotStreamable(url)
                     if kind in PLAYLIST_TYPES:
-                        raise ValueError("The station sent a playlist instead of sound")
+                        raise ValueError(tr("The station sent a playlist instead of sound"))
                     self.content_type = kind
                     self.info_ready.emit({
                         "type": kind,
@@ -298,7 +300,7 @@ class RadioStream(QObject):
                         "name": response.headers.get("icy-name") or "",
                     })
                     if attempt:
-                        self.status.emit(f"{self.station}: connected again")
+                        self.status.emit(tr("{station}: connected again").format(station=self.station))
                     attempt = 0
                     self._connected.set()
                     self._read_from(response, int(response.headers.get("icy-metaint") or 0))
@@ -312,7 +314,11 @@ class RadioStream(QObject):
                     self.failed.emit(str(getattr(error, "reason", None) or error))
                     return
                 delay = RECONNECT_DELAYS[min(attempt, len(RECONNECT_DELAYS) - 1)]
-                self.status.emit(f"{self.station}: connection lost, trying again in {delay} s")
+                self.status.emit(
+                    tr("{station}: connection lost, trying again in {delay} s").format(
+                        station=self.station, delay=delay
+                    )
+                )
                 attempt += 1
                 for _ in range(delay * 10):
                     if not self._running.is_set():
@@ -479,7 +485,7 @@ class RadioStream(QObject):
             try:
                 tape.write(data, title)
             except OSError as error:
-                self.status.emit(f"Taping stopped: {error}")
+                self.status.emit(tr("Taping stopped: {error}").format(error=error))
                 self._tape = None
                 return
             self._tape_position = start + len(data)

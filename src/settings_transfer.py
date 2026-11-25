@@ -4,6 +4,8 @@ from pathlib import Path
 
 from PySide6.QtCore import QSettings
 
+from src.i18n import tr
+
 MARKER_KEY = "musicHiveSettingsExport"  # tells our files apart from any other .ini file
 
 # Left out of the file: the Last.fm login, this computer's data folder,
@@ -26,7 +28,7 @@ def export_settings(settings: QSettings, path: Path) -> None:
             target.setValue(key, settings.value(key))
     target.sync()
     if target.status() != QSettings.Status.NoError:
-        raise OSError(f"Could not write {path}")
+        raise OSError(tr("Could not write {path}").format(path=path))
 
 
 def import_settings(settings: QSettings, path: Path) -> int:
@@ -36,7 +38,7 @@ def import_settings(settings: QSettings, path: Path) -> int:
     """
     source = QSettings(str(path), QSettings.Format.IniFormat)
     if source.status() != QSettings.Status.NoError or not source.contains(MARKER_KEY):
-        raise ValueError("This is not a MusicHive settings file.")
+        raise ValueError(tr("This is not a MusicHive settings file."))
     keys = [key for key in source.allKeys() if key != MARKER_KEY and _is_transferable(key)]
     for key in keys:
         settings.setValue(key, source.value(key))

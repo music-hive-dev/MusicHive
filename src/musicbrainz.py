@@ -21,6 +21,8 @@ import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from src.i18n import tr
+
 API_URL = "https://musicbrainz.org/ws/2"
 RELEASE_PAGE_URL = "https://musicbrainz.org/release/"
 USER_AGENT = "MusicHive ( https://github.com/music-hive-dev/MusicHive )"
@@ -86,14 +88,16 @@ def _get(path: str, params: dict[str, str], cancel: threading.Event | None = Non
                     time.sleep(wait)
                 continue
             if error.code in (429, 503):
-                raise MusicBrainzError("MusicBrainz is busy; try again later") from error
+                raise MusicBrainzError(tr("MusicBrainz is busy; try again later")) from error
             if error.code == 404:
-                raise MusicBrainzError("MusicBrainz does not know that release") from error
+                raise MusicBrainzError(tr("MusicBrainz does not know that release")) from error
             raise MusicBrainzError(f"HTTP {error.code} {error.reason}") from error
         except (urllib.error.URLError, TimeoutError, OSError) as error:
-            raise MusicBrainzError(f"Cannot reach MusicBrainz: {error}") from error
+            raise MusicBrainzError(tr("Cannot reach MusicBrainz: {error}").format(
+                error=error,
+            )) from error
         except ValueError as error:
-            raise MusicBrainzError("MusicBrainz sent something unexpected") from error
+            raise MusicBrainzError(tr("MusicBrainz sent something unexpected")) from error
     return None
 
 
@@ -136,7 +140,7 @@ class Candidate:
     def description(self) -> str:
         parts = [f"{self.title} – {self.artist}"]
         parts += [part for part in (self.date, self.country, self.formats) if part]
-        parts.append(f"{self.track_count} tracks")
+        parts.append(tr("%n track(s)", "", self.track_count))
         if self.status and self.status != "Official":
             parts.append(self.status.lower())
         return " · ".join(parts)

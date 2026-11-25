@@ -8,6 +8,7 @@ from PySide6.QtCore import QBuffer, QIODevice, QObject, QRunnable, Qt, Signal
 from PySide6.QtGui import QImage
 
 from src import library_db
+from src.i18n import tr
 from src.library_db import LibraryInfo, ScannedTrack
 from src.music_library import find_audio_files
 from src.track_metadata import TrackInfo, read_track_info
@@ -96,15 +97,21 @@ class ScanTask(QRunnable):
         signals = self._signals
         try:
             if not library.root.is_dir():
-                raise RuntimeError(f"The library folder was not found:\n{library.root}")
+                raise RuntimeError(
+                    tr("The library folder was not found:\n{root}").format(root=library.root)
+                )
 
             files = find_audio_files(library.root)
             total = len(files)
             if total == 0 and library.track_count > 0:
                 raise RuntimeError(
-                    "No audio files were found, although this library had "
-                    f"{library.track_count} songs before. The drive may be "
-                    "disconnected, so the saved library was kept unchanged."
+                    tr(
+                        "No audio files were found, although this library had %n song(s) "
+                        "before. The drive may be disconnected, so the saved library was "
+                        "kept unchanged.",
+                        "",
+                        library.track_count,
+                    )
                 )
             signals.progress.emit(library.id, 0, total)
 

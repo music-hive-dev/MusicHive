@@ -9,6 +9,8 @@ prefix = Path(os.environ["MINGW_PREFIX"])  # where MSYS2 keeps the UCRT64 librar
 
 # main.py and src/ find these next to themselves, as in the source folder.
 datas = [(str(root / "ui"), "ui"), (str(root / "assets"), "assets"), (str(root / "days.json"), ".")]
+# Only the compiled translations; the .ts files and scripts are for translators.
+datas += [(str(path), "translations") for path in (root / "translations").glob("*.qm")]
 datas.append((str(root / "LICENSE"), "."))
 datas += [(str(path), ".") for path in (*root.glob("*.svg"), *root.glob("*.png"))]
 # Inter, the interface font, downloaded by build.sh; Windows does not have it.

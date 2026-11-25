@@ -1,7 +1,7 @@
 // Run by KWin when the mini player opens (see src/mini_player.py). On Wayland a
 // program cannot keep its own window on top, place it, or see where it is.
-// The title must match the windowTitle in ui/mini_player.ui.
-var title = "MusicHive Mini Player";
+// The window's title, as shown in the chosen language: filled in by mini_player.py.
+var title = __TITLE__;
 var saved = __SAVED_POSITION__; // filled in by mini_player.py
 
 function isOnAScreen(x, y) {

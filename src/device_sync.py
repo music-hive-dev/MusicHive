@@ -32,6 +32,7 @@ from src.convert_files import (
     device_path_key,
     make_tasks,
 )
+from src.i18n import tr
 from src.music_library import SUPPORTED_EXTENSIONS
 from src.number_field import NumberField
 from src.organise_files import sanitise_name, template_problem
@@ -366,7 +367,7 @@ class DeviceSyncPanel(QObject):
         music_folder = device_subfolder(w.syncMusicFolder.text())
         playlist_folder = device_subfolder(w.syncPlaylistFolder.text())
         if music_folder is None or playlist_folder is None:
-            self._report("Enter a folder on the device for the music and for the playlists.")
+            self._report(tr("Enter a folder on the device for the music and for the playlists."))
             return
         template = w.syncTemplate.text() if w.syncFormatSubfolders.isChecked() else None
         problem = template_problem(template) if template is not None else None
@@ -403,7 +404,7 @@ class DeviceSyncPanel(QObject):
         )
         if not tasks:  # an empty plan would call everything on the device extra
             self._set_running(False)
-            self._report("There are no songs to send to the device.")
+            self._report(tr("There are no songs to send to the device."))
             return
         self._queue_tasks = tasks
         self._done = self._deleted = self._delete_failed = 0
@@ -412,21 +413,21 @@ class DeviceSyncPanel(QObject):
         self._device_lost = False
         self._cancel = threading.Event()
         self._set_running(True)
-        self._report("Comparing the device with the library…")
+        self._report(tr("Comparing the device with the library…"))
         self._pool.start(_PlanTask(self._music_root, tasks, self._signals))
 
     def _stop(self) -> None:
         self._cancel.set()
         self._window.syncStopButton.setEnabled(False)
-        self._report("Stopping…")
+        self._report(tr("Stopping…"))
 
     def _on_planned(self, extra: list[Path], error: str) -> None:
         if error:
             self._set_running(False)
-            self._report(f"Could not read the device: {error}")
+            self._report(tr("Could not read the device: {error}").format(error=error))
         elif self._cancel.is_set():
             self._set_running(False)
-            self._report("Stopped.")
+            self._report(tr("Stopped."))
         elif not extra:
             self._copy_songs()
         else:
@@ -438,28 +439,34 @@ class DeviceSyncPanel(QObject):
         listed = "\n".join(names[:MAX_FILES_LISTED])
         more = len(names) - MAX_FILES_LISTED
         if more > 0:
-            listed += f"\n…and {more} more"
+            listed += tr("\n…and {more} more").format(more=more)
         box = QMessageBox(
             QMessageBox.Icon.Warning,
-            "Delete files from the device?",
-            f"{len(names)} files in the device's music folder are not in this library and "
-            f"would be deleted. This cannot be undone.\n\n{listed}",
+            tr("Delete files from the device?"),
+            tr(
+                "%n file(s) in the device's music folder (is/are) not in this library and "
+                "would be deleted. This cannot be undone.\n\n{listed}",
+                "",
+                len(names),
+            ).format(listed=listed),
             parent=self._window,
         )
         box.setDetailedText("\n".join(names))
-        delete = box.addButton("Delete and Synchronise", QMessageBox.ButtonRole.DestructiveRole)
-        keep = box.addButton("Synchronise Without Deleting", QMessageBox.ButtonRole.AcceptRole)
+        delete = box.addButton(tr("Delete and Synchronise"), QMessageBox.ButtonRole.DestructiveRole)
+        keep = box.addButton(tr("Synchronise Without Deleting"), QMessageBox.ButtonRole.AcceptRole)
         cancel = box.addButton(QMessageBox.StandardButton.Cancel)
         box.setDefaultButton(cancel)
         box.exec()
         if box.clickedButton() is delete:
-            self._report(f"Deleting {len(names)} files from the device…")
+            self._report(tr("Deleting {count} files from the device…").format(
+                count=len(names),
+            ))
             self._pool.start(_DeleteTask(self._music_root, extra, self._cancel, self._signals))
         elif box.clickedButton() is keep:
             self._copy_songs()
         else:
             self._set_running(False)
-            self._report("Synchronisation cancelled. Nothing was changed.")
+            self._report(tr("Synchronisation cancelled. Nothing was changed."))
 
     def _on_deleted(self, deleted: int, failed: int) -> None:
         self._deleted, self._delete_failed = deleted, failed
@@ -489,7 +496,11 @@ class DeviceSyncPanel(QObject):
             self._device_lost = True  # every remaining song would only fail too
             self._cancel.set()
         self._window.syncProgress.setValue(self._done)
-        self._report(f"Synchronising {self._done} of {len(self._queue_tasks)}: {name}")
+        self._report(tr("Synchronising {done} of {total}: {name}").format(
+            done=self._done,
+            total=len(self._queue_tasks),
+            name=name,
+        ))
 
     def _on_worker_done(self, worker: ConvertWorker) -> None:
         self._workers.discard(worker)
@@ -528,30 +539,36 @@ class DeviceSyncPanel(QObject):
 
     def _finish(self) -> None:
         counts = self._counts
-        parts = [f"Copied {counts.get(CONVERTED, 0)}"]
+        parts = [tr("Copied {count}").format(count=counts.get(CONVERTED, 0))]
         if counts.get(TAGS_UPDATED):
-            parts.append(f"updated the tags of {counts[TAGS_UPDATED]}")
+            parts.append(tr("updated the tags of {count}").format(count=counts[TAGS_UPDATED]))
         if counts.get(UP_TO_DATE):
-            parts.append(f"{counts[UP_TO_DATE]} already up to date")
+            parts.append(tr("{count} already up to date").format(count=counts[UP_TO_DATE]))
         if self._deleted:
-            parts.append(f"deleted {self._deleted}")
+            parts.append(tr("deleted {count}").format(count=self._deleted))
         if self._delete_failed:
-            parts.append(f"{self._delete_failed} could not be deleted")
+            parts.append(tr("{count} could not be deleted").format(count=self._delete_failed))
         if self._left_out:
-            parts.append(f"{self._left_out} skipped for missing tags")
+            parts.append(tr("{count} skipped for missing tags").format(count=self._left_out))
         if counts.get(FAILED):
-            parts.append(f"{counts[FAILED]} failed")
+            parts.append(tr("{count} failed").format(count=counts[FAILED]))
         stopped = self._cancel.is_set()
         if not stopped:
             failed_playlists = self._write_playlists()
             if failed_playlists:
-                parts.append(f"{failed_playlists} playlists could not be written")
+                parts.append(
+                    tr("%n playlist(s) could not be written", "", failed_playlists)
+                )
         message = ", ".join(parts)
         if self._device_lost:
-            message = f"The device disconnected, so the synchronisation stopped. {message}"
+            message = tr("The device disconnected, so the synchronisation stopped. {message}").format(
+                message=message,
+            )
         elif stopped:
-            message = f"Stopped. {message}"
+            message = tr("Stopped. {message}").format(message=message)
         if self._first_problem:
-            message += f"\nFirst problem: {self._first_problem}"
+            message += tr("\nFirst problem: {first_problem}").format(
+                first_problem=self._first_problem,
+            )
         self._set_running(False)
         self._report(message)

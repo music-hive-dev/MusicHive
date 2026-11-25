@@ -47,6 +47,7 @@ from PySide6.QtWidgets import (
 )
 
 from src import library_db
+from src.i18n import tr
 from src.lastfm_dialog import load_dialog
 from src.library_db import LibraryInfo
 from src.number_field import NumberField
@@ -114,14 +115,14 @@ def _megabytes(size: int) -> str:
 
 
 def _songs(count: int) -> str:
-    return f"{count} song{'' if count == 1 else 's'}"
+    return tr("%n song(s)", "", count)
 
 
 def _names(paths: list[Path]) -> str:
     """File names for a tooltip, the first few of them."""
     names = [path.name for path in paths[:LISTED_NAMES]]
     if len(paths) > LISTED_NAMES:
-        names.append(f"… and {len(paths) - LISTED_NAMES} more")
+        names.append(tr("… and {count} more").format(count=len(paths) - LISTED_NAMES))
     return "\n".join(names)
 
 
@@ -147,7 +148,7 @@ class CoverInfo:
 
     @property
     def dimensions(self) -> str:
-        return f"{self.width} × {self.height}" if self.readable else "Cannot be read"
+        return f"{self.width} × {self.height}" if self.readable else tr("Cannot be read")
 
     @property
     def text(self) -> str:
@@ -163,7 +164,7 @@ class CoverReport:
 
     @property
     def cover_text(self) -> str:
-        return self.covers[0].text if self.covers else "None"
+        return self.covers[0].text if self.covers else tr("None")
 
 
 def group_albums(songs: list[tuple[Path, TrackInfo | None]], skipped: set[Path]) -> list[Album]:
@@ -194,8 +195,10 @@ def group_albums(songs: list[tuple[Path, TrackInfo | None]], skipped: set[Path])
         elif len(artists) == 1:
             artist = artists.pop()
         else:
-            artist = "Various artists" if artists else ""
-        title = (first.album or "").strip() or f"{first.title or members[0][0].stem} (no album)"
+            artist = tr("Various artists") if artists else ""
+        title = (first.album or "").strip() or tr("{title} (no album)").format(
+            title=first.title or members[0][0].stem,
+        )
         albums.append(
             Album(
                 title,
@@ -267,24 +270,33 @@ def check_album(album: Album, limits: Limits) -> CoverReport:
     problems = report.problems
     if not report.covers:
         if limits.missing:
-            problems.append("No cover")
+            problems.append(tr("No cover"))
     else:
         if report.without and limits.missing:
-            problems.append(f"{len(report.without)} of {checked} songs have no cover")
+            problems.append(tr("{without} of {checked} songs have no cover").format(
+                without=len(report.without),
+                checked=checked,
+            ))
         if len(report.covers) > 1 and limits.mixed:
-            problems.append(f"{len(report.covers)} different covers")
+            problems.append(tr("{count} different covers").format(
+                count=len(report.covers),
+            ))
         main = report.covers[0]  # the cover most songs have
         if not main.readable:
-            problems.append("Cover cannot be read")
+            problems.append(tr("Cover cannot be read"))
         else:
             if limits.square and not main.square:
-                problems.append(f"Not square ({main.dimensions})")
+                problems.append(tr("Not square ({dimensions})").format(dimensions=main.dimensions))
             if limits.low_res and min(main.width, main.height) < limits.min_side:
-                problems.append(f"Low resolution ({main.dimensions})")
+                problems.append(tr("Low resolution ({dimensions})").format(
+                    dimensions=main.dimensions,
+                ))
             if limits.large and main.size > limits.max_bytes:
-                problems.append(f"Large image ({_megabytes(main.size)})")
+                problems.append(tr("Large image ({megabytes})").format(
+                    megabytes=_megabytes(main.size),
+                ))
     if problems and any(skipped):
-        problems.insert(0, f"{_songs(sum(skipped))} marked to skip")
+        problems.insert(0, tr("{songs} marked to skip").format(songs=_songs(sum(skipped))))
     return report
 
 
@@ -335,7 +347,7 @@ class _Worker(QRunnable):
                 try:
                     report = check_album(album, limits)
                 except Exception as error:  # one bad album must not stop the others
-                    report = CoverReport([f"Cannot be checked: {error}"])
+                    report = CoverReport([tr("Cannot be checked: {error}").format(error=error)])
                 if not self._cancel.is_set():
                     self._signals.checked.emit(album_id, report, counted)
         finally:
@@ -482,13 +494,15 @@ class CheckCoversTool(QObject):
         d = self.dialog
         found = self._library_songs()
         if found is None:
-            d.checkCoversSummary.setText("Open a library first.")
+            d.checkCoversSummary.setText(tr("Open a library first."))
             return
         library, songs = found
         try:
             marks = library_db.load_tag_values(library.db_path, [SKIP_TAG])
         except Exception as error:
-            d.checkCoversSummary.setText(f"Cannot read this library: {error}")
+            d.checkCoversSummary.setText(tr("Cannot read this library: {error}").format(
+                error=error,
+            ))
             return
         skipped = {
             library.root / rel
@@ -498,7 +512,7 @@ class CheckCoversTool(QObject):
         self._library_id = library.id
         albums = group_albums(songs, skipped)
         if not albums:
-            d.checkCoversSummary.setText("This library has no songs.")
+            d.checkCoversSummary.setText(tr("This library has no songs."))
             return
         self._cancel = threading.Event()
         self._queue.clear()
@@ -513,7 +527,7 @@ class CheckCoversTool(QObject):
         d.checkCoversProgress.setRange(0, self._total)
         d.checkCoversProgress.setValue(0)
         d.checkCoversProgress.show()
-        d.checkCoversSummary.setText(f"Checking {self._total} albums…")
+        d.checkCoversSummary.setText(tr("Checking {total} albums…").format(total=self._total))
         self._show_running(True)
         self._start_workers()
 
@@ -558,7 +572,9 @@ class CheckCoversTool(QObject):
                 self._finish(stopped=False)
         elif not counted:
             if not report.problems:
-                self._show_status(f"“{album.title}” has no cover problems to show now")
+                self._show_status(tr("“{title}” has no cover problems to show now").format(
+                    title=album.title,
+                ))
             self._show_summary()
 
     def _finish(self, stopped: bool) -> None:
@@ -574,13 +590,12 @@ class CheckCoversTool(QObject):
         albums = len(self._albums)
         if stopped:
             text = (
-                f"Stopped. {listed} album{'' if listed == 1 else 's'} "
-                "found so far need a better cover."
+                tr("Stopped. %n album(s) found so far need(s/) a better cover.", "", listed)
             )
         elif listed:
-            text = f"{listed} of {albums} album{'' if albums == 1 else 's'} need a better cover."
+            text = tr("{listed} of %n album(s) need a better cover.", "", albums).format(listed=listed)
         else:
-            text = f"All {albums} albums have a good cover."
+            text = tr("All {albums} albums have a good cover.").format(albums=albums)
         self.dialog.checkCoversSummary.setText(text)
 
     def _show_running(self, running: bool) -> None:
@@ -678,7 +693,9 @@ class CheckCoversTool(QObject):
                 item.setSizeHint(strip.gridSize())
                 strip.addItem(item)
             if report.without:
-                item = QListWidgetItem(QIcon(), f"{_songs(len(report.without))}\nwithout a cover")
+                item = QListWidgetItem(QIcon(), tr("{songs}\nwithout a cover").format(
+                    songs=_songs(len(report.without)),
+                ))
                 item.setToolTip(_names(report.without))
                 item.setFlags(Qt.ItemFlag.ItemIsEnabled)  # shown, but cannot be chosen
                 item.setSizeHint(strip.gridSize())
@@ -724,7 +741,7 @@ class CheckCoversTool(QObject):
         if album is None:
             return
         if not QDesktopServices.openUrl(QUrl.fromLocalFile(str(album.folder))):
-            self._show_status(f"Cannot open {album.folder}")
+            self._show_status(tr("Cannot open {folder}").format(folder=album.folder))
 
     def _confirmed(self, title: str, question: str) -> bool:
         answer = QMessageBox.question(
@@ -741,7 +758,7 @@ class CheckCoversTool(QObject):
         data, _source, _mark = read_cover(cover.paths[0])
         if not data:
             QMessageBox.warning(
-                self.dialog, "Cover", "The cover could not be read from the song any more."
+                self.dialog, tr("Cover"), tr("The cover could not be read from the song any more.")
             )
         return data or None
 
@@ -752,13 +769,17 @@ class CheckCoversTool(QObject):
             return
         side = max(cover.width, cover.height)
         if cover.source == "embedded":
-            where = f"in the {_songs(len(cover.paths))} that have it"
+            where = tr("in the {songs} that have it").format(songs=_songs(len(cover.paths)))
         else:
-            where = f"over the image file “{cover.source}” in the album's folder"
+            where = tr("over the image file “{source}” in the album's folder").format(
+                source=cover.source,
+            )
         if not self._confirmed(
-            "Make square",
-            f"Stretch the cover of “{album.title}” from {cover.dimensions} "
-            f"to {side} × {side}, and save it {where}?",
+            tr("Make square"),
+            tr(
+                "Stretch the cover of “{title}” from {dimensions} "
+                "to {side} × {side}, and save it {where}?"
+            ).format(title=album.title, dimensions=cover.dimensions, side=side, where=where),
         ):
             return
         data = self._cover_data(cover)
@@ -766,17 +787,19 @@ class CheckCoversTool(QObject):
             return
         square = stretch_square(data)
         if square is None:
-            QMessageBox.warning(self.dialog, "Make square", "The cover could not be stretched.")
+            QMessageBox.warning(self.dialog, tr("Make square"), tr("The cover could not be stretched."))
             return
 
         if cover.source == "embedded":
             encoded = _encode(square, "PNG" if data.startswith(b"\x89PNG") else "JPEG")
             if encoded is None:
-                QMessageBox.warning(self.dialog, "Make square", "The cover could not be saved.")
+                QMessageBox.warning(self.dialog, tr("Make square"), tr("The cover could not be saved."))
                 return
             changes = TagChanges(cover=encoded, cover_changed=True)
             self._save_tags(
-                [TagJob(path, changes) for path in cover.paths], f"Make square: {album.title}"
+                [TagJob(path, changes) for path in cover.paths], tr("Make square: {title}").format(
+                    title=album.title,
+                )
             )
             return
 
@@ -798,11 +821,13 @@ class CheckCoversTool(QObject):
                 failed.append(f"{target.name}: {error}")
                 temp.unlink(missing_ok=True)
         if failed:
-            QMessageBox.warning(self.dialog, "Make square", "Could not save " + "; ".join(failed))
+            QMessageBox.warning(self.dialog, tr("Make square"), tr("Could not save ") + "; ".join(failed))
         forget_folder_covers()
         # Nothing changes in the songs, but saving them reads them again, which
         # brings the library's thumbnails up to date and checks the album again.
-        self._save_tags([TagJob(path, TagChanges()) for path in album.paths], f"Make square: {album.title}")
+        self._save_tags([TagJob(path, TagChanges()) for path in album.paths], tr("Make square: {title}").format(
+            title=album.title,
+        ))
 
     def _use_for_album(self) -> None:
         album = self._selected_album()
@@ -815,16 +840,20 @@ class CheckCoversTool(QObject):
         if not targets:
             return
         if not self._confirmed(
-            "Use for whole album",
-            f"Save this cover ({cover.text}) in the {_songs(len(targets))} of "
-            f"“{album.title}” that have another cover or none?",
+            tr("Use for whole album"),
+            tr(
+                "Save this cover ({text}) in the {songs} of "
+                "“{title}” that have another cover or none?"
+            ).format(text=cover.text, songs=_songs(len(targets)), title=album.title),
         ):
             return
         data = self._cover_data(cover)
         if data is None:
             return
         changes = TagChanges(cover=data, cover_changed=True)
-        self._save_tags([TagJob(path, changes) for path in targets], f"Cover for whole album: {album.title}")
+        self._save_tags([TagJob(path, changes) for path in targets], tr("Cover for whole album: {title}").format(
+            title=album.title,
+        ))
 
     def _set_skipped(self) -> None:
         """Write or remove the skip mark in every song of the chosen album."""
@@ -840,7 +869,7 @@ class CheckCoversTool(QObject):
             if marked != skip
         ]
         if jobs:
-            what = "Skip cover problems" if skip else "Check cover again"
+            what = tr("Skip cover problems") if skip else tr("Check cover again")
             self._save_tags(jobs, f"{what}: {album.title}")
 
     def _on_tags_saved(self, result) -> None:
@@ -858,7 +887,7 @@ class CheckCoversTool(QObject):
 
     def _rows_as_text(self) -> list[list[str]]:
         table = self.dialog.checkCoversList
-        rows = [["Album", "Artist", "Songs", "Cover", "Problems", "Folder"]]
+        rows = [[tr("Album"), tr("Artist"), tr("Songs"), tr("Cover"), tr("Problems"), tr("Folder")]]
         for row in range(table.rowCount()):
             album = self._albums.get(table.item(row, ALBUM_COLUMN).data(ALBUM_ID_ROLE))
             cells = [table.item(row, column).text() for column in range(PROBLEMS_COLUMN + 1)]
@@ -868,12 +897,12 @@ class CheckCoversTool(QObject):
     def _copy_list(self) -> None:
         text = "\n".join("\t".join(cells) for cells in self._rows_as_text())
         QApplication.clipboard().setText(text + "\n")
-        self._show_status("The list of covers to fix was copied")
+        self._show_status(tr("The list of covers to fix was copied"))
 
     def _save_list(self) -> None:
-        start = str(Path.home() / "covers to fix.csv")
+        start = str(Path.home() / tr("covers to fix.csv"))
         path, _ = QFileDialog.getSaveFileName(
-            self.dialog, "Save list", start, "CSV files (*.csv)"
+            self.dialog, tr("Save list"), start, tr("CSV files (*.csv)")
         )
         if not path:
             return
@@ -881,6 +910,8 @@ class CheckCoversTool(QObject):
             with open(path, "w", newline="", encoding="utf-8") as file:
                 csv.writer(file).writerows(self._rows_as_text())
         except OSError as error:
-            QMessageBox.warning(self.dialog, "Save list", f"The list could not be saved: {error}")
+            QMessageBox.warning(self.dialog, tr("Save list"), tr("The list could not be saved: {error}").format(
+                error=error,
+            ))
             return
-        self._show_status(f"Saved the list to {path}")
+        self._show_status(tr("Saved the list to {path}").format(path=path))

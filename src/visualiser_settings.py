@@ -10,6 +10,7 @@ from PySide6.QtWidgets import QDialog, QInputDialog, QMessageBox
 
 from src import theme
 from src.flags import all_flags, flag_stripes, prepare_user_flags_dir, reload_flags
+from src.i18n import tr
 from src.number_field import NumberField
 
 BARS_KEY = "visualiser/bars"
@@ -376,7 +377,9 @@ class VisualiserSettingsTab:
         try:
             folder = prepare_user_flags_dir()
         except OSError as error:
-            QMessageBox.warning(self._dialog, "Custom flags", f"Cannot make the folder: {error}")
+            QMessageBox.warning(self._dialog, tr("Custom flags"), tr("Cannot make the folder: {error}").format(
+                error=error,
+            ))
             return
         QDesktopServices.openUrl(QUrl.fromLocalFile(str(folder)))
 
@@ -437,15 +440,17 @@ class VisualiserSettingsTab:
         presets = _load_user_presets(self._settings)
         current = d.visualiserPreset.currentText() if d.visualiserPreset.currentIndex() >= 0 else ""
         suggestion = current if current in presets else ""
-        name, accepted = QInputDialog.getText(d, "Save preset", "Preset name:", text=suggestion)
+        name, accepted = QInputDialog.getText(d, tr("Save preset"), tr("Preset name:"), text=suggestion)
         name = name.strip()
         if not accepted or not name:
             return
         if name in BUILT_IN_PRESETS:
-            QMessageBox.warning(d, "Save preset", "A built-in preset already has that name.")
+            QMessageBox.warning(d, tr("Save preset"), tr("A built-in preset already has that name."))
             return
         if name in presets and name != suggestion:
-            answer = QMessageBox.question(d, "Save preset", f"Replace the preset '{name}'?")
+            answer = QMessageBox.question(d, tr("Save preset"), tr("Replace the preset '{name}'?").format(
+                name=name,
+            ))
             if answer != QMessageBox.StandardButton.Yes:
                 return
         presets[name] = self._entered_style()
@@ -458,7 +463,9 @@ class VisualiserSettingsTab:
         presets = _load_user_presets(self._settings)
         if d.visualiserPreset.currentIndex() < 0 or name not in presets:
             return
-        answer = QMessageBox.question(d, "Delete preset", f"Delete the preset '{name}'?")
+        answer = QMessageBox.question(d, tr("Delete preset"), tr("Delete the preset '{name}'?").format(
+            name=name,
+        ))
         if answer != QMessageBox.StandardButton.Yes:
             return
         del presets[name]

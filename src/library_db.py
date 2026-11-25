@@ -18,6 +18,7 @@ from pathlib import Path
 
 from PySide6.QtCore import QSettings
 
+from src.i18n import tr
 from src.track_metadata import TrackInfo
 
 SCHEMA_VERSION = 9
@@ -194,12 +195,12 @@ def check_new_data_folder(target: Path) -> str | None:
     """Why the data cannot be moved to `target`, or None if it can."""
     source = data_dir()
     if target == source or source in target.parents or target in source.parents:
-        return "The new folder cannot be inside the current data folder, or contain it."
+        return tr("The new folder cannot be inside the current data folder, or contain it.")
     if target.exists():
         if not target.is_dir() or not os.access(target, os.W_OK):
-            return "MusicHive cannot write to that folder."
+            return tr("MusicHive cannot write to that folder.")
         if any(target.iterdir()):
-            return "Please choose an empty folder."
+            return tr("Please choose an empty folder.")
     return None
 
 
@@ -243,7 +244,7 @@ def finish_data_move() -> tuple[bool, str] | None:
     source = data_dir()
     problem = check_new_data_folder(target)
     if problem is not None:
-        return False, f"The data folder was not moved. {problem}"
+        return False, tr("The data folder was not moved. {problem}").format(problem=problem)
     try:
         target.mkdir(parents=True, exist_ok=True)
         if source.is_dir():
@@ -252,11 +253,13 @@ def finish_data_move() -> tuple[bool, str] | None:
                 raise OSError("the copy is incomplete")
     except OSError as error:
         _empty_folder(target)
-        return False, f"The data folder was not moved, and nothing was lost.\n\n{error}"
+        return False, tr("The data folder was not moved, and nothing was lost.\n\n{error}").format(
+            error=error,
+        )
     settings.setValue(DATA_FOLDER_KEY, str(target))
     settings.sync()
     shutil.rmtree(source, ignore_errors=True)
-    return True, f"Data folder moved to {target}"
+    return True, tr("Data folder moved to {target}").format(target=target)
 
 
 def old_libraries_dir() -> Path:
@@ -276,7 +279,7 @@ def _free_folder(name: str) -> Path:
     "Name" if no other library uses it, otherwise "Name (2)", "Name (3)", ...
     """
     base = data_dir()
-    name = name.strip() or "Library"
+    name = name.strip() or tr("Library")
     folder = base / name
     number = 2
     while (folder / DB_NAME).exists():
@@ -345,7 +348,7 @@ def add_library(root: Path) -> tuple[LibraryInfo, bool]:
         if existing.root == root:
             return existing, False
 
-    name = root.name or "Library"
+    name = root.name or tr("Library")
     folder = _free_folder(name)
     db_path = folder / DB_NAME
     folder_is_new = not folder.exists()

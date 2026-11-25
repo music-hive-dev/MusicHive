@@ -1,5 +1,7 @@
 """Small text-formatting helpers shared by the interface."""
 
+from src.i18n import tr
+
 
 def format_time(milliseconds: int) -> str:
     """Format a time in milliseconds as m:ss (or h:mm:ss for long tracks)."""
@@ -42,4 +44,4 @@ def format_long_duration(milliseconds: int, seconds: bool = False) -> str:
         days, rest = divmod(total_minutes, 1440)
         hours, minutes = divmod(rest, 60)
         clock = f"{hours}:{minutes:02d}"
-    return f"{days}d {clock}" if days else clock
+    return tr("{days}d {clock}", "days and a time").format(days=days, clock=clock) if days else clock

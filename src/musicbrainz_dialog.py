@@ -13,6 +13,7 @@ from PySide6.QtCore import QObject, QRunnable, QSettings, QThreadPool, QUrl, Qt,
 from PySide6.QtGui import QDesktopServices
 from PySide6.QtWidgets import QHeaderView, QTableWidgetItem, QWidget
 
+from src.i18n import QT_TR_NOOP, tr
 from src.lastfm_dialog import load_dialog
 from src.musicbrainz import (
     RELEASE_PAGE_URL,
@@ -29,15 +30,15 @@ from src.track_metadata import TagChanges
 ORIGINAL_YEAR_KEY = "musicBrainz/originalYear"
 YEAR_ONLY_KEY = "musicBrainz/yearOnly"
 TAG_LABELS = {
-    "album": "Album",
-    "albumartist": "Album artist",
-    "date": "Year",
-    "discnumber": "Disc",
-    "disctotal": "Discs",
-    "tracknumber": "Track",
-    "tracktotal": "Tracks",
-    "title": "Title",
-    "artist": "Artist",
+    "album": QT_TR_NOOP("Album"),
+    "albumartist": QT_TR_NOOP("Album artist"),
+    "date": QT_TR_NOOP("Year"),
+    "discnumber": QT_TR_NOOP("Disc"),
+    "disctotal": QT_TR_NOOP("Discs"),
+    "tracknumber": QT_TR_NOOP("Track"),
+    "tracktotal": QT_TR_NOOP("Tracks"),
+    "title": QT_TR_NOOP("Title"),
+    "artist": QT_TR_NOOP("Artist"),
 }
 SONG_COLUMN, TAG_COLUMN, NOW_COLUMN, NEW_COLUMN = range(4)
 SEARCH, RELEASE = "search", "release"
@@ -52,7 +53,7 @@ class AlbumToLookUp:
 
 
 def _songs(count: int) -> str:
-    return f"{count} song{'' if count == 1 else 's'}"
+    return tr("%n song(s)", "", count)
 
 
 class _Signals(QObject):
@@ -128,7 +129,7 @@ class MusicBrainzLookup(QObject):
         d.mbSaveButton.clicked.connect(lambda _checked=False: self._save())
         d.mbStopButton.clicked.connect(d.reject)
         d.mbSkipButton.setVisible(len(albums) > 1)
-        d.mbStopButton.setText("Stop" if len(albums) > 1 else "Cancel")
+        d.mbStopButton.setText(tr("Stop") if len(albums) > 1 else tr("Cancel"))
 
     def run(self) -> None:
         """Show the window until every album is done or it is closed."""
@@ -154,18 +155,23 @@ class MusicBrainzLookup(QObject):
         name = f"“{album.title}”" + (f" – {album.artist}" if album.artist else "")
         if len(self._albums) > 1:
             d.mbAlbumLabel.setText(
-                f"Album {self._position + 1} of {len(self._albums)}: {name} · {_songs(len(album.songs))}"
+                tr("Album {position} of {count}: {name} · {songs}").format(
+                    position=self._position + 1,
+                    count=len(self._albums),
+                    name=name,
+                    songs=_songs(len(album.songs)),
+                )
             )
         else:
             d.mbAlbumLabel.setText(f"{name} · {_songs(len(album.songs))}")
         more = self._position < len(self._albums) - 1
-        d.mbSaveButton.setText("Save and Next" if more else "Save")
-        d.mbSkipButton.setText("Skip" if more else "Skip and Finish")
+        d.mbSaveButton.setText(tr("Save and Next") if more else tr("Save"))
+        d.mbSkipButton.setText(tr("Skip") if more else tr("Skip and Finish"))
         self._candidates = []
         d.mbRelease.blockSignals(True)
         d.mbRelease.clear()
         d.mbRelease.blockSignals(False)
-        self._show_nothing("Searching MusicBrainz…")
+        self._show_nothing(tr("Searching MusicBrainz…"))
         self._start(
             lambda: search_releases(
                 album.artist, album.title, len(album.songs), album.year, self._cancel
@@ -193,7 +199,7 @@ class MusicBrainzLookup(QObject):
         if self._closed or request != self._request:
             return  # for an album or release no longer shown
         if error:
-            self._show_nothing(f"MusicBrainz could not be asked: {error}")
+            self._show_nothing(tr("MusicBrainz could not be asked: {error}").format(error=error))
             return
         if result is None:
             return  # cancelled
@@ -201,8 +207,10 @@ class MusicBrainzLookup(QObject):
             self._candidates = result
             if not self._candidates:
                 self._show_nothing(
-                    "MusicBrainz knows no release by this name. Check the album and artist "
-                    "names (Edit Tags), then look it up again."
+                    tr(
+                        "MusicBrainz knows no release by this name. Check the album and artist "
+                        "names (Edit Tags), then look it up again."
+                    )
                 )
                 return
             d = self.dialog
@@ -226,7 +234,7 @@ class MusicBrainzLookup(QObject):
         if candidate.mbid in self._releases:
             self._show_changes()
             return
-        self._show_nothing("Fetching the tracks of this release…")
+        self._show_nothing(tr("Fetching the tracks of this release…"))
         self._start(lambda: fetch_release(candidate.mbid, self._cancel), RELEASE)
 
     def _current_release(self) -> Release | None:
@@ -257,29 +265,38 @@ class MusicBrainzLookup(QObject):
             song.setToolTip(str(change.path))
             song.setFlags(Qt.ItemFlag.ItemIsEnabled | Qt.ItemFlag.ItemIsUserCheckable)
             song.setCheckState(Qt.CheckState.Checked if change.ticked else Qt.CheckState.Unchecked)
-            now = QTableWidgetItem(change.now or "(none)")
+            now = QTableWidgetItem(change.now or tr("(none)"))
             now.setToolTip(change.now)
             new = QTableWidgetItem(change.new)
             new.setToolTip(change.new)
             table.setItem(row, SONG_COLUMN, song)
-            table.setItem(row, TAG_COLUMN, QTableWidgetItem(TAG_LABELS.get(change.tag, change.tag)))
+            table.setItem(row, TAG_COLUMN, QTableWidgetItem(tr(TAG_LABELS[change.tag]) if change.tag in TAG_LABELS else change.tag))
             table.setItem(row, NOW_COLUMN, now)
             table.setItem(row, NEW_COLUMN, new)
 
         notes = []
         tracks = len(release.tracks)
         if tracks != len(album.songs):
-            notes.append(f"This release has {tracks} tracks; the album has {_songs(len(album.songs))}.")
+            notes.append(tr("This release has {tracks} tracks; the album has {songs}.").format(
+                tracks=tracks,
+                songs=_songs(len(album.songs)),
+            ))
         if unmatched:
             notes.append(
-                f"{_songs(unmatched)} fit no track of this release, so "
-                f"{'it only gets' if unmatched == 1 else 'they only get'} the album's tags."
+                tr(
+                    "%n song(s) fit(s/) no track of this release, so (it/they) only get(s/) the album's tags.",
+                    "",
+                    unmatched,
+                )
             )
         if self._changes:
             changed = len({change.path for change in self._changes})
-            notes.insert(0, f"{len(self._changes)} changes in {_songs(changed)}. Untick any you do not want.")
+            notes.insert(0, tr("{changes} changes in {songs}. Untick any you do not want.").format(
+                changes=len(self._changes),
+                songs=_songs(changed),
+            ))
         else:
-            notes.insert(0, "The songs already match this release.")
+            notes.insert(0, tr("The songs already match this release."))
         d.mbStatus.setText(" ".join(notes))
         d.mbSaveButton.setEnabled(bool(self._changes))
         d.mbTickAllButton.setEnabled(bool(self._changes))
@@ -307,7 +324,7 @@ class MusicBrainzLookup(QObject):
         if by_song:
             self._save_tags(
                 [TagJob(path, TagChanges(tags)) for path, tags in by_song.items()],
-                f"MusicBrainz: {self._album().title}",
+                tr("MusicBrainz: {title}").format(title=self._album().title),
             )
             self.saved_albums += 1
             self.saved_songs += len(by_song)

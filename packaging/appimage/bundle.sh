@@ -64,7 +64,7 @@ done
 
 echo "Copying MusicHive..."
 mkdir -p "$app/usr/share/musichive" "$app/usr/lib/musichive-appimage"
-(cd "$src" && cp -a main.py days.json LICENSE ./*.svg ./*.png src ui assets "$app/usr/share/musichive/")
+(cd "$src" && cp -a main.py days.json LICENSE ./*.svg ./*.png src ui assets translations "$app/usr/share/musichive/")
 cp "$src/packaging/appimage/"AppRun "$app/"
 cp "$src/packaging/appimage/"start.py "$app/usr/lib/musichive-appimage/"
 cp "$src/packaging/appimage/"musichive-restart "$app/usr/bin/"
