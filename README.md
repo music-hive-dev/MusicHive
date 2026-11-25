@@ -12,7 +12,7 @@ Last.fm scrobbling and syncing to a portable player (my beloved iPod lol). It's 
 Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.com/).
 
 <p align="center">
-  <img src="promo_images/1.png" alt="The Now Playing tab: a rainbow visualiser behind lyrics that follow the song, with the library on the left and the upcoming songs and cover on the right" width="900">
+  <img src="promo_images/visualiser.png" alt="The Now Playing tab: rainbow bars with a glow behind lyrics that follow the song, with the library on the left and the upcoming songs, song information and cover on the right" width="900">
 </p>
 
 ## What it does
@@ -31,12 +31,13 @@ Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.
 ### Playback
 
 - Shuffle, repeat one or repeat all, and a queue with Play next and Add to queue.
+- Smart shuffle (a setting) keeps the same artist or album from playing twice in a row, while the order stays random.
 - An Upcoming list that shows exactly what's coming, where you can jump ahead or remove songs.
 - Stop after a chosen song.
-- Crossfade between songs, optionally also when you skip.
+- Crossfade between songs, optionally also when you skip. Tracks of an album that play in order can be left without a crossfade, for albums whose songs run into each other.
 - Soft fades when pausing or stopping.
 - Skips silence at the start and end of songs.
-- Picks up where you left off, paused at the same spot in the same song.
+- Picks up where you left off, paused at the same spot in the same song. Your place is saved with every song and every 30 seconds, so it survives switching the computer off with MusicHive still open.
 - Scroll over the volume icon to change the volume by 1%, or 10% with Shift held.
 - A sleep timer that fades out music, podcasts and radio.
 - Every action has a keyboard shortcut you can change.
@@ -47,6 +48,7 @@ Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.
 - Left and right balance.
 - Songs, albums and playlists can have their own equaliser preset. When a song plays from a playlist, the playlist's preset wins, unless the song is set to override it.
 - Level Volume measures how loud your songs are and stores the result as standard ReplayGain tags, so a whole library plays at one volume and other players can use the numbers too.
+- When an album plays in order, it can keep its own loud and quiet songs: the whole album gets one volume, from its album ReplayGain tag or worked out from its songs. Shuffled and mixed songs keep a volume of their own.
 
 ### Now Playing
 
@@ -64,6 +66,10 @@ Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.
 - Progress is remembered for each episode and shown for each series. Episodes can also be streamed without downloading.
 
 ### Radio
+
+<p align="center">
+  <img src="promo_images/radio.png" alt="The Radio tab: favourite stations on the left, the playing station with what is on now, and a list of the songs heard on it" width="900">
+</p>
 
 - Thousands of internet radio stations from [Radio Browser](https://www.radio-browser.info), with favourites.
 - Pause the radio and carry on from where you paused, or go back a few minutes in time.
@@ -133,10 +139,11 @@ nothing extra. The AppImage and the Windows version have all of that built in.
 ### Playlists
 
 <p align="center">
-  <img src="promo_images/2.png" alt="A playlist with its own picture and description, its songs in a table, and the upcoming songs and cover on the right" width="900">
+  <img src="promo_images/playlist.png" alt="A playlist with its own picture, description and song count in a box coloured from the picture, and its songs in a table below" width="900">
 </p>
 
 - Normal playlists with their own image and description. Animated GIFs work as playlist images.
+- The box behind a playlist's, artist's or album's header takes its colour from the picture. A playlist can have a colour of your own instead.
 - Auto-playlists that fill themselves from rules such as "Genre contains Rock", "Year is greater than 1999" or a play count. A new one starts with every song.
 - Import and export M3U and M3U8 files.
 - Drag songs between lists. Hold a song over a tab and that tab opens.
@@ -146,10 +153,20 @@ nothing extra. The AppImage and the Windows version have all of that built in.
 - A tag editor for one song or many at once. When editing several songs, a field they disagree on stays empty and is only written if you type in it, so nothing changes by accident.
 - Find album covers, genres and lyrics online. Nothing is saved until you've approved it in a side by side comparison.
 - Auto-Tag Genres does the same for a whole set of songs, and lyrics can be found for many songs at once. Instrumentals get tagged `haslyrics=false` so they aren't searched again.
+- Check Covers lists albums whose cover is missing, unreadable, not square, too small, a very big file, or not the same for every song. It shows an album's different covers side by side, can stretch one to a square or give it to the whole album, and opens the tag editor with the cover search already running.
+- Check Tags lists songs with missing tags, albums with duplicate or missing track numbers or songs that disagree on the year or album artist, and artists written more than one way ("The Beatles" and "Beatles"). It can make a tag the same for a whole album and number an album's tracks again.
+- From Check Tags, albums can be looked up on [MusicBrainz](https://musicbrainz.org), one at a time or the whole list in a row. You see every tag it would change next to what the songs have now and tick the ones you want, and dates can be written as just the year. No account is needed.
+- Find Duplicates finds songs that are in the library more than once, with their format, size, plays and rating side by side, so you can listen to each and keep the best. The others go to the Trash, and their plays, rating and places in playlists pass to the one you keep.
+- Albums, songs or artists that are fine as they are can be marked to skip in each of these checks. The mark is a tag in the files, so it stays with them.
+- Edit → Tag Change History lists the last 50 times tags were saved, from the tag editor, these tools, MusicBrainz or the genre and lyrics searches, and can undo any of them. An undo can be undone again.
 - Organise Files moves a library into a folder structure from a naming template like `<albumartist>/<album>/<trackno> - <title>`.
 - Convert Files makes copies in MP3, Ogg Vorbis, Opus or FLAC.
 
 ### Devices
+
+<p align="center">
+  <img src="promo_images/devices.png" alt="The Devices tab: an iPod running Rockbox with its details and free space, the sync settings, and a sync in progress" width="900">
+</p>
 
 Plug in a USB drive, an iPod or anything else that shows up as storage and
 MusicHive can sync a library to it. It can keep the original files or convert

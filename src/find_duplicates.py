@@ -218,7 +218,7 @@ class FindDuplicatesTool(QObject):
         tag_writer: TagWriter,
         library_songs: Callable[[], tuple[LibraryInfo, list[tuple[Path, TrackInfo]]] | None],
         edit_songs: Callable[[list[Path], bool], None],
-        save_tags: Callable[[list[TagJob]], None],
+        save_tags: Callable[[list[TagJob], str], None],
         play_song: Callable[[Path], None],
         remove_duplicates: Callable[[Path, list[Path]], int],
         show_status: Callable[[str], None],
@@ -525,7 +525,8 @@ class FindDuplicatesTool(QObject):
             if copy.skipped != skip
         ]
         if jobs:
-            self._save_tags(jobs)
+            what = "Not duplicates" if skip else "Maybe duplicates"
+            self._save_tags(jobs, f"{what}: {group.title}")
 
     # ----- handing the list on -----
 

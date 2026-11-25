@@ -74,6 +74,13 @@ install -Dm644 packaging/musichive.desktop \
 - New Tools > Check Tags: missing tags, duplicate or missing track numbers, albums whose songs disagree, and artists written more than one way; a tag can be made the same for a whole album, and tracks numbered again
 - Albums can be looked up on MusicBrainz, one or all in a row, choosing which tags to take over; dates can be written as just the year
 - New Tools > Find Duplicates: songs in the library more than once, with their quality side by side; keeping one moves the others to the Trash and passes on their plays, rating and places in playlists
+- Edit > Tag Change History: the last 50 tag saves, each of which can be undone (and an undo undone again)
+- Smart shuffle (a setting): the same artist or album no longer plays twice in a row
+- Albums that play in order can keep one volume for the whole album, and can be left without a crossfade between their tracks
+- The playing song and its place are saved with every song and every 30 seconds, and when the computer shuts down with MusicHive open
+- The headers of playlists, artists, albums and podcasts sit in a rounded box coloured from their picture, with rounded pictures, small icon buttons and text that fits beside the picture; a playlist can have a colour of its own
+- Auto-playlists show a closed lock
+- No more thin seam between the visualiser's bars and their glow
 
 * Tue Nov 24 2026 MusicHive - 1.6.11-1
 - The builds on GitHub use the current versions of GitHub's actions

@@ -352,7 +352,7 @@ class CheckCoversTool(QObject):
         tag_writer: TagWriter,
         library_songs: Callable[[], tuple[LibraryInfo, list[tuple[Path, TrackInfo]]] | None],
         edit_songs: Callable[[list[Path], bool], None],
-        save_tags: Callable[[list[TagJob]], None],
+        save_tags: Callable[[list[TagJob], str], None],
         show_status: Callable[[str], None],
     ) -> None:
         """`library_songs` gives the open library and its songs (None if there is
@@ -775,7 +775,9 @@ class CheckCoversTool(QObject):
                 QMessageBox.warning(self.dialog, "Make square", "The cover could not be saved.")
                 return
             changes = TagChanges(cover=encoded, cover_changed=True)
-            self._save_tags([TagJob(path, changes) for path in cover.paths])
+            self._save_tags(
+                [TagJob(path, changes) for path in cover.paths], f"Make square: {album.title}"
+            )
             return
 
         # A cover file in the folder: replace that file, in the format its name says.
@@ -800,7 +802,7 @@ class CheckCoversTool(QObject):
         forget_folder_covers()
         # Nothing changes in the songs, but saving them reads them again, which
         # brings the library's thumbnails up to date and checks the album again.
-        self._save_tags([TagJob(path, TagChanges()) for path in album.paths])
+        self._save_tags([TagJob(path, TagChanges()) for path in album.paths], f"Make square: {album.title}")
 
     def _use_for_album(self) -> None:
         album = self._selected_album()
@@ -822,7 +824,7 @@ class CheckCoversTool(QObject):
         if data is None:
             return
         changes = TagChanges(cover=data, cover_changed=True)
-        self._save_tags([TagJob(path, changes) for path in targets])
+        self._save_tags([TagJob(path, changes) for path in targets], f"Cover for whole album: {album.title}")
 
     def _set_skipped(self) -> None:
         """Write or remove the skip mark in every song of the chosen album."""
@@ -838,7 +840,8 @@ class CheckCoversTool(QObject):
             if marked != skip
         ]
         if jobs:
-            self._save_tags(jobs)
+            what = "Skip cover problems" if skip else "Check cover again"
+            self._save_tags(jobs, f"{what}: {album.title}")
 
     def _on_tags_saved(self, result) -> None:
         """Songs were saved: check their albums again, as the files are now."""

@@ -81,7 +81,7 @@ class MusicBrainzLookup(QObject):
         ui_path: Path,
         parent: QWidget,
         albums: list[AlbumToLookUp],
-        save_tags: Callable[[list[TagJob]], None],
+        save_tags: Callable[[list[TagJob], str], None],
     ) -> None:
         super().__init__(parent)
         self.dialog = d = load_dialog(ui_path, parent)
@@ -305,7 +305,10 @@ class MusicBrainzLookup(QObject):
             if table.item(row, SONG_COLUMN).checkState() == Qt.CheckState.Checked:
                 by_song.setdefault(change.path, {})[change.tag] = change.new
         if by_song:
-            self._save_tags([TagJob(path, TagChanges(tags)) for path, tags in by_song.items()])
+            self._save_tags(
+                [TagJob(path, TagChanges(tags)) for path, tags in by_song.items()],
+                f"MusicBrainz: {self._album().title}",
+            )
             self.saved_albums += 1
             self.saved_songs += len(by_song)
         self._next()

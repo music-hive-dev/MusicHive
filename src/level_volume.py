@@ -7,6 +7,7 @@ remembers its own volume, the middle of all its songs' gains: the player plays
 every song at that volume instead. New songs are measured the same way and join it.
 """
 
+import math
 import sqlite3
 import statistics
 import threading
@@ -32,6 +33,9 @@ Gst.init(None)
 
 GAIN_TAG = "replaygaintrackgain"
 PEAK_TAG = "replaygaintrackpeak"
+ALBUM_GAIN_TAG = "replaygainalbumgain"
+ALBUM_PEAK_TAG = "replaygainalbumpeak"
+ALL_GAIN_TAGS = [GAIN_TAG, PEAK_TAG, ALBUM_GAIN_TAG, ALBUM_PEAK_TAG]
 # The analyser only knows some sample rates and at most two channels.
 _MEASURE_CHAIN = (
     "audioconvert ! audioresample ! audio/x-raw,format=F32LE,rate=44100,channels=2 "
@@ -41,6 +45,30 @@ _WAIT_NS = 200 * Gst.MSECOND
 FREE_CORES = 2  # left alone so that the music and the window stay smooth
 MAX_WORKERS = 8
 SAVE_BATCH = 100  # finished songs are written in groups, so stopping loses little
+
+
+def album_gain(songs: list[tuple[dict[str, str], int | None]]) -> tuple[float, float | None] | None:
+    """One gain (dB) and peak for a whole album, from its songs' tags and lengths:
+    [(tags, length in ms)]. The album ReplayGain tag if every song has one;
+    otherwise worked out from the track gains, as the loudness of all the songs
+    played one after the other (louder and longer songs weigh more). None if a
+    song has neither, so the songs keep their own volume."""
+    album_gains = [parse_gain_text(tags.get(ALBUM_GAIN_TAG, "")) for tags, _length in songs]
+    if songs and all(gain is not None for gain in album_gains):
+        gain = statistics.median(album_gains)  # they should agree; a stray one does not count
+        peaks = [parse_gain_text(tags.get(ALBUM_PEAK_TAG, "") or tags.get(PEAK_TAG, "")) for tags, _ in songs]
+    else:
+        track_gains = [parse_gain_text(tags.get(GAIN_TAG, "")) for tags, _length in songs]
+        if not songs or any(gain is None for gain in track_gains):
+            return None
+        weights = [max(length or 0, 1) for _tags, length in songs]
+        # A gain is the reference level minus the song's loudness, so the album's
+        # loudness is the length-weighted power average of the songs'.
+        power = sum(w * 10 ** (-g / 10) for w, g in zip(weights, track_gains)) / sum(weights)
+        gain = -10 * math.log10(power)
+        peaks = [parse_gain_text(tags.get(PEAK_TAG, "")) for tags, _length in songs]
+    known = [peak for peak in peaks if peak]
+    return gain, (max(known) if known else None)
 
 
 def measure_loudness(track: Path, cancel: threading.Event) -> tuple[float, float] | None:

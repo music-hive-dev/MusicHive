@@ -447,14 +447,24 @@
               </property>
              </widget>
             </item>
-            <item row="1" column="0">
+            <item row="1" column="0" colspan="2">
+             <widget class="QCheckBox" name="playbackSmartShuffle">
+              <property name="text">
+               <string>Smart shuffle: keep the same artist or album from playing twice in a row</string>
+              </property>
+              <property name="toolTip">
+               <string>The order stays random, but songs by one artist or from one album are spread out. When a list holds little else, they still follow each other.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0">
              <widget class="QLabel" name="playbackRepeatLabel">
               <property name="text">
                <string>Repeat:</string>
               </property>
              </widget>
             </item>
-            <item row="1" column="1">
+            <item row="2" column="1">
              <widget class="QComboBox" name="playbackRepeat">
               <item>
                <property name="text">
@@ -473,7 +483,7 @@
               </item>
              </widget>
             </item>
-            <item row="2" column="0" colspan="2">
+            <item row="3" column="0" colspan="2">
              <widget class="QCheckBox" name="playbackMiniPlayer">
               <property name="text">
                <string>Mini Player</string>
@@ -500,6 +510,16 @@
              </widget>
             </item>
             <item row="1" column="0" colspan="2">
+             <widget class="QCheckBox" name="soundAlbumVolume">
+              <property name="text">
+               <string>Keep an album's own loud and quiet songs when it plays in order</string>
+              </property>
+              <property name="toolTip">
+               <string>When the song before or after is the neighbouring track of the same album, the whole album gets one volume, from its album ReplayGain tag or worked out from its songs. Shuffled and mixed songs keep a volume of their own.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="2" column="0" colspan="2">
              <layout class="QHBoxLayout" name="soundEqualiserRow">
               <item>
                <widget class="QPushButton" name="soundEqualiserButton">
@@ -665,6 +685,16 @@
              </widget>
             </item>
             <item row="3" column="0" colspan="2">
+             <widget class="QCheckBox" name="soundNoCrossfadeInAlbum">
+              <property name="text">
+               <string>Don't crossfade between tracks of an album that play in order</string>
+              </property>
+              <property name="toolTip">
+               <string>For albums whose songs run into each other. Other songs still crossfade.</string>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="0" colspan="2">
              <widget class="QCheckBox" name="soundFadeOnPause">
               <property name="text">
                <string>Fade smoothly when pausing or stopping</string>

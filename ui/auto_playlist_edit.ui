@@ -167,6 +167,65 @@
            </item>
           </widget>
          </item>
+         <item row="2" column="0">
+          <widget class="QLabel" name="playlistEditColourLabel">
+           <property name="text">
+            <string>Header colour:</string>
+           </property>
+           <property name="buddy">
+            <cstring>playlistEditColourButton</cstring>
+           </property>
+          </widget>
+         </item>
+         <item row="2" column="1">
+          <layout class="QHBoxLayout" name="playlistEditColourRow">
+           <item>
+            <widget class="QPushButton" name="playlistEditColourButton">
+             <property name="minimumSize">
+              <size>
+               <width>120</width>
+               <height>0</height>
+              </size>
+             </property>
+             <property name="toolTip">
+              <string>The colour of the box behind the playlist's header. Automatic takes it from the playlist's picture; click to choose your own.</string>
+             </property>
+             <property name="text">
+              <string>Automatic</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="playlistEditResetColourButton">
+             <property name="toolTip">
+              <string>Go back to the colour taken from the playlist's picture</string>
+             </property>
+             <property name="text">
+              <string>Reset Colour</string>
+             </property>
+             <property name="autoDefault">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <spacer name="playlistEditColourSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Horizontal</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>10</width>
+               <height>10</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
+          </layout>
+         </item>
         </layout>
        </item>
       </layout>

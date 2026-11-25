@@ -30,6 +30,7 @@ class Playlist:
     limit: dict | None = None  # how much of an auto-playlist to keep (see auto_playlist.py)
     equaliser: str = ""  # the equaliser preset used while it plays ("" for none)
     visualiser: str = ""  # the visualiser preset used while it plays ("" for none)
+    colour: str = ""  # the header box's colour, as "#rrggbb"; "" takes it from the picture
 
     @property
     def is_auto(self) -> bool:
@@ -128,6 +129,7 @@ class PlaylistStore:
         limit = data.get("limit")
         equaliser = data.get("equaliser")
         visualiser = data.get("visualiser")
+        colour = data.get("colour")
         return Playlist(
             name,
             tracks,
@@ -142,6 +144,7 @@ class PlaylistStore:
             limit if isinstance(limit, dict) else None,
             equaliser if isinstance(equaliser, str) else "",
             visualiser if isinstance(visualiser, str) else "",
+            colour if isinstance(colour, str) else "",
         )
 
     def save(self, playlist: Playlist) -> None:
@@ -164,6 +167,7 @@ class PlaylistStore:
                     "limit": playlist.limit,
                     "equaliser": playlist.equaliser,
                     "visualiser": playlist.visualiser,
+                    "colour": playlist.colour,
                     "tracks": playlist.tracks,
                 },
                 ensure_ascii=False,
@@ -322,6 +326,12 @@ class PlaylistStore:
                 tracks.append(track)
             playlist.tracks = tracks
             self.save(playlist)
+
+    def set_colour(self, name: str, colour: str) -> None:
+        """The header box's colour ("#rrggbb"), or "" to take it from the picture."""
+        playlist = self.load(name)
+        playlist.colour = colour
+        self.save(playlist)
 
     def set_description(self, name: str, description: str) -> None:
         playlist = self.load(name)

@@ -15,6 +15,7 @@ from PySide6.QtCore import QObject, QRunnable, QThreadPool, Signal
 
 from src.library_db import ScannedTrack
 from src.library_scanner import scan_file
+from src import tag_history
 from src.track_metadata import TagChanges, write_rating, write_tag_changes
 
 
@@ -58,6 +59,11 @@ class SaveResult:
     tracks: list[ScannedTrack] = field(default_factory=list)  # as the files are now
     covers: dict[str, bytes] = field(default_factory=dict)  # cover_key -> thumbnail
     failures: list[tuple[str, str]] = field(default_factory=list)  # file name, reason
+    # For the tag history: what the save is called (None: it is not kept), and the
+    # entry it undoes, if it is an undo. `history` is the entry it was kept as.
+    description: str | None = None
+    undoes: str = ""
+    history: "tag_history.HistoryEntry | None" = None
 
 
 class _Signals(QObject):
@@ -89,15 +95,32 @@ class _SaveTask(QRunnable):
     def run(self) -> None:
         result = self._result
         undecodable: set[str] = set()
+        befores: list[tag_history.Before] = []
+        keep_history = result.description is not None
         for job in result.jobs:
+            before = None
+            if keep_history:
+                try:
+                    before = tag_history.snapshot(job)
+                except Exception:  # the change still happens, it just cannot be undone
+                    before = None
             try:
                 if not job.changes.is_empty:
                     edit_file_safely(job.path, lambda temp: write_tag_changes(temp, job.changes))
                 if job.lrc_text is not None:
                     _write_lrc(job.path, job.lrc_text)
+                if before is not None:
+                    befores.append(before)
                 result.tracks.append(scan_file(job.path, self._root, result.covers, undecodable))
             except Exception as error:  # one bad file must not stop the others
                 result.failures.append((job.path.name, str(error)))
+        if keep_history:
+            try:
+                result.history = tag_history.save_entry(
+                    result.description, self._root, result.db_path, befores, result.undoes
+                )
+            except Exception as error:
+                print(f"MusicHive: cannot keep the tag history: {error}")
         self._signals.tags_saved.emit(result)
 
 
@@ -118,8 +141,18 @@ class TagWriter(QObject):
     def write_rating(self, path: Path, stars: int) -> None:
         self._pool.start(_RatingTask(path, stars, self._signals))
 
-    def save_tags(self, jobs: list[TagJob], root: Path, db_path: Path) -> None:
-        self._pool.start(_SaveTask(SaveResult(db_path, jobs), root, self._signals))
+    def save_tags(
+        self,
+        jobs: list[TagJob],
+        root: Path,
+        db_path: Path,
+        description: str | None = None,
+        undoes: str = "",
+    ) -> None:
+        """Write tag changes. With a `description`, what the files had before is
+        kept in the tag history under that name, so the save can be undone."""
+        result = SaveResult(db_path, jobs, description=description, undoes=undoes)
+        self._pool.start(_SaveTask(result, root, self._signals))
 
     def is_busy(self) -> bool:
         return self._pool.activeThreadCount() > 0

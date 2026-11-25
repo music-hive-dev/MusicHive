@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>460</width>
-    <height>520</height>
+    <width>480</width>
+    <height>640</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -20,19 +20,26 @@
       <string>&lt;h2&gt;MusicHive&lt;/h2&gt;
 &lt;p&gt;Version 1.7.0&lt;/p&gt;
 &lt;p&gt;A desktop music player and organiser for people who keep their music in folders.&lt;/p&gt;
-&lt;p&gt;MusicHive plays your local library with playlists, auto-playlists, a queue, crossfades, an equaliser and timed lyrics. It also helps keep the library tidy: edit tags for many songs at once, find covers and genres online, sort files into folders from a naming template, convert them to other formats and sync them to a portable player.&lt;/p&gt;
+&lt;p&gt;MusicHive plays your local library with playlists, auto-playlists, a queue, smart shuffle, crossfades, an equaliser and timed lyrics. It also helps keep the library tidy: edit tags for many songs at once, find covers, genres and lyrics online, check every album's cover and tags, look albums up on MusicBrainz, find duplicate songs, undo tag changes, sort files into folders from a naming template, convert them to other formats and sync them to a portable player.&lt;/p&gt;
 &lt;p&gt;It works with Last.fm, Discord and your desktop's media controls.&lt;/p&gt;
 &lt;h3&gt;Libraries&lt;/h3&gt;
 &lt;p&gt;
 &lt;a href=&quot;https://www.qt.io/qt-for-python&quot;&gt;PySide6 (Qt for Python)&lt;/a&gt;, LGPL-3.0&lt;br&gt;
 &lt;a href=&quot;https://gstreamer.freedesktop.org&quot;&gt;GStreamer&lt;/a&gt;, LGPL-2.1&lt;br&gt;
 &lt;a href=&quot;https://pygobject.gnome.org&quot;&gt;PyGObject&lt;/a&gt;, LGPL-2.1&lt;br&gt;
-&lt;a href=&quot;https://github.com/quodlibet/mutagen&quot;&gt;Mutagen&lt;/a&gt;, GPL-2.0-or-later
+&lt;a href=&quot;https://github.com/quodlibet/mutagen&quot;&gt;Mutagen&lt;/a&gt;, GPL-2.0-or-later&lt;br&gt;
+&lt;a href=&quot;https://github.com/home-assistant-libs/pychromecast&quot;&gt;PyChromecast&lt;/a&gt;, MIT License
 &lt;/p&gt;
 &lt;h3&gt;Artwork&lt;/h3&gt;
 &lt;p&gt;
 Icons by &lt;a href=&quot;https://lucide.dev&quot;&gt;Lucide&lt;/a&gt;, ISC License. Some are derived from Feather, MIT License.&lt;br&gt;
-Emoji by &lt;a href=&quot;https://github.com/twitter/twemoji&quot;&gt;Twemoji&lt;/a&gt;, &lt;a href=&quot;https://creativecommons.org/licenses/by/4.0/&quot;&gt;CC BY 4.0&lt;/a&gt;, in the &lt;a href=&quot;https://github.com/mozilla/twemoji-colr&quot;&gt;Twemoji Mozilla&lt;/a&gt; font.
+Emoji by &lt;a href=&quot;https://github.com/twitter/twemoji&quot;&gt;Twemoji&lt;/a&gt;, &lt;a href=&quot;https://creativecommons.org/licenses/by/4.0/&quot;&gt;CC BY 4.0&lt;/a&gt;, in the &lt;a href=&quot;https://github.com/mozilla/twemoji-colr&quot;&gt;Twemoji Mozilla&lt;/a&gt; font.&lt;br&gt;
+The &lt;a href=&quot;https://rsms.me/inter/&quot;&gt;Inter&lt;/a&gt; font, SIL Open Font License 1.1, included in the Windows version.
+&lt;/p&gt;
+&lt;h3&gt;Data&lt;/h3&gt;
+&lt;p&gt;
+Album data from &lt;a href=&quot;https://musicbrainz.org&quot;&gt;MusicBrainz&lt;/a&gt;, &lt;a href=&quot;https://creativecommons.org/publicdomain/zero/1.0/&quot;&gt;CC0&lt;/a&gt; (public domain).&lt;br&gt;
+Lyrics from &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, radio stations from &lt;a href=&quot;https://www.radio-browser.info&quot;&gt;Radio Browser&lt;/a&gt;.
 &lt;/p&gt;</string>
      </property>
      <property name="textFormat">

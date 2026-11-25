@@ -2,6 +2,7 @@
 
 import datetime
 import faulthandler
+import signal
 import hashlib
 import html
 import os
@@ -137,6 +138,7 @@ from src.play_order import PlayOrder
 from src.discord_cover import DiscordCovers
 from src.discord_rpc import DiscordPresence, make_activity
 from src.elided_label import ElidedLabel
+from src.header_box import HeaderBox, box_colour
 from src.lastfm import LastFmClient
 from src.lastfm_dialog import LastFmDialog, load_dialog
 from src.listening import ListenTracker
@@ -167,6 +169,7 @@ from src.online_search import (
 from src.check_covers import CheckCoversTool
 from src.check_tags import CheckTagsTool
 from src.find_duplicates import FindDuplicatesTool
+from src.tag_history_dialog import TagHistoryWindow
 from src.convert_files import ConvertFilesTool, ConvertSong
 from src.device_sync import DeviceSyncPanel
 from src.devices import DeviceEjector, DevicesTab, connected_devices, open_in_dolphin
@@ -176,7 +179,7 @@ from src.equaliser import (
     equaliser_preset_names,
     load_equaliser,
 )
-from src.level_volume import LevelVolumeTool
+from src.level_volume import ALL_GAIN_TAGS, LevelVolumeTool, album_gain
 from src.settings_transfer import export_settings, import_settings
 from src.sound_settings import CROSSFADE_KEY, SoundSettingsTab, load_sound_settings
 from src.organise_files import FileMove, OrganiseDialog, OrganiseResult
@@ -268,6 +271,7 @@ CHECK_COVERS_UI_FILE = UI_DIR / "check_covers.ui"
 CHECK_TAGS_UI_FILE = UI_DIR / "check_tags.ui"
 FIND_DUPLICATES_UI_FILE = UI_DIR / "find_duplicates.ui"
 MUSICBRAINZ_UI_FILE = UI_DIR / "musicbrainz_lookup.ui"
+TAG_HISTORY_UI_FILE = UI_DIR / "tag_history.ui"
 COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
 ABOUT_UI_FILE = UI_DIR / "about.ui"
 MINI_PLAYER_UI_FILE = UI_DIR / "mini_player.ui"
@@ -282,6 +286,7 @@ NOW_PLAYING_DELAY_MS = 3000
 # going back to the previous track.
 PREVIOUS_RESTART_THRESHOLD_MS = 5000
 EPISODE_SAVE_SECONDS = 5  # how often the place in an episode is written down
+SESSION_SAVE_SECONDS = 30  # how often the place in a song is written down while playing
 
 GROUP_ICON_SIDE = 128  # pixels, the image at the top of the Artists and Albums tabs
 # Starts a saved play source that is an artist or album. Playlist names cannot
@@ -799,6 +804,7 @@ class MusicHive:
         self.music_row_before = -1  # the song put aside for it, and where it was
         self.music_position_before = 0
         self._episode_saved_at = 0.0  # when its position was last written down
+        self._session_saved_at = 0.0  # when the session was last written down
         # Radio mode: a station plays instead of the music.
         self.station_id: int | None = None
         self.radio_stream: RadioStream | None = None  # None while a station is played directly
@@ -1037,7 +1043,14 @@ class MusicHive:
         # The Artists and Albums tabs: the filter bar picks an artist or album.
         self.artist_info = ArtistInfoService(LASTFM_API_KEY, library_db.data_dir() / "artists", w)
         self.artist_info.artist_updated.connect(self.on_artist_updated)
-        self.artist_description = ElidedLabel(w.artistsTabDescription, max_lines=4)
+        # The boxes behind those headers, coloured from their pictures.
+        self.playlist_header = HeaderBox(w.playlistHeaderBox, w.playlistsTabIcon)
+        self.playlist_colour: QColor | None = None  # chosen for the playlist shown; None: automatic
+        self.artist_header = HeaderBox(w.artistHeaderBox, w.artistsTabIcon)
+        self.album_header = HeaderBox(w.albumHeaderBox, w.albumsTabIcon)
+        self.artist_description = ElidedLabel(
+            w.artistsTabDescription, max_lines=4, fit_beside=w.artistsTabIcon
+        )
         self.group_pages = {
             "artist": self.make_group_page(
                 "artist",
@@ -1097,7 +1110,9 @@ class MusicHive:
         w.playlistLockButton.clicked.connect(self.on_playlist_lock_clicked)
         w.playlistEditButton.setToolTip("Edit this playlist's title, image and description")
         w.playlistEditButton.clicked.connect(lambda _checked=False: self.edit_playlist())
-        self.playlist_description = ElidedLabel(w.playlistsTabDescription)
+        self.playlist_description = ElidedLabel(
+            w.playlistsTabDescription, fit_beside=w.playlistsTabIcon
+        )
         self.tab_icon_animation: IconAnimation | None = None
 
         # Track info panel (filled whenever a track starts playing)
@@ -1173,6 +1188,8 @@ class MusicHive:
         w.actionCheckTags.triggered.connect(lambda _checked=False: self.show_check_tags())
         self.duplicates_tool: FindDuplicatesTool | None = None  # made when first opened
         w.actionFindDuplicates.triggered.connect(lambda _checked=False: self.show_find_duplicates())
+        self.tag_history_window: TagHistoryWindow | None = None  # made when first opened
+        w.actionTagHistory.triggered.connect(lambda _checked=False: self.show_tag_history())
         self.tag_writer = TagWriter(w)
         self.tag_writer.rating_failed.connect(self.on_rating_write_failed)
         self.tag_writer.tags_saved.connect(self.on_tags_saved)
@@ -1196,6 +1213,10 @@ class MusicHive:
         shuffle_on = self.settings.value("shuffle", False, type=bool)
         w.shuffleButton.setChecked(shuffle_on)
         w.shuffleButton.setIcon(self.shuffle_icons[shuffle_on])
+        self.play_order.group_of = self.shuffle_group
+        self.player.album_gain_of = self.album_gain_of
+        self.album_gains: dict[tuple, tuple[float, float | None] | None] = {}  # by album_key
+        self.play_order.smart_shuffle = self.settings.value("smartShuffle", False, type=bool)
         self.play_order.set_shuffle(shuffle_on)
         w.shuffleButton.toggled.connect(self.on_shuffle_toggled)
 
@@ -1396,6 +1417,8 @@ class MusicHive:
             checkbox.toggled.connect(action.setChecked)
             action.toggled.connect(checkbox.setChecked)
 
+        d.playbackSmartShuffle.setChecked(self.play_order.smart_shuffle)
+        d.playbackSmartShuffle.toggled.connect(self.set_smart_shuffle)
         d.playbackRepeat.setCurrentIndex(PlayOrder.REPEAT_MODES.index(self.play_order.repeat))
         d.playbackRepeat.activated.connect(
             lambda index: self.set_repeat_mode(PlayOrder.REPEAT_MODES[index])
@@ -1585,6 +1608,7 @@ class MusicHive:
 
     def on_sound_settings_changed(self, sound) -> None:
         self.player.set_sound_settings(sound)
+        self.player.refresh_gains()  # album volume may have been switched
         self.window.actionCrossfade.setChecked(sound.crossfade)
 
     def on_crossfade_toggled(self, enabled: bool) -> None:
@@ -2679,6 +2703,83 @@ class MusicHive:
         self.show_status("Shuffle on" if enabled else "Shuffle off")
         self.update_mpris()
 
+    def set_smart_shuffle(self, enabled: bool) -> None:
+        """Settings, Playback: spread out songs of one artist or album when shuffling."""
+        self.play_order.smart_shuffle = enabled
+        self.settings.setValue("smartShuffle", enabled)
+        if self.play_order.shuffle:  # shuffle what comes next again, the new way
+            self.play_order.reshuffle()
+            self.refresh_upcoming()
+        self.show_status("Smart shuffle on" if enabled else "Smart shuffle off")
+
+    # ----- albums that play in order -----
+
+    def album_key(self, row: int) -> tuple | None:
+        """What makes songs one album: its name, and its album artist or else its
+        folder. None for a song without an album."""
+        info = self.library_model.info(row)
+        if info is None or not 0 <= row < len(self.tracks):
+            return None
+        album = (info.album or "").strip().casefold()
+        if not album:
+            return None
+        owner = (info.album_artist or "").strip().casefold() or str(self.tracks[row].parent)
+        return album, owner
+
+    def follows_in_album(self, first: int, second: int) -> bool:
+        """Whether `second` is the track right after `first` on the same album
+        (the next number, or track 1 of the next disc)."""
+        if first < 0 or second < 0 or first == second:
+            return False
+        key = self.album_key(first)
+        if key is None or key != self.album_key(second):
+            return False
+        a, b = self.library_model.info(first), self.library_model.info(second)
+        if a.track_number is None or b.track_number is None:
+            return False
+        disc_a, disc_b = a.disc_number or 1, b.disc_number or 1
+        return (disc_b == disc_a and b.track_number == a.track_number + 1) or (
+            disc_b == disc_a + 1 and b.track_number == 1
+        )
+
+    def album_gain_of(self, track: Path) -> tuple[float, float | None] | None:
+        """For the player: one volume for the song's album, if that setting is on
+        and the album plays in order around it; None for the song's own volume."""
+        library = self.loaded_library
+        if library is None or self.away_from_music:
+            return None
+        if not load_sound_settings(self.settings).album_volume:
+            return None
+        row = self.play_order.current_row
+        if row < 0 or row >= len(self.tracks) or self.tracks[row] != track:
+            return None  # not the song the play order is on (it is being put back)
+        if not (
+            self.follows_in_album(self.play_order.previous_row, row)
+            or self.follows_in_album(row, self.play_order.next_row)
+        ):
+            return None
+        album = self.album_key(row)
+        key = (str(library.db_path), *album)  # the same album name may be in two libraries
+        if key not in self.album_gains:
+            rows = [r for r in range(len(self.tracks)) if self.album_key(r) == album]
+            try:
+                tags = library_db.load_tag_values(library.db_path, ALL_GAIN_TAGS)
+            except sqlite3.Error:
+                return None
+            self.album_gains[key] = album_gain([
+                (tags.get(self.relative_path(self.tracks[r]), {}), self.library_model.info(r).duration_ms)
+                for r in rows
+            ])
+        return self.album_gains[key]
+
+    def shuffle_group(self, row: int) -> tuple[str, str]:
+        """A song's (artist, album), for smart shuffle; "" for what is unknown."""
+        info = self.library_model.info(row)
+        if info is None:
+            return "", ""
+        artist = (info.artist or info.album_artist or "").strip().casefold()
+        return artist, (info.album or "").strip().casefold()
+
     def cycle_repeat(self) -> None:
         """Repeat button: off -> all -> one -> off."""
         modes = PlayOrder.REPEAT_MODES
@@ -3263,6 +3364,13 @@ class MusicHive:
         """A track's path relative to the library folder, as stored in the database."""
         return path.relative_to(self.loaded_library.root).as_posix()
 
+    def save_progress(self) -> None:
+        """Write the session and the settings down now, not only when quitting, so
+        that switching the computer off with MusicHive open loses little."""
+        self._session_saved_at = time.monotonic()
+        self.save_session()
+        self.settings.sync()
+
     def save_session(self) -> None:
         """Remember the playing track, its position, the play order and the queue."""
         library = self.loaded_library
@@ -3438,7 +3546,8 @@ class MusicHive:
             self.save_song_presets(editor.preset_changes)
         if jobs:
             self.show_status(f"Saving tags of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
-            self.tag_writer.save_tags(jobs, library.root, library.db_path)
+            what = jobs[0].path.stem if len(jobs) == 1 else f"{len(jobs)} songs"
+            self.tag_writer.save_tags(jobs, library.root, library.db_path, f"Tag editor: {what}")
 
     def load_song_presets(self, paths: list[Path]) -> dict[Path, SoundPresets]:
         """The equaliser and visualiser presets of these songs (Edit, Settings)."""
@@ -3528,7 +3637,9 @@ class MusicHive:
             TagJob(path, TagChanges({"genre": "; ".join(genres)})) for path, genres in results
         ]
         self.show_status(f"Saving the genres of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
-        self.tag_writer.save_tags(jobs, library.root, library.db_path)
+        self.tag_writer.save_tags(
+            jobs, library.root, library.db_path, f"Auto-tag genres: {len(jobs)} songs"
+        )
 
     # ----- finding lyrics for many songs -----
 
@@ -3602,7 +3713,7 @@ class MusicHive:
                 jobs.append(TagJob(path, TagChanges({"lyrics": text, HAS_LYRICS_TAG: "true"})))
         count = len(jobs)
         self.show_status(f"Saving the lyrics of {count} song{'' if count == 1 else 's'}…")
-        self.tag_writer.save_tags(jobs, library.root, library.db_path)
+        self.tag_writer.save_tags(jobs, library.root, library.db_path, f"Find lyrics: {count} songs")
 
     # ----- organising files -----
 
@@ -3756,13 +3867,21 @@ class MusicHive:
             return None
         return library, [(path, self.library_model.info(row)) for row, path in enumerate(self.tracks)]
 
-    def save_tag_jobs(self, jobs: list[TagJob]) -> None:
-        """Write these tag changes to songs of the open library."""
+    def save_tag_jobs(self, jobs: list[TagJob], description: str = "Tag changes") -> None:
+        """Write these tag changes to songs of the open library, keeping them in
+        the tag history under `description` so they can be undone."""
         library = self.loaded_library
         if library is None or not jobs:
             return
         self.show_status(f"Saving tags of {len(jobs)} song{'' if len(jobs) == 1 else 's'}…")
-        self.tag_writer.save_tags(jobs, library.root, library.db_path)
+        self.tag_writer.save_tags(jobs, library.root, library.db_path, description)
+
+    def show_tag_history(self) -> None:
+        if self.tag_history_window is None:
+            self.tag_history_window = TagHistoryWindow(
+                TAG_HISTORY_UI_FILE, self.window, self.tag_writer, self.show_status
+            )
+        self.tag_history_window.show()
 
     def edit_song_paths(self, paths: list[Path], find_cover: bool = False) -> None:
         """Open the tag editor for these songs of the library."""
@@ -3865,6 +3984,7 @@ class MusicHive:
 
     def on_tags_saved(self, result: SaveResult) -> None:
         """Files were edited: bring the database and everything on screen up to date."""
+        self.album_gains.clear()  # levelled or retagged songs change albums' volume
         try:
             library_db.update_tracks(result.db_path, result.tracks, result.covers)
         except sqlite3.Error as error:
@@ -4075,7 +4195,7 @@ class MusicHive:
         is_artist = bool(group.key) and page.kind in ("artist", "album_artist")
         w.artistsTabArtistName.setText(group.name)
         self.artist_description.set_text(info.description(group.name) if is_artist else "")
-        self.set_group_icon(w.artistsTabIcon, info.image(group.name) if is_artist else None, "user")
+        self.set_group_icon(self.artist_header, info.image(group.name) if is_artist else None, "user")
 
     def show_album_header(self, page: GroupPage) -> None:
         """The cover only makes sense when one album is chosen."""
@@ -4085,14 +4205,15 @@ class MusicHive:
         w.albumsTabAlbumName.setText(group.name)
         w.albumsTabArtist.setText(group.artist)
         w.albumsTabYear.setText(group.year)
-        self.set_group_icon(w.albumsTabIcon, self.album_image(group) if is_album else None, "disc")
+        self.set_group_icon(self.album_header, self.album_image(group) if is_album else None, "disc")
 
     @staticmethod
-    def set_group_icon(label: QLabel, image: QImage | None, placeholder: str) -> None:
+    def set_group_icon(header: HeaderBox, image: QImage | None, placeholder: str) -> None:
+        """An artist's or album's picture, and its box in the picture's colour."""
         if image is None:
-            label.setPixmap(asset_icon(placeholder).pixmap(GROUP_ICON_SIDE, GROUP_ICON_SIDE))
+            header.set_picture(asset_icon(placeholder).pixmap(GROUP_ICON_SIDE, GROUP_ICON_SIDE), None)
         else:
-            label.setPixmap(QPixmap.fromImage(make_square_icon(image)))
+            header.set_picture(QPixmap.fromImage(make_square_icon(image)), image)
 
     def album_image(self, group: TrackGroup) -> QImage | None:
         """The album's full-size cover, read from its first song."""
@@ -4643,7 +4764,8 @@ class MusicHive:
         playlist = store.load(name)
         shown = self.playlist_filter.show(name, rows, playlist.filter_kind, playlist.filter_value)
         self.playlist_tracks.set_playlist(name, shown, playlist.read_only)
-        self.show_lock_state(name, playlist.locked)
+        # An auto-playlist is always locked: it fills itself, so the lock shows closed.
+        self.show_lock_state(name, playlist.locked or playlist.is_auto)
         if playlist.is_auto:
             w.playlistLockButton.setEnabled(False)
             w.playlistLockButton.setToolTip("An auto-playlist fills itself from its rules.")
@@ -4697,10 +4819,15 @@ class MusicHive:
         """Show the playlist's icon in the widget at the top of the tab."""
         store = self.playlist_store
         gif = store.animated_icon(name) if name and store is not None else None
+        chosen = store.load(name).colour if name and store is not None else ""
+        self.playlist_colour = QColor(chosen) if chosen and QColor(chosen).isValid() else None
         playing = self.tab_icon_animation
         if playing is not None:
             if playing.matches(gif):
-                return  # already on screen: don't restart it
+                # Already on screen: don't restart it, but its colour may have changed.
+                automatic = box_colour(QImage(str(store.icon_file(name))))
+                self.playlist_header.set_colour(self.playlist_colour or automatic)
+                return
             playing.dispose()
             self.tab_icon_animation = None
 
@@ -4708,19 +4835,30 @@ class MusicHive:
         side = min(widget.width(), widget.height()) - (0 if hasattr(widget, "setPixmap") else 8)
         if side < 32:  # the tab has not been laid out yet
             side = 96
-        self.set_tab_icon(self.playlist_pixmap(name, side))
+        pixmap = self.playlist_pixmap(name, side)
+        own_icon = bool(name and store is not None and store.icon_file(name).exists())
+        self.set_tab_icon(pixmap, colour_from=pixmap.toImage() if own_icon else None)
 
         if gif is not None:
             self.tab_icon_animation = IconAnimation(gif)
             self.tab_icon_animation.frame_ready.connect(
-                lambda frame: self.set_tab_icon(QPixmap.fromImage(frame))
+                lambda frame: self.set_tab_icon(QPixmap.fromImage(frame), recolour=False)
             )
             self.tab_icon_animation.start()
 
-    def set_tab_icon(self, pixmap: QPixmap) -> None:
+    def set_tab_icon(
+        self, pixmap: QPixmap, colour_from: QImage | None = None, recolour: bool = True
+    ) -> None:
+        """Show the playlist's picture. Its box takes a colour from `colour_from`
+        (None: the usual colour), unless `recolour` is off (a frame of a GIF)."""
         widget = self.window.playlistsTabIcon
         if hasattr(widget, "setPixmap"):
-            widget.setPixmap(pixmap)
+            if recolour:
+                self.playlist_header.set_picture(pixmap, colour_from)
+                if self.playlist_colour is not None:  # chosen in the playlist window
+                    self.playlist_header.set_colour(self.playlist_colour)
+            else:
+                self.playlist_header.set_frame(pixmap)
         else:
             widget.setIcon(QIcon(pixmap))
             widget.setIconSize(pixmap.size())
@@ -4819,6 +4957,7 @@ class MusicHive:
         limit: dict | None = None,
         equaliser: str = "",
         visualiser: str = "",
+        colour: str = "",
     ) -> PlaylistDetails | None:
         """Open the playlist window, or the auto-playlist one if `rules` is given.
 
@@ -4842,6 +4981,7 @@ class MusicHive:
             visualiser,
             equaliser_preset_names(self.settings),
             visualiser_preset_names(self.settings),
+            colour,
         )
         if rules is None:
             return PlaylistEditDialog(PLAYLIST_EDIT_UI_FILE, *arguments).run()
@@ -4891,6 +5031,7 @@ class MusicHive:
         store = self.playlist_store
         store.set_description(name, details.description)
         store.set_presets(name, details.equaliser, details.visualiser)
+        store.set_colour(name, details.colour)
         if details.rules is not None:
             store.set_rules(
                 name, details.rules, details.match_any, details.no_duplicates, details.limit
@@ -4919,6 +5060,7 @@ class MusicHive:
             playlist.limit,
             playlist.equaliser,
             playlist.visualiser,
+            playlist.colour,
         )
         if details is None:
             return
@@ -5099,6 +5241,8 @@ class MusicHive:
         button = self.window.playlistLockButton
         button.setEnabled(name is not None)
         button.setChecked(locked)
+        # The button has no background, so its icon shows whether the playlist is locked.
+        button.setIcon(asset_icon("lock" if locked else "lock-open"))
         button.setToolTip(
             "Locked: songs cannot be added or rearranged. Click to unlock."
             if locked
@@ -6479,6 +6623,13 @@ class MusicHive:
         self.update_mpris()
         self.send_cast_details()
         self.prepare_next_bars()
+        if (
+            self.episode_id is None
+            and self.station_id is None
+            and self.playback_state == "playing"  # not the paused song put back at startup
+            and not self.restoring_session
+        ):
+            self.save_progress()  # a new song: remember it, in case the computer goes off
 
     def apply_sound_presets(self, track: Path | None = None) -> None:
         """Use the equaliser and visualiser presets of the playing song and its playlist.
@@ -6515,6 +6666,10 @@ class MusicHive:
         """A crossfade is due. If nothing comes next, the track just plays to its end."""
         if self.away_from_music:
             return  # episodes play to their end and never crossfade; radio never ends
+        if load_sound_settings(self.settings).no_crossfade_in_album and self.follows_in_album(
+            self.current_index, self.play_order.next_row
+        ):
+            return  # the next track of this album: it starts when this one has ended
         if not self.play_order.ends_after_current():
             self.on_track_finished()
 
@@ -6548,6 +6703,8 @@ class MusicHive:
         w = self.window
         if state == "paused":
             self.save_episode_position()
+        if not self.restoring_session:
+            self.save_progress()  # started, paused or stopped: remember where
 
         # Settle what was playing, then start or stop the listening clock.
         self.check_listening()
@@ -6595,6 +6752,11 @@ class MusicHive:
             time.monotonic() - self._episode_saved_at >= EPISODE_SAVE_SECONDS
         ):
             self.save_episode_position()
+        if (
+            self.playback_state == "playing"
+            and time.monotonic() - self._session_saved_at >= SESSION_SAVE_SECONDS
+        ):
+            self.save_progress()
         self.mpris.set_position(position_ms)
         self.lyrics_view.set_position(position_ms)
         self.cast_screen.lyrics.set_position(position_ms)
@@ -6670,6 +6832,17 @@ def main() -> int:
             palette.setColor(group, role, window_palette.color(group, role))
     app.setPalette(palette)
     app.aboutToQuit.connect(music_hive.shutdown)
+    # Logging out or shutting down: save first. The desktop asks through the session
+    # manager; the system may also just send SIGTERM (or SIGHUP), which would end the
+    # app without saving, so those quit it the normal way instead.
+    app.commitDataRequest.connect(lambda _manager: music_hive.save_progress())
+    for name in ("SIGTERM", "SIGHUP"):
+        if hasattr(signal, name):
+            signal.signal(getattr(signal, name), lambda _number, _frame: QTimer.singleShot(0, app.quit))
+    # Python only notices a signal when it runs, so let it run now and then.
+    signal_wake = QTimer()
+    signal_wake.timeout.connect(lambda: None)
+    signal_wake.start(500)
     music_hive.show()
     QTimer.singleShot(0, faulthandler.cancel_dump_traceback_later)  # started fine
     exit_code = app.exec()

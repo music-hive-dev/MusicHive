@@ -388,12 +388,13 @@ class Visualizer(QObject):
         for bar, level in enumerate(self._levels):
             bar_height = level * height
             if bar_height >= 1:
-                rects.append((bar, QRectF(
-                    bar * bar_width + gap / 2,
-                    height - bar_height,
-                    max(1.0, bar_width - gap),
-                    bar_height,
-                )))
+                # Whole pixels, rounded outwards (a bar is a hair wider than its share):
+                # with fractions, the bar and its glow strips were each rounded on their
+                # own, and at some window widths a 1px seam showed between them.
+                left = math.floor(bar * bar_width + gap / 2)
+                right = math.ceil((bar + 1) * bar_width - gap / 2)
+                top = math.floor(height - bar_height)
+                rects.append((bar, QRectF(left, top, max(1, right - left), height - top)))
         if style.glow:  # under all the bars, so a glow never covers a neighbour
             self._paint_glow(painter, rects, colours, bar_width, opacity)
         for bar, rect in rects:
@@ -415,7 +416,7 @@ class Visualizer(QObject):
         there are no edges. The bars stand on the bottom, so nothing goes below.
         """
         low, high = GLOW_RADIUS
-        r = max(low, min(high, bar_width / 2))
+        r = float(round(max(low, min(high, bar_width / 2))))  # whole pixels, like the bars
         strength = opacity / 255 * GLOW_STRENGTH
 
         def stops(gradient, color: QColor) -> None:

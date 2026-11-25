@@ -434,7 +434,7 @@ class CheckTagsTool(QObject):
         musicbrainz_ui_path: Path,
         library_songs: Callable[[], tuple[LibraryInfo, list[tuple[Path, TrackInfo]]] | None],
         edit_songs: Callable[[list[Path], bool], None],
-        save_tags: Callable[[list[TagJob]], None],
+        save_tags: Callable[[list[TagJob], str], None],
         show_status: Callable[[str], None],
     ) -> None:
         """`library_songs` gives the open library and its songs (None if there is
@@ -735,7 +735,10 @@ class CheckTagsTool(QObject):
             f"Set the {LABELS[tag]} to “{value}” in {_songs(len(targets))}?",
         ):
             return
-        self._save_tags([TagJob(song.path, TagChanges({tag: value})) for song in targets])
+        self._save_tags(
+            [TagJob(song.path, TagChanges({tag: value})) for song in targets],
+            f"Make the same ({LABELS[tag]}): {issue.title}",
+        )
 
     def _number_tracks(self) -> None:
         issue = self._selected_issue()
@@ -758,7 +761,8 @@ class CheckTagsTool(QObject):
         ):
             return
         self._save_tags(
-            [TagJob(song.path, TagChanges({"tracknumber": str(number)})) for song, number in changes]
+            [TagJob(song.path, TagChanges({"tracknumber": str(number)})) for song, number in changes],
+            f"Number tracks: {issue.title}",
         )
 
     def _look_up(self, every: bool) -> None:
@@ -804,7 +808,8 @@ class CheckTagsTool(QObject):
             if song.skipped != skip
         ]
         if jobs:
-            self._save_tags(jobs)
+            what = "Skip tag problems" if skip else "Check tags again"
+            self._save_tags(jobs, f"{what}: {issue.title}")
 
     def _edit_all(self) -> None:
         issue = self._selected_issue()

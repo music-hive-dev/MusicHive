@@ -46,6 +46,7 @@ from PySide6.QtWidgets import (
 
 from src import theme
 from src.elided_label import ElidedLabel
+from src.header_box import HeaderBox
 from src.number_field import NumberField
 from src.podcasts import Episode, Podcast, PodcastManager, PodcastSettings, SearchResult
 
@@ -239,7 +240,8 @@ class PodcastsTab(QObject):
         # Their text never sets their width, so long titles cannot widen the window.
         self._title = ElidedLabel(w.podcastTitle, max_lines=1)
         self._author = ElidedLabel(w.podcastAuthor, max_lines=1)
-        self._description = ElidedLabel(w.podcastDescription, max_lines=3)
+        self._description = ElidedLabel(w.podcastDescription, max_lines=3, fit_beside=w.podcastCover)
+        self._header = HeaderBox(w.podcastHeaderBox, w.podcastCover)
         # "x of y played" is always shown whole; the rest gives way when it is narrow.
         self._progress_details = ElidedLabel(w.podcastProgressDetails, max_lines=1)
         self._search_title = ElidedLabel(w.podcastSearchTitle, max_lines=1)
@@ -331,7 +333,9 @@ class PodcastsTab(QObject):
     def _on_cover_ready(self, podcast_id: int) -> None:
         self.refresh_list()
         if podcast_id == self.shown_podcast:
-            self.w.podcastCover.setPixmap(self.cover_icon(podcast_id, COVER_SIZE * 2, rounded=False))
+            self._header.set_picture(
+                self.cover_icon(podcast_id, COVER_SIZE * 2, rounded=False), self.cover_image(podcast_id)
+            )
 
     def _show_podcast_menu(self, position: QPoint) -> None:
         item = self.w.podcastList.itemAt(position)
@@ -460,7 +464,9 @@ class PodcastsTab(QObject):
         w = self.w
         self.shown_podcast = podcast_id
         w.podcastPages.setCurrentWidget(w.podcastShowPage)
-        w.podcastCover.setPixmap(self.cover_icon(podcast_id, COVER_SIZE * 2, rounded=False))
+        self._header.set_picture(
+            self.cover_icon(podcast_id, COVER_SIZE * 2, rounded=False), self.cover_image(podcast_id)
+        )
         self._title.set_text(podcast.title)
         self._author.set_text(podcast.author)
         self._description.set_text(plain_text(podcast.description))
@@ -475,6 +481,7 @@ class PodcastsTab(QObject):
         for widget in (w.podcastKeepLabel, w.podcastKeepCount):
             widget.setEnabled(podcast.subscribed)
         self._show_progress()
+        self._description.refit()  # the lines around it are filled in now
         self._fill_episodes(self.manager.store.episodes(podcast_id))
         # Select it in the list, if subscribed, without showing it again.
         view = w.podcastList

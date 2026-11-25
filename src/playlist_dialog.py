@@ -5,10 +5,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from PySide6.QtCore import QStandardPaths
-from PySide6.QtGui import QIcon, QImage, QPixmap
-from PySide6.QtWidgets import QDialog, QFileDialog, QMessageBox, QWidget
+from PySide6.QtGui import QColor, QIcon, QImage, QPixmap
+from PySide6.QtWidgets import QColorDialog, QDialog, QFileDialog, QMessageBox, QWidget
 
 from src.auto_playlist import COMPARISONS, LIMIT_ORDERS, LIMIT_UNITS
+from src.header_box import box_colour
 from src.lastfm_dialog import load_dialog
 from src.number_field import NumberField
 from src.playlist_models import (
@@ -34,6 +35,7 @@ class PlaylistDetails:
     limit: dict | None = None
     equaliser: str = ""  # the equaliser preset used while it plays ("" for none)
     visualiser: str = ""  # the visualiser preset used while it plays ("" for none)
+    colour: str = ""  # the header box's colour, "#rrggbb"; "" takes it from the picture
 
 
 def fill_preset_combo(combo, names: list[str], chosen: str) -> None:
@@ -71,8 +73,11 @@ class PlaylistEditDialog:
         visualiser: str = "",
         equaliser_names: list[str] | None = None,
         visualiser_names: list[str] | None = None,
+        colour: str = "",
     ) -> None:
-        """`equaliser_names` and `visualiser_names` are the presets to choose from."""
+        """`equaliser_names` and `visualiser_names` are the presets to choose from.
+        `colour` is the header box's chosen colour; "" takes it from the picture."""
+        self._colour = colour
         self._placeholder = placeholder
         self._check_name = check_name  # says why a title cannot be used, or None
         self._icon = icon
@@ -95,6 +100,8 @@ class PlaylistEditDialog:
         self._image_click.clicked.connect(self._choose_image)
         d.playlistEditChooseImageButton.clicked.connect(self._choose_image)
         d.playlistEditRemoveImageButton.clicked.connect(self._remove_image)
+        d.playlistEditColourButton.clicked.connect(lambda _checked=False: self._choose_colour())
+        d.playlistEditResetColourButton.clicked.connect(lambda _checked=False: self._reset_colour())
         d.playlistEditButtonBox.accepted.connect(self._on_save)
         d.playlistEditButtonBox.rejected.connect(d.reject)
 
@@ -111,6 +118,7 @@ class PlaylistEditDialog:
                 self._animation,
                 equaliser=chosen_preset(d.playlistEditEqualiser),
                 visualiser=chosen_preset(d.playlistEditVisualiser),
+                colour=self._colour,
             )
         self._stop_preview()
         d.deleteLater()
@@ -146,6 +154,44 @@ class PlaylistEditDialog:
             pixmap = QPixmap.fromImage(self._icon)
         d.playlistEditImage.setPixmap(pixmap)
         d.playlistEditRemoveImageButton.setEnabled(self._icon is not None)
+        self._show_colour()  # the automatic colour follows the picture
+
+    # ----- the header colour -----
+
+    def _shown_colour(self) -> QColor | None:
+        """The colour the header will have: the chosen one, or the picture's."""
+        if self._colour:
+            return QColor(self._colour)
+        return box_colour(self._icon)
+
+    def _show_colour(self) -> None:
+        d = self.dialog
+        button = d.playlistEditColourButton
+        colour = self._shown_colour()
+        button.setText(f"Custom {self._colour}" if self._colour else "Automatic")
+        if colour is not None and colour.isValid():
+            text = "#000000" if colour.lightness() > 150 else "#ffffff"  # readable on the swatch
+            button.setStyleSheet(
+                f"QPushButton#playlistEditColourButton {{ background-color: {colour.name()}; color: {text}; }}"
+            )
+        else:
+            button.setStyleSheet("")  # no picture: the box keeps its usual colour
+        d.playlistEditResetColourButton.setEnabled(bool(self._colour))
+
+    def _choose_colour(self) -> None:
+        start = self._shown_colour()
+        colour = QColorDialog.getColor(
+            start if start is not None and start.isValid() else QColor("#312d34"),
+            self.dialog,
+            "Header colour",
+        )
+        if colour.isValid():
+            self._colour = colour.name()
+            self._show_colour()
+
+    def _reset_colour(self) -> None:
+        self._colour = ""
+        self._show_colour()
 
     def _choose_image(self) -> None:
         start_dir = QStandardPaths.writableLocation(QStandardPaths.PicturesLocation)

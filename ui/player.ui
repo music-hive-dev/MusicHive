@@ -617,6 +617,80 @@ QPushButton:disabled {
     color: rgba(255, 255, 255, 85);
 }
 
+/* ----- Headers of playlists, artists, albums and podcasts ----- */
+/* The box behind a header; it takes a colour from the header's picture when there is one. */
+QFrame#playlistHeaderBox,
+QFrame#artistHeaderBox,
+QFrame#albumHeaderBox,
+QFrame#podcastHeaderBox {
+    background-color: #312d34;
+    /* The picture's corners (15px at 96px, header_box.CORNER_RATIO) plus the 10px
+       padding around it, so the box's corners follow the picture's. */
+    border-radius: 25px;
+}
+
+/* The header's buttons: small, only their icon, in every state; the hand cursor
+   (set on each button) shows they can be clicked */
+QPushButton#playlistEditButton,
+QPushButton#playlistLockButton,
+QPushButton#playlistColumnsButton,
+QPushButton#playlistFilterButton,
+QPushButton#artistColumnsButton,
+QPushButton#artistFilterButton,
+QPushButton#albumColumnsButton,
+QPushButton#albumFilterButton {
+    background-color: transparent;
+    padding: 0px;
+    min-width: 20px;
+    max-width: 20px;
+    min-height: 20px;
+    max-height: 20px;
+    qproperty-iconSize: 12px 12px;
+}
+
+QPushButton#playlistEditButton:hover,
+QPushButton#playlistLockButton:hover,
+QPushButton#playlistColumnsButton:hover,
+QPushButton#playlistFilterButton:hover,
+QPushButton#artistColumnsButton:hover,
+QPushButton#artistFilterButton:hover,
+QPushButton#albumColumnsButton:hover,
+QPushButton#albumFilterButton:hover,
+QPushButton#playlistEditButton:pressed,
+QPushButton#playlistLockButton:pressed,
+QPushButton#playlistColumnsButton:pressed,
+QPushButton#playlistFilterButton:pressed,
+QPushButton#artistColumnsButton:pressed,
+QPushButton#artistFilterButton:pressed,
+QPushButton#albumColumnsButton:pressed,
+QPushButton#albumFilterButton:pressed,
+QPushButton#playlistEditButton:checked,
+QPushButton#playlistLockButton:checked,
+QPushButton#playlistColumnsButton:checked,
+QPushButton#playlistFilterButton:checked,
+QPushButton#artistColumnsButton:checked,
+QPushButton#artistFilterButton:checked,
+QPushButton#albumColumnsButton:checked,
+QPushButton#albumFilterButton:checked,
+QPushButton#playlistEditButton:checked:hover,
+QPushButton#playlistLockButton:checked:hover,
+QPushButton#playlistColumnsButton:checked:hover,
+QPushButton#playlistFilterButton:checked:hover,
+QPushButton#artistColumnsButton:checked:hover,
+QPushButton#artistFilterButton:checked:hover,
+QPushButton#albumColumnsButton:checked:hover,
+QPushButton#albumFilterButton:checked:hover,
+QPushButton#playlistEditButton:disabled,
+QPushButton#playlistLockButton:disabled,
+QPushButton#playlistColumnsButton:disabled,
+QPushButton#playlistFilterButton:disabled,
+QPushButton#artistColumnsButton:disabled,
+QPushButton#artistFilterButton:disabled,
+QPushButton#albumColumnsButton:disabled,
+QPushButton#albumFilterButton:disabled {
+    background-color: transparent;
+}
+
 /* ----- Horizontal Sliders ----- */
 QSlider::groove:horizontal {
     background-color: #312d34;
@@ -1591,17 +1665,27 @@ QWidget {
              <number>0</number>
             </property>
             <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_9" stretch="0,0,1,0,0">
-              <property name="sizeConstraint">
-               <enum>QLayout::SizeConstraint::SetFixedSize</enum>
-              </property>
-              <property name="topMargin">
-               <number>0</number>
-              </property>
-              <property name="rightMargin">
-               <number>0</number>
-              </property>
-              <item>
+             <widget class="QFrame" name="playlistHeaderBox">
+ <property name="sizePolicy">
+  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+   <horstretch>0</horstretch>
+   <verstretch>0</verstretch>
+  </sizepolicy>
+ </property>
+<layout class="QHBoxLayout" name="horizontalLayout_9" stretch="0,0,1,0,0">
+ <property name="leftMargin">
+  <number>10</number>
+ </property>
+ <property name="topMargin">
+  <number>10</number>
+ </property>
+ <property name="rightMargin">
+  <number>10</number>
+ </property>
+ <property name="bottomMargin">
+  <number>10</number>
+ </property>
+<item alignment="Qt::AlignmentFlag::AlignTop">
                <widget class="QLabel" name="playlistsTabIcon">
                 <property name="minimumSize">
                  <size>
@@ -1650,6 +1734,9 @@ QWidget {
               </item>
               <item>
                <layout class="QVBoxLayout" name="verticalLayout_11">
+ <property name="spacing">
+  <number>2</number>
+ </property>
                 <item>
                  <widget class="QLabel" name="playlistsTabPlaylistName">
                   <property name="font">
@@ -1690,6 +1777,19 @@ QWidget {
                  </widget>
                 </item>
                 <item>
+                 <spacer name="playlistsTabStatsGap">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Vertical</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>0</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
                  <widget class="QLabel" name="playlistsTabStats">
                   <property name="cursor">
                    <cursorShape>ArrowCursor</cursorShape>
@@ -1716,11 +1816,33 @@ QWidget {
               </item>
               <item>
                <layout class="QVBoxLayout" name="verticalLayout_9">
+ <property name="spacing">
+  <number>2</number>
+ </property>
                 <property name="rightMargin">
                  <number>0</number>
                 </property>
                 <item>
+                 <spacer name="playlistHeaderButtonsSpacer">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Vertical</enum>
+                  </property>
+                  <property name="sizeType">
+                   <enum>QSizePolicy::Policy::Expanding</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>0</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
                  <widget class="QPushButton" name="playlistEditButton">
+ <property name="cursor">
+  <cursorShape>PointingHandCursor</cursorShape>
+ </property>
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                     <horstretch>0</horstretch>
@@ -1739,6 +1861,9 @@ QWidget {
                 </item>
                 <item>
                  <widget class="QPushButton" name="playlistLockButton">
+ <property name="cursor">
+  <cursorShape>PointingHandCursor</cursorShape>
+ </property>
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                     <horstretch>0</horstretch>
@@ -1759,6 +1884,9 @@ QWidget {
                 </item>
                 <item>
                  <widget class="QPushButton" name="playlistColumnsButton">
+ <property name="cursor">
+  <cursorShape>PointingHandCursor</cursorShape>
+ </property>
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                     <horstretch>0</horstretch>
@@ -1779,6 +1907,9 @@ QWidget {
                 </item>
                 <item>
                  <widget class="QPushButton" name="playlistFilterButton">
+ <property name="cursor">
+  <cursorShape>PointingHandCursor</cursorShape>
+ </property>
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                     <horstretch>0</horstretch>
@@ -1806,6 +1937,7 @@ QWidget {
                </layout>
               </item>
              </layout>
+</widget>
             </item>
             <item>
              <widget class="QTableView" name="playlistSongList">
@@ -1886,14 +2018,27 @@ QWidget {
           <item>
            <layout class="QVBoxLayout" name="artistsTabContent">
             <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_7" stretch="0,0,1,0">
-              <property name="sizeConstraint">
-               <enum>QLayout::SizeConstraint::SetFixedSize</enum>
-              </property>
-              <property name="topMargin">
-               <number>0</number>
-              </property>
-              <item>
+             <widget class="QFrame" name="artistHeaderBox">
+ <property name="sizePolicy">
+  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+   <horstretch>0</horstretch>
+   <verstretch>0</verstretch>
+  </sizepolicy>
+ </property>
+<layout class="QHBoxLayout" name="horizontalLayout_7" stretch="0,0,1,0">
+ <property name="leftMargin">
+  <number>10</number>
+ </property>
+ <property name="topMargin">
+  <number>10</number>
+ </property>
+ <property name="rightMargin">
+  <number>10</number>
+ </property>
+ <property name="bottomMargin">
+  <number>10</number>
+ </property>
+<item alignment="Qt::AlignmentFlag::AlignTop">
                <widget class="QLabel" name="artistsTabIcon">
                 <property name="minimumSize">
                  <size>
@@ -1939,12 +2084,16 @@ QWidget {
               </item>
               <item>
                <layout class="QVBoxLayout" name="verticalLayout_10">
+ <property name="spacing">
+  <number>2</number>
+ </property>
                 <item>
                  <widget class="QLabel" name="artistsTabArtistName">
                   <property name="font">
                    <font>
                     <family>Inter</family>
                     <pointsize>13</pointsize>
+                    <bold>true</bold>
                    </font>
                   </property>
                   <property name="text">
@@ -1978,6 +2127,19 @@ QWidget {
                  </widget>
                 </item>
                 <item>
+                 <spacer name="artistsTabStatsGap">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Vertical</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>0</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
                  <widget class="QLabel" name="artistsTabStats">
                   <property name="text">
                    <string>xx Songs, hh:mm:ss</string>
@@ -1988,24 +2150,30 @@ QWidget {
               </item>
               <item>
                <layout class="QVBoxLayout" name="artistHeaderButtons">
+ <property name="spacing">
+  <number>2</number>
+ </property>
                 <item>
                  <spacer name="artistHeaderButtonsSpacer">
                   <property name="orientation">
                    <enum>Qt::Orientation::Vertical</enum>
                   </property>
                   <property name="sizeType">
-                   <enum>QSizePolicy::Policy::Minimum</enum>
+                   <enum>QSizePolicy::Policy::Expanding</enum>
                   </property>
                   <property name="sizeHint" stdset="0">
                    <size>
-                    <width>20</width>
-                    <height>40</height>
+                    <width>0</width>
+                    <height>0</height>
                    </size>
                   </property>
                  </spacer>
                 </item>
                 <item>
                  <widget class="QPushButton" name="artistColumnsButton">
+ <property name="cursor">
+  <cursorShape>PointingHandCursor</cursorShape>
+ </property>
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                     <horstretch>0</horstretch>
@@ -2026,6 +2194,9 @@ QWidget {
                 </item>
                 <item>
                  <widget class="QPushButton" name="artistFilterButton">
+ <property name="cursor">
+  <cursorShape>PointingHandCursor</cursorShape>
+ </property>
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                     <horstretch>0</horstretch>
@@ -2053,6 +2224,7 @@ QWidget {
                </layout>
               </item>
              </layout>
+</widget>
             </item>
             <item>
              <widget class="QTableView" name="artistSongList">
@@ -2133,14 +2305,27 @@ QWidget {
           <item>
            <layout class="QVBoxLayout" name="albumsTabContent">
             <item>
-             <layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0">
-              <property name="sizeConstraint">
-               <enum>QLayout::SizeConstraint::SetFixedSize</enum>
-              </property>
-              <property name="topMargin">
-               <number>0</number>
-              </property>
-              <item>
+             <widget class="QFrame" name="albumHeaderBox">
+ <property name="sizePolicy">
+  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+   <horstretch>0</horstretch>
+   <verstretch>0</verstretch>
+  </sizepolicy>
+ </property>
+<layout class="QHBoxLayout" name="horizontalLayout_2" stretch="0,0,1,0">
+ <property name="leftMargin">
+  <number>10</number>
+ </property>
+ <property name="topMargin">
+  <number>10</number>
+ </property>
+ <property name="rightMargin">
+  <number>10</number>
+ </property>
+ <property name="bottomMargin">
+  <number>10</number>
+ </property>
+<item alignment="Qt::AlignmentFlag::AlignTop">
                <widget class="QLabel" name="albumsTabIcon">
                 <property name="minimumSize">
                  <size>
@@ -2186,12 +2371,16 @@ QWidget {
               </item>
               <item>
                <layout class="QVBoxLayout" name="verticalLayout_8">
+ <property name="spacing">
+  <number>2</number>
+ </property>
                 <item>
                  <widget class="QLabel" name="albumsTabAlbumName">
                   <property name="font">
                    <font>
                     <family>Inter</family>
                     <pointsize>13</pointsize>
+                    <bold>true</bold>
                    </font>
                   </property>
                   <property name="text">
@@ -2217,6 +2406,19 @@ QWidget {
                  </widget>
                 </item>
                 <item>
+                 <spacer name="albumsTabStatsGap">
+                  <property name="orientation">
+                   <enum>Qt::Orientation::Vertical</enum>
+                  </property>
+                  <property name="sizeHint" stdset="0">
+                   <size>
+                    <width>0</width>
+                    <height>0</height>
+                   </size>
+                  </property>
+                 </spacer>
+                </item>
+                <item>
                  <widget class="QLabel" name="albumsTabStats">
                   <property name="text">
                    <string>xx Songs, hh:mm:ss</string>
@@ -2227,24 +2429,30 @@ QWidget {
               </item>
               <item>
                <layout class="QVBoxLayout" name="albumHeaderButtons">
+ <property name="spacing">
+  <number>2</number>
+ </property>
                 <item>
                  <spacer name="albumHeaderButtonsSpacer">
                   <property name="orientation">
                    <enum>Qt::Orientation::Vertical</enum>
                   </property>
                   <property name="sizeType">
-                   <enum>QSizePolicy::Policy::Minimum</enum>
+                   <enum>QSizePolicy::Policy::Expanding</enum>
                   </property>
                   <property name="sizeHint" stdset="0">
                    <size>
-                    <width>20</width>
-                    <height>40</height>
+                    <width>0</width>
+                    <height>0</height>
                    </size>
                   </property>
                  </spacer>
                 </item>
                 <item>
                  <widget class="QPushButton" name="albumColumnsButton">
+ <property name="cursor">
+  <cursorShape>PointingHandCursor</cursorShape>
+ </property>
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                     <horstretch>0</horstretch>
@@ -2265,6 +2473,9 @@ QWidget {
                 </item>
                 <item>
                  <widget class="QPushButton" name="albumFilterButton">
+ <property name="cursor">
+  <cursorShape>PointingHandCursor</cursorShape>
+ </property>
                   <property name="sizePolicy">
                    <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
                     <horstretch>0</horstretch>
@@ -2292,6 +2503,7 @@ QWidget {
                </layout>
               </item>
              </layout>
+</widget>
             </item>
             <item>
              <widget class="QTableView" name="albumSongList">
@@ -3179,8 +3391,27 @@ QWidget {
                <number>0</number>
               </property>
               <item>
-               <layout class="QHBoxLayout" name="podcastHeader">
-                <item>
+               <widget class="QFrame" name="podcastHeaderBox">
+ <property name="sizePolicy">
+  <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+   <horstretch>0</horstretch>
+   <verstretch>0</verstretch>
+  </sizepolicy>
+ </property>
+<layout class="QHBoxLayout" name="podcastHeader">
+ <property name="leftMargin">
+  <number>10</number>
+ </property>
+ <property name="topMargin">
+  <number>10</number>
+ </property>
+ <property name="rightMargin">
+  <number>10</number>
+ </property>
+ <property name="bottomMargin">
+  <number>10</number>
+ </property>
+<item alignment="Qt::AlignmentFlag::AlignTop">
                  <widget class="QLabel" name="podcastCover">
                   <property name="minimumSize">
                    <size>
@@ -3223,9 +3454,9 @@ QWidget {
                 </item>
                 <item>
                  <layout class="QVBoxLayout" name="podcastHeaderText">
-                  <property name="spacing">
-                   <number>2</number>
-                  </property>
+ <property name="spacing">
+  <number>2</number>
+ </property>
                   <item>
                    <widget class="QLabel" name="podcastTitle">
                     <property name="text">
@@ -3271,6 +3502,19 @@ QWidget {
                      </sizepolicy>
                     </property>
                    </widget>
+                  </item>
+                  <item>
+                   <spacer name="podcastProgressRowGap">
+                    <property name="orientation">
+                     <enum>Qt::Orientation::Vertical</enum>
+                    </property>
+                    <property name="sizeHint" stdset="0">
+                     <size>
+                      <width>0</width>
+                      <height>0</height>
+                     </size>
+                    </property>
+                   </spacer>
                   </item>
                   <item>
                    <layout class="QHBoxLayout" name="podcastProgressRow" stretch="0,0,1">
@@ -3463,6 +3707,7 @@ QWidget {
                  </layout>
                 </item>
                </layout>
+</widget>
               </item>
               <item>
                <widget class="QTableWidget" name="podcastEpisodes">
@@ -4094,6 +4339,8 @@ QWidget {
     <addaction name="actionCopy"/>
     <addaction name="actionPaste"/>
     <addaction name="actionSelectAll"/>
+    <addaction name="separator"/>
+    <addaction name="actionTagHistory"/>
     <addaction name="separator"/>
     <addaction name="actionImportSettings"/>
     <addaction name="actionExportSettings"/>
@@ -5295,6 +5542,21 @@ QWidget {
    </property>
    <property name="toolTip">
     <string>List the songs that are in the library more than once, and keep the best copy</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionTagHistory">
+   <property name="icon">
+    <iconset>
+     <normaloff>../assets/rotate-ccw.svg</normaloff>../assets/rotate-ccw.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Tag Change History…</string>
+   </property>
+   <property name="toolTip">
+    <string>See the last tag changes and undo one</string>
    </property>
    <property name="menuRole">
     <enum>QAction::MenuRole::NoRole</enum>

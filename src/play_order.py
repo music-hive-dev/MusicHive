@@ -5,7 +5,10 @@ library.
 """
 
 import random
+from collections.abc import Callable
 from dataclasses import dataclass
+
+SMART_SHUFFLE_LOOKAHEAD = 60  # how far ahead a song by someone else is looked for
 
 
 @dataclass(slots=True)
@@ -26,6 +29,10 @@ class PlayOrder:
 
     def __init__(self) -> None:
         self.shuffle = False
+        # Smart shuffle spreads out songs of one artist or album; `group_of` gives
+        # a row's (artist, album), both "" when unknown. main.py sets it.
+        self.smart_shuffle = False
+        self.group_of: Callable[[int], tuple[str, str]] | None = None
         self.repeat = "off"
         self._entries: list[Entry] = []
         self._position = -1
@@ -41,6 +48,20 @@ class PlayOrder:
         """Library row of the playing track, or -1 if nothing is playing."""
         if 0 <= self._position < len(self._entries):
             return self._entries[self._position].row
+        return -1
+
+    @property
+    def previous_row(self) -> int:
+        """Library row of the track that played before this one, or -1."""
+        if 1 <= self._position < len(self._entries):
+            return self._entries[self._position - 1].row
+        return -1
+
+    @property
+    def next_row(self) -> int:
+        """Library row of the track that comes after this one, or -1."""
+        if 0 <= self._position < len(self._entries) - 1:
+            return self._entries[self._position + 1].row
         return -1
 
     def upcoming_rows(self) -> list[int]:
@@ -67,6 +88,13 @@ class PlayOrder:
         self._entries = [self._new_entry(row) for row in self._context]
         self._position = -1
         self._stop_after = None
+
+    def reshuffle(self) -> None:
+        """Shuffle the songs after the playing one again (smart shuffle was switched),
+        keeping the queue as it is."""
+        current = self.current_row
+        if self.shuffle and current >= 0:
+            self._rebuild(first=current, context=self._context)
 
     def set_shuffle(self, enabled: bool) -> None:
         """Turn shuffle on or off, keeping the playing track.
@@ -333,7 +361,7 @@ class PlayOrder:
         if self.shuffle:
             rest = [row for row in context if row != first]
             random.shuffle(rest)
-            rows = [first] + rest
+            rows = [first] + self._spread(rest, after=first)
             position = 0
         else:
             rows = context
@@ -343,6 +371,34 @@ class PlayOrder:
         entries[position + 1 : position + 1] = queued
         self._entries = entries
         self._position = position
+
+    def _spread(self, rows: list[int], after: int | None) -> list[int]:
+        """With smart shuffle on, reorder a shuffled list as little as needed so
+        that no song follows one by the same artist or from the same album: each
+        place takes the first song a little further on that differs from the one
+        before. When none does (a list of mostly one artist), the next one comes."""
+        if not self.smart_shuffle or self.group_of is None or len(rows) < 2:
+            return rows
+        groups = {row: self.group_of(row) for row in rows}
+        last = self.group_of(after) if after is not None and after >= 0 else ("", "")
+
+        def clashes(group: tuple[str, str]) -> bool:
+            same_artist = bool(group[0]) and group[0] == last[0]
+            same_album = bool(group[1]) and group[1] == last[1]
+            return same_artist or same_album
+
+        pending = list(rows)
+        spread: list[int] = []
+        while pending:
+            pick = 0
+            for index in range(min(SMART_SHUFFLE_LOOKAHEAD, len(pending))):
+                if not clashes(groups[pending[index]]):
+                    pick = index
+                    break
+            row = pending.pop(pick)
+            spread.append(row)
+            last = groups[row]
+        return spread
 
     def _wrap_around(self) -> None:
         """Start again after the last track (repeat all)."""
@@ -355,6 +411,7 @@ class PlayOrder:
             if rows[0] == last:  # don't play the same track twice in a row
                 swap = random.randrange(1, len(rows))
                 rows[0], rows[swap] = rows[swap], rows[0]
+            rows = self._spread(rows, after=last)
         self._entries = [self._new_entry(row) for row in rows]
         self._position = 0
         self._stop_after = None

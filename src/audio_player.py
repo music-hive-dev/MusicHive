@@ -448,6 +448,9 @@ class AudioPlayer(QObject):
         self._sound = SoundSettings()
         self._level_offset_db = 0.0  # brings tagged songs to the library's own volume
         self._level_enabled = True  # False plays every song at its own volume
+        # Given a song, its album's (gain, peak) when the album plays in order, or
+        # None for the song's own volume. main.py sets it.
+        self.album_gain_of: Callable[[Path], tuple[float, float | None] | None] | None = None
 
         self._visual_format = QAudioFormat()
         self._visual_format.setSampleRate(_VISUAL_RATE)
@@ -728,7 +731,16 @@ class AudioPlayer(QObject):
     def _gain_for(self, track) -> float:
         if not self._level_enabled or not isinstance(track, Path):  # a stream has no tags here
             return 0.0
+        album = self.album_gain_of(track) if self.album_gain_of is not None else None
+        if album is not None:  # the album plays in order: one volume for all of it
+            gain, peak = album
+            level = gain + self._level_offset_db
+            return min(level, -20 * math.log10(peak)) if peak else level
         return read_track_gain(track, self._level_offset_db)
+
+    def refresh_gains(self) -> None:
+        """Work out the playing songs' volume again (a setting changed)."""
+        self._apply_track_gains()
 
     def _apply_track_gains(self) -> None:
         for deck in self._decks():
