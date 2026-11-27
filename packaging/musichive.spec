@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.8.0
+Version:        1.9.0
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        GPL-3.0-or-later
@@ -69,6 +69,17 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Fri Nov 27 2026 MusicHive - 1.9.0-1
+- Party Mode: guests on the same Wi-Fi scan a QR code and add songs to the queue from their phones, with their name next to each song
+- Party guests can vote to skip a song, and you can limit how many songs each guest has waiting
+- The party's QR code and who added a song can be shown on the TV while casting
+- A Subsonic tab: search your Subsonic server (such as Navidrome, with octo-fiesta for Deezer, Qobuz and more), download songs on the server, play them from it, or import them into the library
+- Imported songs can have their volume levelled and their lyrics found on the way in
+- Party guests can ask for songs from the Subsonic server too; they keep their place in the queue while they download, and are tagged guestdownload=true
+- Casting now has its own Cast To window instead of a menu
+- Uses less memory: covers are decoded at screen size, and on Linux freed memory goes back to the system
+- German translation of everything new
+
 * Wed Nov 25 2026 MusicHive - 1.8.0-1
 - MusicHive can be translated: choose the language in Settings > Interface, or follow the desktop's language
 - German translation, by music-hive-dev

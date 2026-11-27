@@ -317,6 +317,14 @@ class TrackListModel(QAbstractTableModel):
         if 0 <= row < len(self._paths):
             self._paths[row] = path
 
+    def add_rows(self, paths: list[Path], infos: list[TrackInfo], covers: dict[str, bytes]) -> None:
+        """Add tracks after the others (imported songs); the rows before keep their numbers."""
+        self.beginResetModel()
+        self._paths.extend(paths)
+        self._infos.extend(infos)
+        self._cover_data.update(covers)
+        self.endResetModel()
+
     def remove_row(self, row: int) -> None:
         """Remove one track from the list (its file was deleted)."""
         if not 0 <= row < len(self._paths):
@@ -626,17 +634,24 @@ class QueueModel(QAbstractListModel):
         self._library = library_model
         self._rows: list[int] = []
         self._guests: list[str] = []  # who queued each row at a party ("" for the user)
+        self._placeholders: list = []  # play_order.Placeholder or None, for each row
         self._stop_after = -1  # row of this list playback ends after, or -1
         library_model.modelReset.connect(self._on_library_reset)
 
     def set_rows(
-        self, rows: list[int], stop_after: int = -1, guests: list[str] | None = None
+        self,
+        rows: list[int],
+        stop_after: int = -1,
+        guests: list[str] | None = None,
+        placeholders: list | None = None,
     ) -> None:
         """Show these library rows, in this order. `guests` names the party guest
-        who queued each one."""
+        who queued each one; `placeholders` has the songs still on their way from
+        the server (their row is -1)."""
         self.beginResetModel()
         self._rows = list(rows)
         self._guests = list(guests) if guests is not None else []
+        self._placeholders = list(placeholders) if placeholders is not None else []
         self._stop_after = stop_after
         self.endResetModel()
 
@@ -658,7 +673,8 @@ class QueueModel(QAbstractListModel):
 
     def mimeData(self, indexes) -> QMimeData:
         positions = sorted(index.row() for index in indexes)
-        data = make_track_drag([self._rows[position] for position in positions])
+        # Songs still on their way can be moved in the list, but not dragged elsewhere.
+        data = make_track_drag([self._rows[p] for p in positions if self._rows[p] >= 0])
         data.setData(UPCOMING_DRAG_MIME, json.dumps(positions).encode("utf-8"))
         return data
 
@@ -683,7 +699,28 @@ class QueueModel(QAbstractListModel):
     def rowCount(self, parent: QModelIndex = QModelIndex()) -> int:
         return 0 if parent.isValid() else len(self._rows)
 
+    def _placeholder_data(self, index: QModelIndex, role: int):
+        """A song still on its way from the server: its name, and that it is coming."""
+        waiting = self._placeholders[index.row()]
+        if role in (Qt.ItemDataRole.DisplayRole, TrackListModel.TitleRole):
+            return waiting.title
+        if role == TrackListModel.StopAfterRole:
+            return index.row() == self._stop_after
+        if role == Qt.ItemDataRole.ToolTipRole:
+            return tr("{title} is still being fetched from the server").format(title=waiting.title)
+        if role == TrackListModel.SubtitleRole:
+            guest = self._guests[index.row()] if index.row() < len(self._guests) else ""
+            added = tr("added by {name}").format(name=guest) if guest else ""
+            return " · ".join(p for p in (waiting.artist, added, tr("fetching…")) if p)
+        return None
+
     def data(self, index: QModelIndex, role: int = Qt.ItemDataRole.DisplayRole):
+        if (
+            index.isValid()
+            and index.row() < len(self._placeholders)
+            and self._placeholders[index.row()] is not None
+        ):
+            return self._placeholder_data(index, role)
         library_row = self.library_row(index)
         if library_row < 0:
             return None

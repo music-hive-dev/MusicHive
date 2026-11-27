@@ -721,6 +721,47 @@ def save_scan(
             )
 
 
+def add_tracks(db_path: Path, tracks: list[ScannedTrack], covers: dict[str, bytes]) -> None:
+    """Add new songs after the others, without a whole scan (imported songs).
+    A song already there by its path is updated instead."""
+    with connect(db_path) as conn:
+        with conn:
+            conn.executemany(
+                "INSERT OR IGNORE INTO covers (cover_key, thumbnail) VALUES (?, ?)",
+                covers.items(),
+            )
+            now = datetime.now().timestamp()
+            for track in tracks:
+                info = track.info
+                conn.execute("DELETE FROM tracks WHERE rel_path = ?", (track.rel_path,))
+                position = conn.execute("SELECT COALESCE(MAX(position), -1) + 1 FROM tracks").fetchone()[0]
+                conn.execute(
+                    "INSERT INTO tracks (position, rel_path, title, artist, "
+                    "album_artist, album, year, genre, track_number, disc_number, "
+                    "duration_ms, file_size, modified, cover_key) "
+                    "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    (
+                        position, track.rel_path, info.title, info.artist, info.album_artist,
+                        info.album, info.year, info.genre, info.track_number, info.disc_number,
+                        info.duration_ms, track.file_size, track.modified, info.cover_key,
+                    ),
+                )
+                conn.execute("DELETE FROM track_tags WHERE rel_path = ?", (track.rel_path,))
+                conn.executemany(
+                    "INSERT INTO track_tags (rel_path, name, value) VALUES (?, ?, ?)",
+                    [(track.rel_path, name, value) for name, value in info.tags.items()],
+                )
+                if info.rating:
+                    conn.execute(
+                        "INSERT OR REPLACE INTO ratings (rel_path, rating) VALUES (?, ?)",
+                        (track.rel_path, info.rating),
+                    )
+                conn.execute(
+                    "INSERT OR IGNORE INTO track_added (rel_path, added_at) VALUES (?, ?)",
+                    (track.rel_path, now),
+                )
+
+
 def update_tracks(db_path: Path, tracks: list[ScannedTrack], covers: dict[str, bytes]) -> None:
     """Store new tags for some tracks, after their files were edited."""
     with connect(db_path) as conn:

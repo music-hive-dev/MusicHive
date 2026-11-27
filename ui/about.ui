@@ -46,7 +46,7 @@
         <widget class="QLabel" name="aboutVersion">
          <property name="text">
           <string notr="true">&lt;h2&gt;MusicHive&lt;/h2&gt;
-&lt;p&gt;Version 1.8.0&lt;/p&gt;</string>
+&lt;p&gt;Version 1.9.0&lt;/p&gt;</string>
          </property>
          <property name="textFormat">
           <enum>Qt::TextFormat::RichText</enum>

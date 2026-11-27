@@ -138,6 +138,31 @@ whoever has its address). Chromecasts need the PyChromecast package; DLNA TVs ne
 an H.264 encoder such as openh264 for the video mode; the browser page needs
 nothing extra. The AppImage and the Windows version have all of that built in.
 
+### Subsonic and octo-fiesta
+
+Connect MusicHive to your own Subsonic server, such as Navidrome, in Settings →
+Subsonic, and search it from the Subsonic tab. With
+[octo-fiesta](https://github.com/V1ck3s/octo-fiesta) in front of the server, a
+search also finds songs on Deezer, Qobuz and other services; those are marked
+"from Deezer" and so on.
+
+- **Download on Server** has the server download songs or whole albums into
+  octo-fiesta's folder. Whether one song or its whole album comes down is
+  octo-fiesta's own setting. Nothing is saved on your computer.
+- **Download and Play** plays a song straight from the server. When it ends, or
+  you press Next, the library carries on where it was.
+- **Import to Library** copies songs from the server into the open library,
+  named with the Organise Files template, and adds them without a rescan. If
+  you want (two tickboxes in Settings → Subsonic), each one's volume is levelled
+  and its lyrics are looked up on the way in, as Level Volume and Find Lyrics do.
+- Party guests can search the server too (a setting). Their song is imported,
+  tagged `guestdownload=true` so you can find those later, and queued with their
+  name.
+
+The password is kept in the secrets file, not with the other settings, so it
+isn't part of a settings export. MusicHive logs in with Subsonic's token login,
+so the password itself never travels over the network.
+
 ### Party Mode
 
 Let your friends pick the music. Playback → Party Mode shows a QR code with the

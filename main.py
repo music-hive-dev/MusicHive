@@ -142,7 +142,7 @@ from src.side_list import (
     entry_id,
 )
 from src.library_scanner import ScanSignals, ScanTask
-from src.play_order import PlayOrder
+from src.play_order import Placeholder, PlayOrder
 from src.discord_cover import DiscordCovers
 from src.discord_rpc import DiscordPresence, make_activity
 from src.elided_label import ElidedLabel
@@ -199,9 +199,13 @@ from src.podcast_view import PodcastSettingsTab, PodcastsTab, format_date
 from src.radio import RadioManager
 from src.radio_stream import RadioStream, split_title
 from src.radio_view import RadioSettingsTab, RadioTab
+from src.subsonic import LEVEL_KEY as SUBSONIC_LEVEL_KEY
+from src.subsonic import LYRICS_KEY as SUBSONIC_LYRICS_KEY
+from src.subsonic import SubsonicConfig, SubsonicService, SubsonicSong, load_config, save_password
+from src.subsonic_view import SubsonicPartySource, SubsonicTab
 from src.sleep_timer import DEFAULT_FADE_SECONDS, FADE_KEY, SleepTimer
 from src.podcasts import PodcastManager
-from src.party import LibrarySource, PartyError, PartyHost, PartyState, qr_image, qr_png
+from src.party import Guest, LibrarySource, PartyError, PartyHost, PartyState, qr_image, qr_png
 from src.shortcuts import Shortcuts, ShortcutsSettingsTab
 from src.lyrics_settings import LyricsSettings, LyricsSettingsTab, load_lyrics_settings
 from src.number_field import NumberField
@@ -284,6 +288,17 @@ TAG_HISTORY_UI_FILE = UI_DIR / "tag_history.ui"
 COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
 CAST_WINDOW_UI_FILE = UI_DIR / "cast_window.ui"
 PARTY_WINDOW_UI_FILE = UI_DIR / "party.ui"
+
+
+@dataclass
+class PartyImport:
+    """A party guest's song on its way from the Subsonic server."""
+
+    root: Path  # the library it goes into
+    guest: Guest
+    placeholder: str  # the key of its place in the queue ("" if it has none)
+
+SERVER_COVER_SIDE = 600  # pixels asked of the Subsonic server for the playing song's cover
 PARTY_QR_SIDE = 320  # points; the QR code in the Party Mode window
 PARTY_TV_QR_SIDE = 200  # pixels; the QR code on a cast video (cast_screen.ui)
 PARTY_PAGE_QR_SIDE = 600  # pixels; the QR code on a TV's browser page
@@ -825,6 +840,8 @@ class MusicHive:
         self.radio_title = ""  # "Artist - Title" as heard now
         self._radio_song_position = 0  # the player's position when that title was first heard
         self._radio_song_started_at = 0  # and the time, for scrobbling
+        # Subsonic mode: a song plays from the server instead of the library's music.
+        self.server_song: SubsonicSong | None = None
         self.sleep_at_end = False  # the sleep timer waits for the song or episode to end
 
         # Which track plays next (play order, queue, shuffle, repeat)
@@ -1301,6 +1318,7 @@ class MusicHive:
         self.shortcuts = Shortcuts(w, self.settings)
         self.setup_podcasts()
         self.setup_radio()
+        self.setup_subsonic()
         self.setup_pinned_media()
         self.setup_sleep_timer()
         self.setup_casting()
@@ -1471,6 +1489,7 @@ class MusicHive:
         d.backupImportButton.clicked.connect(lambda _checked=False: self.import_settings_file())
         d.backupExportButton.clicked.connect(lambda _checked=False: self.export_settings_file())
         d.onlineSecretsButton.clicked.connect(lambda _checked=False: self.open_secrets_file())
+        self.connect_subsonic_settings(d)
 
     def open_secrets_file(self, parent: QWidget | None = None) -> None:
         """Open the secrets file, made with empty keys if it is missing.
@@ -2016,6 +2035,7 @@ class MusicHive:
         self.podcasts.shutdown()
         self.radio.shutdown()
         self.party.stop()
+        self.subsonic.shutdown()
         self.artist_info.shutdown()
         self.online_search.shutdown()
         if self.level_tool is not None:
@@ -2093,6 +2113,8 @@ class MusicHive:
             return self.radio_mpris_metadata()
         if self.episode_id is not None:
             return self.episode_mpris_metadata()
+        if self.server_song is not None:
+            return self.server_song_mpris_metadata()
         row = self.current_index
         info = self.library_model.info(row)
         if info is None or not 0 <= row < len(self.tracks):
@@ -2431,6 +2453,20 @@ class MusicHive:
 
     def build_discord_activity(self) -> dict | None:
         """What Discord should show right now, or None to show nothing."""
+        song = self.server_song
+        if song is not None:
+            if not self.discord_active:
+                return None
+            return make_activity(
+                title=song.title,
+                artist=song.artist,
+                album=song.album,
+                audio_format="",
+                position_ms=self.position_ms,
+                duration_ms=self.duration_ms or song.duration_s * 1000,
+                paused=self.playback_state == "paused",
+                cover_url="",
+            )
         if self.discord_active and self.station_id is not None:
             station = self.radio.store.station(self.station_id)
             if station is None:
@@ -2756,6 +2792,7 @@ class MusicHive:
             self.play_order.upcoming_rows(),
             self.play_order.stop_after_offset(),
             self.play_order.upcoming_guests(),
+            self.play_order.upcoming_placeholders(),
         )
         self.update_stop_after_action()
         self.party.changed()
@@ -5907,6 +5944,7 @@ class MusicHive:
         self.save_episode_position()
         self.enter_side_mode()
         self.stop_station()
+        self.server_song = None
         self.episode_id = episode_id
         self.podcasts.playing_episode = episode_id
         self.podcast_tab.set_playing(episode_id)
@@ -5920,8 +5958,13 @@ class MusicHive:
 
     @property
     def away_from_music(self) -> bool:
-        """A podcast episode or a radio station plays (or was the last thing played)."""
-        return self.episode_id is not None or self.station_id is not None
+        """A podcast episode, a radio station or a song from the Subsonic server
+        plays (or was the last thing played)."""
+        return (
+            self.episode_id is not None
+            or self.station_id is not None
+            or self.server_song is not None
+        )
 
     def enter_side_mode(self) -> None:
         """An episode or a station takes over: coming from the music, remember where it was."""
@@ -5945,6 +5988,7 @@ class MusicHive:
         """Music is played again."""
         self.stop_episode()
         self.stop_station()
+        self.server_song = None
         self.music_row_before = -1
         self.music_position_before = 0
 
@@ -6152,6 +6196,7 @@ class MusicHive:
         self.enter_side_mode()
         self.stop_episode()
         self.stop_station()
+        self.server_song = None
         self.station_id = station_id
         self.radio.played(station_id)
         self.radio_title = ""
@@ -6644,10 +6689,273 @@ class MusicHive:
 
     def playing_guest(self) -> str:
         """The party guest who asked for the playing song ("" for none)."""
-        if self.station_id is not None or self.episode_id is not None:
+        if self.away_from_music:
             return ""
         guests = self.play_order.upcoming_guests()
         return guests[0] if guests else ""
+
+    # ----- Subsonic -----
+
+    def setup_subsonic(self) -> None:
+        """The Subsonic tab, its settings, songs played from the server, and the
+        party's way to the server (see subsonic.py and subsonic_view.py)."""
+        self.subsonic = SubsonicService(self.settings, self.window)
+        self.subsonic_tab = SubsonicTab(
+            self.window,
+            self.subsonic,
+            library_root=lambda: self.loaded_library.root if self.loaded_library else None,
+            parent=self.window,
+        )
+        self.subsonic_tab.play_song.connect(self.play_server_song)
+        self.subsonic_tab.songs_imported.connect(self.on_songs_imported)
+        self.subsonic_tab.open_settings.connect(self.show_subsonic_settings)
+        self.subsonic.cover_ready.connect(self.on_server_cover)
+        self.subsonic.tested.connect(self.on_subsonic_tested)
+        self.subsonic.job_done.connect(self.on_party_import_done)
+        self.party_imports: dict[int, PartyImport] = {}  # by job number
+        self._party_import_job = 0
+        self.subsonic_party_source = SubsonicPartySource(self.subsonic, self.party_import)
+        self.use_subsonic_at_party(self.settings.value("subsonic/party", True, type=bool))
+
+    def use_subsonic_at_party(self, enabled: bool) -> None:
+        source = self.subsonic_party_source
+        if enabled:
+            self.party.sources[source.name] = source
+        else:
+            self.party.sources.pop(source.name, None)
+        self.settings.setValue("subsonic/party", enabled)
+
+    def show_subsonic_settings(self) -> None:
+        self.show_settings()
+        d = self.settings_window
+        d.settingsTabs.setCurrentWidget(d.subsonicSettingsTab)
+
+    def connect_subsonic_settings(self, d) -> None:
+        """Settings, Subsonic: saved as soon as a field is left."""
+        config = load_config(self.settings)
+        d.subsonicUrl.setText(config.url)
+        d.subsonicUser.setText(config.user)
+        d.subsonicPassword.setText(config.password)
+        for field in (d.subsonicUrl, d.subsonicUser, d.subsonicPassword):
+            field.editingFinished.connect(self.save_subsonic_settings)
+        d.subsonicTest.clicked.connect(lambda _checked=False: self.test_subsonic())
+        d.subsonicParty.setChecked(self.settings.value("subsonic/party", True, type=bool))
+        d.subsonicParty.toggled.connect(self.use_subsonic_at_party)
+        for box, key in ((d.subsonicLevel, SUBSONIC_LEVEL_KEY), (d.subsonicLyrics, SUBSONIC_LYRICS_KEY)):
+            box.setChecked(self.settings.value(key, True, type=bool))
+            box.toggled.connect(lambda on, k=key: self.settings.setValue(k, on))
+
+    def subsonic_fields(self) -> SubsonicConfig:
+        d = self.settings_window
+        url = d.subsonicUrl.text().strip().rstrip("/")
+        if url and "://" not in url:
+            url = f"http://{url}"
+        return SubsonicConfig(url, d.subsonicUser.text().strip(), d.subsonicPassword.text())
+
+    def save_subsonic_settings(self) -> None:
+        config = self.subsonic_fields()
+        old = load_config(self.settings)
+        self.settings.setValue("subsonic/url", config.url)
+        self.settings.setValue("subsonic/user", config.user)
+        if config.password != old.password:
+            try:
+                save_password(config.password)
+            except OSError as error:
+                self.settings_window.subsonicTestResult.setText(
+                    tr("Cannot save the password: {error}").format(error=error)
+                )
+        if config != old:
+            self.subsonic.reload_config()
+            self.subsonic_tab.refresh()
+
+    def test_subsonic(self) -> None:
+        self.save_subsonic_settings()
+        self.settings_window.subsonicTest.setEnabled(False)
+        self.settings_window.subsonicTestResult.setText(tr("Connecting…"))
+        self.subsonic.test(self.subsonic_fields())
+
+    def on_subsonic_tested(self, server: str, error: str) -> None:
+        d = self.settings_window
+        if d is None:
+            return
+        d.subsonicTest.setEnabled(True)
+        d.subsonicTestResult.setText(
+            error or tr("Connected to {server}").format(server=server)
+        )
+
+    # Playing a song from the server: like an episode, the library's music waits.
+
+    def play_server_song(self, song: SubsonicSong) -> None:
+        self.save_episode_position()
+        self.enter_side_mode()
+        self.stop_episode()
+        self.stop_station()
+        self.server_song = song
+        self.position_ms = 0
+        self.player.play_episode(self.subsonic.client.stream_url(song), 0)
+        self.show_status(tr("Playing {title} from the server").format(title=song.title))
+
+    def finish_server_song(self) -> None:
+        """The server's song ended (or Next): the library's music carries on."""
+        row = self.music_row_before
+        if 0 <= row < len(self.tracks):
+            self.play_index(row)  # where it was put aside
+            return
+        self.leave_side_modes()
+        self.player.unload()
+        self.show_nothing_playing()
+
+    def show_server_song_info(self) -> None:
+        song = self.server_song
+        if song is None:
+            return
+        w = self.window
+        w.currentTrackLabel.setText(song.title)
+        w.trackInfoTitle.setText(html.escape(song.title))
+        w.trackInfoArtistAlbumArtist.setText(html.escape(song.artist))
+        album = f"{song.album} ({song.year})" if song.album and song.year else song.album
+        w.trackInfoAlbumYear.setText(html.escape(album))
+        self.track_audio_format = ""
+        w.trackInfoFile.setText(
+            f'<span style="color: {theme.dimmed_text_on_panel()}; font-size: 8pt">'
+            f"{html.escape(tr('From the Subsonic server'))}</span>"
+        )
+        self.update_window_title(song.title, song.artist)
+        self.set_visualiser_cover(None)
+        self.full_cover_data = None
+        self.mpris_art_url = ""
+        self.cover_view.set_image(None)
+        self.lyrics_view.clear()
+        self.cast_screen.lyrics.clear()
+        self.current_lyrics = None
+        self.rating_stars.set_rating(0, enabled=False)
+        self.subsonic.fetch_cover(song.cover, SERVER_COVER_SIDE)
+
+    def on_server_cover(self, cover: str, data) -> None:
+        """The playing server song's cover arrived."""
+        song = self.server_song
+        if song is None or song.cover != cover or not data:
+            return
+        image = decode_cover(data)
+        if image is None:
+            return
+        self.set_visualiser_cover(image)
+        self.full_cover_data = data
+        self.mpris_art_url = cover_file_url(data)
+        self.cover_view.set_image(image)
+        self.update_mpris()
+        self.send_cast_details()
+
+    def server_song_mpris_metadata(self) -> dict:
+        song = self.server_song
+        metadata = {
+            "mpris:trackid": ("o", "/org/musichive/subsonic"),
+            "xesam:title": ("s", song.title),
+        }
+        duration_ms = self.duration_ms or song.duration_s * 1000
+        if duration_ms:
+            metadata["mpris:length"] = ("x", duration_ms * 1000)
+        if self.mpris_art_url:
+            metadata["mpris:artUrl"] = ("s", self.mpris_art_url)
+        if song.artist:
+            metadata["xesam:artist"] = ("as", [song.artist])
+        if song.album:
+            metadata["xesam:album"] = ("s", song.album)
+        return metadata
+
+    # Songs imported from the server join the library without a scan.
+
+    def on_songs_imported(self, root: Path, results: list) -> None:
+        rows = self.add_imported_songs(root, results)
+        if rows:
+            what = self.library_model.info(rows[0]).title if len(rows) == 1 else tr(
+                "%n song(s)", "", len(rows)
+            )
+            self.show_status(tr("Imported {what} into the library").format(what=what))
+
+    def add_imported_songs(self, root: Path, results: list) -> list[int]:
+        """Add songs copied into the library folder `root`; returns their rows. Songs
+        for a library that is no longer open wait for its next scan."""
+        library = self.loaded_library
+        if library is None or library.root != root or not results:
+            return []
+        tracks = [track for track, _covers in results]
+        covers: dict[str, bytes] = {}
+        for _track, found in results:
+            covers.update(found)
+        try:
+            library_db.add_tracks(library.db_path, tracks, covers)
+        except sqlite3.Error as error:
+            self.show_status(tr("Cannot add the songs to the library: {error}").format(error=error))
+            return []
+        paths = [root / track.rel_path for track in tracks]
+        first = len(self.tracks)
+        table_bar = self.window.libraryList.verticalScrollBar()
+        table_scroll = table_bar.value()
+        self.tracks.extend(paths)
+        self.library_model.add_rows(paths, [track.info for track in tracks], covers)
+        self.play_order.library_rows_added(len(paths))
+        self.auto_playlist_cache.clear()
+        self.refresh_playlist_list(select=self.current_playlist)
+        if self.current_index >= 0:
+            self.select_in_table(self.current_index)
+        self.refresh_upcoming(keep_scroll=True)
+        self.update_library_stats()
+        QTimer.singleShot(0, lambda: table_bar.setValue(table_scroll))
+        return list(range(first, first + len(paths)))
+
+    # A party guest's song from the server: imported, tagged, then queued.
+
+    def party_import(self, song: SubsonicSong, guest: Guest) -> str:
+        library = self.loaded_library
+        if library is None:
+            raise PartyError(tr("MusicHive has no library open."))
+        self._party_import_job += 1
+        job = self._party_import_job  # positive: the tab's own jobs are negative
+        # Its place in the queue is kept from now on, so songs asked for later stay
+        # behind it however long the download takes. While nothing plays there is
+        # no queue: then it starts once it is there.
+        key = f"party-{job}"
+        placed = (
+            self.station_id is None and self.episode_id is None
+            and self.play_order.add_placeholder(Placeholder(key, song.title, song.artist), guest.name)
+        )
+        self.party_imports[job] = PartyImport(library.root, guest, key if placed else "")
+        if placed:
+            self.refresh_upcoming(keep_scroll=True)
+        self.subsonic.import_songs(job, [song], library.root, guest_download=True)
+        self.show_status(tr("{name} asked for {title}; fetching it from the server…").format(
+            name=guest.name, title=song.title,
+        ))
+        if placed:
+            return tr("Fetching {title}. Its place in the queue is kept.").format(title=song.title)
+        return tr("Fetching {title}. It joins the queue when it's ready.").format(title=song.title)
+
+    def on_party_import_done(self, job: int, result, error: str) -> None:
+        entry = self.party_imports.pop(job, None)
+        if entry is None:
+            return  # one of the tab's
+        guest = entry.guest
+        rows = self.add_imported_songs(entry.root, result) if not error and result else []
+        if not rows:
+            if entry.placeholder:
+                self.play_order.drop_placeholder(entry.placeholder)
+                self.refresh_upcoming(keep_scroll=True)
+            self.party.notify(guest.id, error or tr("That song could not be fetched."))
+            return
+        title = self.library_model.info(rows[0]).title
+        if entry.placeholder:
+            if self.play_order.fill_placeholder(entry.placeholder, rows[0]):
+                self.refresh_upcoming(keep_scroll=True)
+                message = tr("{title} is in the queue").format(title=title)
+            else:  # the host took it out of the queue meanwhile
+                message = tr("{title} was taken out of the queue").format(title=title)
+        else:
+            try:
+                message = self.party_queue_song(rows[0], guest.name)
+            except PartyError as problem:
+                message = str(problem)
+        self.party.notify(guest.id, message)
 
     # ----- Party Mode -----
 
@@ -6656,16 +6964,17 @@ class MusicHive:
         self.party = PartyHost(
             state=self.party_state,
             skip=self.play_next,
-            cover_for=self.party_cover,
             parent=self.window,
         )
-        library = LibrarySource(self.party_songs, self.party_queue_song)
+        library = LibrarySource(self.party_songs, self.party_queue_song, self.library_model.cover_data)
         self.party.sources[library.name] = library
         # Search results name songs by their row; new rows make old results useless.
         self.library_model.modelReset.connect(
             lambda: setattr(library, "generation", library.generation + 1)
         )
         self.party.vote_skip = self.settings.value("partyVoteSkip", True, type=bool)
+        self.party.guest_limit = self.settings.value("partyGuestLimit", 0, type=int)
+        self.party.waiting_for = self.party_waiting_for
         self.party.guests_changed.connect(self.update_party_window)
         self.party.stopped.connect(self.send_party_to_tv)  # the TV's QR code goes away
         self.party_window = None  # made the first time it opens
@@ -6692,6 +7001,9 @@ class MusicHive:
             window.partyEnd.clicked.connect(self.end_party)
             window.partyClose.clicked.connect(window.close)
             window.partyShowOnTv.toggled.connect(self.set_party_on_tv)
+            self._party_limit = NumberField(window.partyGuestLimit)
+            self._party_limit.setValue(self.party.guest_limit)
+            self._party_limit.valueChanged.connect(self.set_party_guest_limit)
         window = self.party_window
         side = PARTY_QR_SIDE
         ratio = window.devicePixelRatioF()
@@ -6738,6 +7050,22 @@ class MusicHive:
             "address": address,
         })
 
+    def set_party_guest_limit(self, limit: int) -> None:
+        self.party.guest_limit = limit
+        self.settings.setValue("partyGuestLimit", limit)
+
+    def party_waiting_for(self, guest: Guest) -> int:
+        """A guest's songs that haven't played yet: in the queue after the playing
+        one, or still coming from the Subsonic server."""
+        queued = sum(1 for name in self.play_order.upcoming_guests()[1:] if name == guest.name)
+        # Songs on their way hold a place in the queue, so they are counted above,
+        # except those asked for while nothing played (they had no queue to wait in).
+        fetching = sum(
+            1 for job in self.party_imports.values()
+            if job.guest.id == guest.id and not job.placeholder
+        )
+        return queued + fetching
+
     def set_party_vote_skip(self, enabled: bool) -> None:
         self.party.set_vote_skip(enabled)
         self.settings.setValue("partyVoteSkip", enabled)
@@ -6766,7 +7094,7 @@ class MusicHive:
         state = PartyState(
             cover=self.full_cover_data, playing=self.playback_state == "playing"
         )
-        if self.station_id is not None or self.episode_id is not None:
+        if self.away_from_music:
             state.title = w.currentTrackLabel.text()
             return state
         info = self.library_model.info(self.current_index)
@@ -6775,8 +7103,15 @@ class MusicHive:
         state.title, state.artist = info.title, info.artist
         rows = self.play_order.upcoming_rows()
         guests = self.play_order.upcoming_guests()
+        waiting = self.play_order.upcoming_placeholders()
         state.guest = guests[0] if guests else ""
-        for row, guest in list(zip(rows, guests))[1:]:
+        for row, guest, coming in list(zip(rows, guests, waiting))[1:]:
+            if coming is not None:  # still on its way from the server
+                state.upcoming.append({
+                    "title": coming.title, "artist": coming.artist, "guest": guest,
+                    "cover": "", "note": tr("fetching…"),
+                })
+                continue
             song = self.library_model.info(row)
             if song is None:
                 continue
@@ -6804,7 +7139,12 @@ class MusicHive:
             raise PartyError(tr("That song is no longer there. Search again."))
         if self.station_id is not None or self.episode_id is not None:
             raise PartyError(tr("Songs can be added once music from the library plays again."))
-        if self.current_index < 0:
+        if self.server_song is not None:
+            # The library's song waits meanwhile; the guest's song queues behind it.
+            if self.play_order.current_row < 0:
+                raise PartyError(tr("Songs can be added once music from the library plays again."))
+            self.play_order.add_to_queue(row, guest)
+        elif self.current_index < 0:
             self.play_order.start_at(row, self.play_source_rows())
             self.play_index(row)
             self.play_order.set_current_guest(guest)
@@ -6813,10 +7153,6 @@ class MusicHive:
         self.refresh_upcoming(keep_scroll=True)
         self.show_status(tr("{name} added {title}").format(name=guest, title=info.title))
         return tr("Added {title} to the queue").format(title=info.title)
-
-    def party_cover(self, source: str, key: str) -> bytes | None:
-        """A small cover for the guests' phones."""
-        return self.library_model.cover_data(key) if source == "library" else None
 
     def setup_sleep_timer(self) -> None:
         w = self.window
@@ -6925,6 +7261,8 @@ class MusicHive:
             self.play_station(self.station_id)
         elif self.episode_id is not None:
             self.play_episode(self.episode_id)  # the episode again, where it was left off
+        elif self.server_song is not None:
+            self.play_server_song(self.server_song)
         else:
             selected = self.window.libraryList.currentIndex()
             row = self.library_proxy.mapToSource(selected).row() if selected.isValid() else -1
@@ -6940,6 +7278,9 @@ class MusicHive:
     def play_next(self) -> None:
         if self.station_id is not None:
             self.play_favourite_beside(1)
+            return
+        if self.server_song is not None:
+            self.finish_server_song()  # back to the library
             return
         if self.episode_id is not None:
             following = self.episode_beside(newer=True)
@@ -6964,6 +7305,9 @@ class MusicHive:
         """Restart the track if it is well underway, otherwise go back one."""
         if self.station_id is not None:
             self.play_favourite_beside(-1)
+            return
+        if self.server_song is not None:
+            self.player.seek(0)
             return
         if self.episode_id is not None:
             earlier = self.episode_beside(newer=False)
@@ -7017,6 +7361,8 @@ class MusicHive:
             self.show_station_info()
         elif self.episode_id is not None:
             self.show_episode_info()
+        elif self.server_song is not None:
+            self.show_server_song_info()
         else:
             self.update_track_info(track)
         self.duration_ms = 0  # the real length arrives from the player in a moment
@@ -7082,6 +7428,9 @@ class MusicHive:
             return
         if self.episode_id is not None:
             self.finish_episode()
+            return
+        if self.server_song is not None:
+            self.finish_server_song()
             return
         if self.sleep_at_end:  # the sleep timer: the next song waits, paused
             row = self.play_order.next(ended_naturally=True)

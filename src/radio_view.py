@@ -235,7 +235,7 @@ class RadioTab(QObject):
             menu.addAction(self._icon("star"), tr("Add to Favourites")).triggered.connect(
                 lambda _checked=False: self.manager.set_favourite(station.id, True)
             )
-        menu.addAction(self._icon("pencil"), tr("Rename...")).triggered.connect(
+        menu.addAction(self._icon("pencil"), tr("Rename…")).triggered.connect(
             lambda _checked=False: self._rename(station)
         )
         pinned = self.is_pinned(station.id)

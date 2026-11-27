@@ -4,7 +4,7 @@
 <context>
     <name></name>
     <message>
-        <location filename="../main.py" line="+322"/>
+        <location filename="../main.py" line="+350"/>
         <source>Repeat off</source>
         <translation>Wiederholen aus</translation>
     </message>
@@ -103,24 +103,24 @@
         <translation> und </translation>
     </message>
     <message>
-        <location line="+491"/>
+        <location line="+493"/>
         <source>Set DISCORD_CLIENT_ID in main.py first</source>
         <translation>Setze zuerst DISCORD_CLIENT_ID in main.py</translation>
     </message>
     <message>
-        <location line="+223"/>
+        <location line="+225"/>
         <source>Edit this playlist&apos;s title, image and description</source>
         <translation>Titel, Bild und Beschreibung dieser Playlist bearbeiten</translation>
     </message>
     <message>
-        <location line="+56"/>
+        <location line="+57"/>
         <source>Checking which songs need lyrics: {done} of {total}…</source>
-        <translation>Prüfe, welche Lieder Liedtexte brauchen: {done} von {total}...</translation>
+        <translation>Prüfe, welche Lieder Liedtexte brauchen: {done} von {total}…</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>LRCLIB asks to slow down: waiting {seconds} seconds, then carrying on…</source>
-        <translation>LRCLIB bittet um Pause: warte {seconds} Sekunden, dann geht es weiter...</translation>
+        <translation>LRCLIB bittet um Pause: warte {seconds} Sekunden, dann geht es weiter…</translation>
     </message>
     <message>
         <location line="+59"/>
@@ -128,13 +128,13 @@
         <translation>Noch keine Audiobibliothek</translation>
     </message>
     <message>
-        <location line="+81"/>
+        <location line="+82"/>
         <source>Click to choose an icon for this playlist</source>
         <translation>Klicken, um ein Symbol für diese Playlist zu wählen</translation>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+234"/>
+        <location line="+235"/>
         <location line="+6"/>
         <source>Data folder</source>
         <translation>Datenordner</translation>
@@ -205,12 +205,12 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="+60"/>
-        <location line="+1277"/>
+        <location line="+1301"/>
         <source>Text copied</source>
         <translation>Text kopiert</translation>
     </message>
     <message>
-        <location line="-1263"/>
+        <location line="-1287"/>
         <location line="+8"/>
         <source>Select some songs first</source>
         <translation>Wähle zuerst Lieder aus</translation>
@@ -243,13 +243,13 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="-6"/>
-        <location line="+1347"/>
+        <location line="+1375"/>
         <location line="+40"/>
         <source>The playing song cannot be removed</source>
         <translation>Das spielende Lied kann nicht entfernt werden</translation>
     </message>
     <message>
-        <location line="-1364"/>
+        <location line="-1392"/>
         <source>Export settings</source>
         <translation>Einstellungen exportieren</translation>
     </message>
@@ -346,7 +346,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Audiovisualisierer</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+169"/>
         <source>Volume: {volume}%</source>
         <translation>Lautstärke: {volume}%</translation>
     </message>
@@ -361,13 +361,13 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Lautstärke: {volume}% – klicken zum Stummschalten</translation>
     </message>
     <message>
-        <location line="+363"/>
-        <location line="+3880"/>
+        <location line="+379"/>
+        <location line="+3893"/>
         <source>Radio: {name}</source>
         <translation>Radio: {name}</translation>
     </message>
     <message>
-        <location line="-3860"/>
+        <location line="-3873"/>
         <source>Podcast</source>
         <translation>Podcast</translation>
     </message>
@@ -382,7 +382,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Discord Rich Presence aus</translation>
     </message>
     <message>
-        <location line="+85"/>
+        <location line="+84"/>
         <source>Cannot save the rating: {error}</source>
         <translation>Die Bewertung kann nicht gespeichert werden: {error}</translation>
     </message>
@@ -405,19 +405,19 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Die Bewertung konnte nicht in {file_name} geschrieben werden: {message}</translation>
     </message>
     <message>
-        <location line="+49"/>
-        <location line="+281"/>
+        <location line="+52"/>
+        <location line="+283"/>
         <source>Save image…</source>
-        <translation>Bild speichern...</translation>
+        <translation>Bild speichern…</translation>
     </message>
     <message>
-        <location line="-280"/>
-        <location line="+273"/>
+        <location line="-282"/>
+        <location line="+276"/>
         <source>Copy image</source>
         <translation>Bild kopieren</translation>
     </message>
     <message>
-        <location line="-267"/>
+        <location line="-270"/>
         <source>PNG image</source>
         <translation>PNG-Bild</translation>
     </message>
@@ -447,12 +447,12 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Bild gespeichert als {name}</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+36"/>
         <source>Nothing playing</source>
         <translation>Nix spielt</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+52"/>
         <source>Shuffle on</source>
         <translation>Mischen an</translation>
     </message>
@@ -478,19 +478,19 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="+10"/>
-        <location line="+117"/>
+        <location line="+120"/>
         <location line="+69"/>
         <source>This playlist is locked</source>
         <translation>Diese Playlist ist gesperrt</translation>
     </message>
     <message>
-        <location line="-181"/>
-        <location line="+1638"/>
+        <location line="-184"/>
+        <location line="+1639"/>
         <source>New playlist…</source>
-        <translation>Neue Playlist...</translation>
+        <translation>Neue Playlist…</translation>
     </message>
     <message>
-        <location line="-1631"/>
+        <location line="-1632"/>
         <source>Go to</source>
         <translation>Gehe zu</translation>
     </message>
@@ -501,7 +501,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="+19"/>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>This song has no cover</source>
         <translation>Dieses Lied hat kein Coverbild</translation>
     </message>
@@ -517,33 +517,33 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="+3"/>
-        <location line="+616"/>
-        <location line="+992"/>
+        <location line="+620"/>
+        <location line="+990"/>
         <source>Play next</source>
         <translation>Als Nächstes abspielen</translation>
     </message>
     <message>
-        <location line="-1607"/>
-        <location line="+616"/>
-        <location line="+995"/>
+        <location line="-1609"/>
+        <location line="+620"/>
+        <location line="+993"/>
         <source>Add to queue</source>
         <translation>Zur Warteschlange hinzufügen</translation>
     </message>
     <message>
-        <location line="-1610"/>
+        <location line="-1612"/>
         <source>Add to end of queue</source>
         <translation>Ans Ende der Warteschlange</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+616"/>
-        <location line="+1002"/>
+        <location line="+620"/>
+        <location line="+1000"/>
         <source>Edit…</source>
-        <translation>Bearbeiten...</translation>
+        <translation>Bearbeiten…</translation>
     </message>
     <message>
-        <location line="-1616"/>
-        <location line="+155"/>
+        <location line="-1618"/>
+        <location line="+159"/>
         <location line="+37"/>
         <location line="+424"/>
         <location line="+108"/>
@@ -553,19 +553,19 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Warte, bis der Scan fertig ist</translation>
     </message>
     <message>
-        <location line="-852"/>
+        <location line="-856"/>
         <source>Show in File Manager</source>
         <translation>Im Dateimanager anzeigen</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+158"/>
+        <location line="+162"/>
         <source>Don&apos;t end playback after song</source>
         <translation>Wiedergabe nach dem Lied nicht beenden</translation>
     </message>
     <message>
-        <location line="-158"/>
-        <location line="+158"/>
+        <location line="-162"/>
+        <location line="+162"/>
         <source>End playback after song</source>
         <translation>Wiedergabe nach dem Lied beenden</translation>
     </message>
@@ -599,12 +599,12 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <location line="+4"/>
         <location line="+92"/>
         <location line="+4"/>
-        <location line="+1463"/>
+        <location line="+1461"/>
         <source>Paste</source>
         <translation>Einfügen</translation>
     </message>
     <message>
-        <location line="-1555"/>
+        <location line="-1553"/>
         <location line="+93"/>
         <source>Select all</source>
         <translation>Alles auswählen</translation>
@@ -657,7 +657,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+12"/>
         <source>Edit…{several}</source>
-        <translation>Bearbeiten...{several}</translation>
+        <translation>Bearbeiten…{several}</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -689,11 +689,13 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <location line="+46"/>
         <location line="+24"/>
         <location line="+402"/>
-        <location line="+1636"/>
+        <location line="+1634"/>
+        <location line="+1554"/>
         <location filename="../src/check_covers.py" line="-772"/>
         <location filename="../src/check_tags.py" line="-489"/>
         <location filename="../src/library_groups.py" line="+31"/>
         <location filename="../src/musicbrainz_dialog.py" line="+22"/>
+        <location filename="../src/subsonic_view.py" line="+155"/>
         <source>%n song(s)</source>
         <translation>
             <numerusform>%n Lied</numerusform>
@@ -701,7 +703,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         </translation>
     </message>
     <message>
-        <location line="-2058"/>
+        <location line="-3610"/>
         <source>Playing next: {what}</source>
         <translation>Als Nächstes: {what}</translation>
     </message>
@@ -792,7 +794,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="+151"/>
-        <location filename="../src/radio_view.py" line="+488"/>
+        <location filename="../src/radio_view.py" line="+489"/>
         <source>Copy</source>
         <translation>Kopieren</translation>
     </message>
@@ -801,8 +803,8 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <location line="+346"/>
         <source>Saving tags of %n song(s)…</source>
         <translation>
-            <numerusform>Speichere die Tags von %n Lied...</numerusform>
-            <numerusform>Speichere die Tags von %n Liedern...</numerusform>
+            <numerusform>Speichere die Tags von %n Lied…</numerusform>
+            <numerusform>Speichere die Tags von %n Liedern…</numerusform>
         </translation>
     </message>
     <message>
@@ -828,7 +830,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+4"/>
         <source>Looking up genres: {done} of {total}…</source>
-        <translation>Suche Genres: {done} von {total}...</translation>
+        <translation>Suche Genres: {done} von {total}…</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -860,8 +862,8 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <location line="+6"/>
         <source>Saving the genres of %n song(s)…</source>
         <translation>
-            <numerusform>Speichere die Genres von %n Lied...</numerusform>
-            <numerusform>Speichere die Genres von %n Liedern...</numerusform>
+            <numerusform>Speichere die Genres von %n Lied…</numerusform>
+            <numerusform>Speichere die Genres von %n Liedern…</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -885,7 +887,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+4"/>
         <source>Looking up lyrics: {done} of {total}…</source>
-        <translation>Suche Liedtexte: {done} von {total}...</translation>
+        <translation>Suche Liedtexte: {done} von {total}…</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -930,8 +932,8 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <location line="+13"/>
         <source>Saving the lyrics of %n song(s)…</source>
         <translation>
-            <numerusform>Speichere die Liedtexte von %n Lied...</numerusform>
-            <numerusform>Speichere die Liedtexte von %n Liedern...</numerusform>
+            <numerusform>Speichere die Liedtexte von %n Lied…</numerusform>
+            <numerusform>Speichere die Liedtexte von %n Liedern…</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -949,6 +951,8 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <location line="+17"/>
         <location line="+18"/>
         <location line="+61"/>
+        <location filename="../src/subsonic_view.py" line="+88"/>
+        <location line="+84"/>
         <source>Open a library first</source>
         <translation>Öffne zuerst eine Audiobibliothek</translation>
     </message>
@@ -969,20 +973,20 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     </message>
     <message>
         <location line="+3"/>
-        <location line="+621"/>
+        <location line="+619"/>
         <source>Wait for the synchronisation to finish</source>
         <translation>Warte, bis die Synchronisierung fertig ist</translation>
     </message>
     <message>
-        <location line="-616"/>
+        <location line="-614"/>
         <location line="+27"/>
-        <location line="+1755"/>
+        <location line="+1753"/>
         <location line="+28"/>
         <source>Cannot read library &apos;{name}&apos;: {error}</source>
         <translation>Audiobibliothek &apos;{name}&apos; kann nicht gelesen werden: {error}</translation>
     </message>
     <message>
-        <location line="-1672"/>
+        <location line="-1670"/>
         <source>Tag changes</source>
         <translation>Tag-Änderungen</translation>
     </message>
@@ -1021,7 +1025,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+7"/>
         <source>…and {count} more</source>
-        <translation>...und {count} weitere</translation>
+        <translation>…und {count} weitere</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -1073,7 +1077,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         </translation>
     </message>
     <message>
-        <location line="+332"/>
+        <location line="+330"/>
         <source>Could not open {folder}</source>
         <translation>{folder} konnte nicht geöffnet werden</translation>
     </message>
@@ -1085,12 +1089,12 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+6"/>
         <source>Safely removing {device_name}…</source>
-        <translation>Entferne {device_name} sicher...</translation>
+        <translation>Entferne {device_name} sicher…</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>Pin a folder…</source>
-        <translation>Ordner anheften...</translation>
+        <translation>Ordner anheften…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -1115,7 +1119,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+2"/>
         <source>Synchronise…</source>
-        <translation>Synchronisieren...</translation>
+        <translation>Synchronisieren…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1130,7 +1134,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+4"/>
         <location line="+50"/>
-        <location line="+2351"/>
+        <location line="+2863"/>
         <location filename="../src/podcast_view.py" line="+349"/>
         <location line="+335"/>
         <location filename="../src/radio_view.py" line="-263"/>
@@ -1138,7 +1142,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Abspielen</translation>
     </message>
     <message>
-        <location line="-2398"/>
+        <location line="-2910"/>
         <source>Show</source>
         <translation>Anzeigen</translation>
     </message>
@@ -1167,22 +1171,22 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+18"/>
         <source>New auto-playlist…</source>
-        <translation>Neue Auto-Playlist...</translation>
+        <translation>Neue Auto-Playlist…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>New folder…</source>
-        <translation>Neuer Ordner...</translation>
+        <translation>Neuer Ordner…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Import playlist…</source>
-        <translation>Playlist importieren...</translation>
+        <translation>Playlist importieren…</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Rename folder…</source>
-        <translation>Ordner umbenennen...</translation>
+        <translation>Ordner umbenennen…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -1203,7 +1207,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+1"/>
         <source>Change icon…</source>
-        <translation>Symbol ändern...</translation>
+        <translation>Symbol ändern…</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -1223,7 +1227,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+3"/>
         <source>Export playlist…</source>
-        <translation>Playlist exportieren...</translation>
+        <translation>Playlist exportieren…</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -1238,7 +1242,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+10"/>
         <source>Delete playlist…</source>
-        <translation>Playlist löschen...</translation>
+        <translation>Playlist löschen…</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -1548,7 +1552,7 @@ Die Lieder selbst werden nicht gelöscht.</translation>
     <message>
         <location line="+55"/>
         <source>Add a library to get started (File → Add Library…)</source>
-        <translation>Füge eine Audiobibliothek hinzu, um loszulegen (Datei → Audiobibliothek hinzufügen...)</translation>
+        <translation>Füge eine Audiobibliothek hinzu, um loszulegen (Datei → Audiobibliothek hinzufügen…)</translation>
     </message>
     <message>
         <location line="+106"/>
@@ -1631,12 +1635,12 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
     <message>
         <location line="+23"/>
         <source>Add a library first (File → Add Library…)</source>
-        <translation>Füge zuerst eine Audiobibliothek hinzu (Datei → Audiobibliothek hinzufügen...)</translation>
+        <translation>Füge zuerst eine Audiobibliothek hinzu (Datei → Audiobibliothek hinzufügen…)</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Scanning &apos;{name}&apos;…</source>
-        <translation>Scanne &apos;{name}&apos;...</translation>
+        <translation>Scanne &apos;{name}&apos;…</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -1660,7 +1664,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>Scan fehlgeschlagen</translation>
     </message>
     <message>
-        <location line="+135"/>
+        <location line="+142"/>
         <source>Finished “{title}”</source>
         <translation>„{title}“ zu Ende gehört</translation>
     </message>
@@ -1686,7 +1690,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>Heruntergeladen</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+69"/>
         <source>Unpinned from the sidebar</source>
         <translation>Von der Seitenleiste gelöst</translation>
     </message>
@@ -1696,9 +1700,9 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>An die Seitenleiste angeheftet</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+80"/>
         <source>Tuning in to {name}…</source>
-        <translation>Schalte {name} ein...</translation>
+        <translation>Schalte {name} ein…</translation>
     </message>
     <message>
         <location line="+48"/>
@@ -1746,12 +1750,24 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>Liveradio</translation>
     </message>
     <message>
-        <location line="+86"/>
+        <location line="+61"/>
+        <location line="+557"/>
+        <source>Address copied</source>
+        <translation>Adresse kopiert</translation>
+    </message>
+    <message>
+        <location line="-554"/>
+        <source>No TVs or speakers found yet.</source>
+        <translation>Noch keine Fernseher oder Lautsprecher gefunden.</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <location line="+1"/>
         <source>Looking for TVs and speakers…</source>
-        <translation>Suche nach Fernsehern und Lautsprechern...</translation>
+        <translation>Suche nach Fernsehern und Lautsprechern…</translation>
     </message>
     <message numerus="yes">
-        <location line="+29"/>
+        <location line="+24"/>
         <source>Found %n TV(s) or speaker(s)</source>
         <translation>
             <numerusform>%n Fernseher oder Lautsprecher gefunden</numerusform>
@@ -1769,7 +1785,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation> (Chromecasts brauchen das Paket PyChromecast)</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+15"/>
         <source>Stopped casting to {name}</source>
         <translation>Casten an {name} beendet</translation>
     </message>
@@ -1779,9 +1795,9 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>Kann nicht an {name} casten: {error}</translation>
     </message>
     <message>
-        <location line="+20"/>
-        <source>Open {browser_address} in the TV&apos;s browser (click the address in the Cast To menu to copy it)</source>
-        <translation>Öffne {browser_address} im Browser des Fernsehers (klicke die Adresse im Menü Casten an, um sie zu kopieren)</translation>
+        <location line="+21"/>
+        <source>Open {browser_address} in the TV&apos;s browser (the Cast To window can copy it)</source>
+        <translation>Öffne {browser_address} im Browser des Fernsehers (im Fenster „Casten“ kannst du die Adresse kopieren)</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -1799,17 +1815,163 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>den Webbrowser</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+42"/>
+        <location line="+10"/>
         <source>Casting to {device}.</source>
         <translation>Caste an {device}.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-8"/>
         <source>Cast to a TV or speaker.</source>
         <translation>Auf einen Fernseher oder einen Lautsprecher casten.</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+6"/>
+        <source>Playing on this computer.</source>
+        <translation>Wiedergabe auf diesem Rechner.</translation>
+    </message>
+    <message>
+        <location line="+55"/>
+        <location filename="../src/party.py" line="+344"/>
+        <location filename="../src/track_list.py" line="+571"/>
+        <location line="+31"/>
+        <source>added by {name}</source>
+        <translation>hinzugefügt von {name}</translation>
+    </message>
+    <message>
+        <location line="+81"/>
+        <source>Cannot save the password: {error}</source>
+        <translation>Das Passwort kann nicht gespeichert werden: {error}</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Connecting…</source>
+        <translation>Verbinde…</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Connected to {server}</source>
+        <translation>Verbunden mit {server}</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Playing {title} from the server</source>
+        <translation>Spiele {title} vom Server</translation>
+    </message>
+    <message>
+        <location line="+78"/>
+        <source>Imported {what} into the library</source>
+        <translation>{what} in die Audiobibliothek importiert</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Cannot add the songs to the library: {error}</source>
+        <translation>Die Lieder können nicht zur Audiobibliothek hinzugefügt werden: {error}</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>MusicHive has no library open.</source>
+        <translation>In MusicHive ist keine Audiobibliothek geöffnet.</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>{name} asked for {title}; fetching it from the server…</source>
+        <translation>{name} wünscht sich {title}; es wird vom Server geholt…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Fetching {title}. Its place in the queue is kept.</source>
+        <translation>{title} wird geholt. Sein Platz in der Warteschlange bleibt frei.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Fetching {title}. It joins the queue when it&apos;s ready.</source>
+        <translation>{title} wird geholt. Es kommt in die Warteschlange, sobald es da ist.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>That song could not be fetched.</source>
+        <translation>Das Lied konnte nicht geholt werden.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>{title} is in the queue</source>
+        <translation>{title} ist in der Warteschlange</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>{title} was taken out of the queue</source>
+        <translation>{title} wurde aus der Warteschlange genommen</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Cannot start Party Mode</source>
+        <translation>Der Partymodus kann nicht gestartet werden</translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>The party has ended</source>
+        <translation>Die Party ist vorbei</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The code shows on the TV once you cast to it</source>
+        <translation>Der Code erscheint auf dem Fernseher, sobald du darauf castest</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Scan to add songs</source>
+        <translation>Scannen, um Lieder hinzuzufügen</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+32"/>
+        <source>%n guest(s): {names}</source>
+        <translation>
+            <numerusform>%n Gast: {names}</numerusform>
+            <numerusform>%n Gäste: {names}</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>No guests yet</source>
+        <translation>Noch keine Gäste</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Votes to skip this song: {votes} of {needed}</source>
+        <translation>Stimmen zum Überspringen dieses Lieds: {votes} von {needed}</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <location filename="../src/track_list.py" line="-30"/>
+        <source>fetching…</source>
+        <translation>wird geholt…</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <location filename="../src/party.py" line="+41"/>
+        <location filename="../src/subsonic_view.py" line="+77"/>
+        <source>That song is no longer there. Search again.</source>
+        <translation>Das Lied ist nicht mehr da. Suche erneut.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+4"/>
+        <source>Songs can be added once music from the library plays again.</source>
+        <translation>Lieder können hinzugefügt werden, sobald wieder Musik aus der Audiobibliothek läuft.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>{name} added {title}</source>
+        <translation>{name} hat {title} hinzugefügt</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Added {title} to the queue</source>
+        <translation>{title} zur Warteschlange hinzugefügt</translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>Sleep timer: playback pauses in {minutes} minutes</source>
         <translation>Schlaftimer: Die Wiedergabe pausiert in {minutes} Minuten</translation>
     </message>
@@ -1839,12 +2001,12 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>Schlaftimer: pausiert. Gute Nacht!</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location line="+51"/>
         <source>Choose a library with music first</source>
         <translation>Wähle zuerst eine Audiobibliothek mit Musik</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+15"/>
         <source>This is the newest episode</source>
         <translation>Das ist die neueste Folge</translation>
     </message>
@@ -1854,12 +2016,12 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>Das ist das letzte Lied</translation>
     </message>
     <message>
-        <location line="+137"/>
+        <location line="+145"/>
         <source>Reached the end of the library</source>
         <translation>Ende der Audiobibliothek erreicht</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+27"/>
         <source>Pause</source>
         <translation>Pausieren</translation>
     </message>
@@ -1870,18 +2032,19 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
     </message>
     <message>
         <location line="+5"/>
+        <location filename="../src/party.py" line="-45"/>
         <source>Paused</source>
         <translation>Pausiert</translation>
     </message>
     <message>
-        <location filename="../src/audio_player.py" line="+542"/>
+        <location filename="../src/audio_player.py" line="+543"/>
         <location line="+26"/>
         <location line="+33"/>
         <source>File not found: {name}</source>
         <translation>Datei nicht gefunden: {name}</translation>
     </message>
     <message>
-        <location line="+345"/>
+        <location line="+353"/>
         <source>The video for {name} stopped: {problem}</source>
         <translation>Das Video für {name} wurde beendet: {problem}</translation>
     </message>
@@ -1896,7 +2059,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>Kann nicht casten: {error}</translation>
     </message>
     <message>
-        <location line="+313"/>
+        <location line="+314"/>
         <source>Cannot play {name}: {message}</source>
         <translation>{name} kann nicht abgespielt werden: {message}</translation>
     </message>
@@ -1906,7 +2069,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>MusicHive konnte seinen Ton nicht im Netzwerk anbieten</translation>
     </message>
     <message>
-        <location line="+443"/>
+        <location line="+444"/>
         <source>Cannot connect to {name}: {describe}</source>
         <translation>Keine Verbindung zu {name}: {describe}</translation>
     </message>
@@ -1970,7 +2133,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <location filename="../src/check_covers.py" line="+7"/>
         <location filename="../src/check_tags.py" line="+687"/>
         <source>… and {count} more</source>
-        <translation>... und {count} weitere</translation>
+        <translation>… und {count} weitere</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -2065,7 +2228,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
     <message>
         <location line="+15"/>
         <source>Checking {total} albums…</source>
-        <translation>Prüfe {total} Alben...</translation>
+        <translation>Prüfe {total} Alben…</translation>
     </message>
     <message>
         <location line="+45"/>
@@ -2189,6 +2352,7 @@ ohne Coverbild</translation>
     <message>
         <location line="+18"/>
         <location filename="../src/check_tags.py" line="+6"/>
+        <location filename="../src/subsonic_view.py" line="-257"/>
         <source>Songs</source>
         <translation>Lieder</translation>
     </message>
@@ -2466,8 +2630,8 @@ ohne Coverbild</translation>
         <location line="+28"/>
         <source>Saving tags from MusicBrainz in {songs} of %n album(s)…</source>
         <translation>
-            <numerusform>Speichere Tags von MusicBrainz in {songs} von %n Album...</numerusform>
-            <numerusform>Speichere Tags von MusicBrainz in {songs} von %n Alben...</numerusform>
+            <numerusform>Speichere Tags von MusicBrainz in {songs} von %n Album…</numerusform>
+            <numerusform>Speichere Tags von MusicBrainz in {songs} von %n Alben…</numerusform>
         </translation>
     </message>
     <message>
@@ -2538,14 +2702,14 @@ ohne Coverbild</translation>
     <message>
         <location line="+39"/>
         <source>Converting {total} songs…</source>
-        <translation>Konvertiere {total} Lieder...</translation>
+        <translation>Konvertiere {total} Lieder…</translation>
     </message>
     <message>
         <location line="+5"/>
         <location filename="../src/device_sync.py" line="+422"/>
         <location filename="../src/level_volume.py" line="-47"/>
         <source>Stopping…</source>
-        <translation>Stoppe...</translation>
+        <translation>Stoppe…</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -2639,7 +2803,7 @@ Erstes Problem: {first_problem}</translation>
     <message>
         <location line="+9"/>
         <source>Comparing the device with the library…</source>
-        <translation>Vergleiche das Gerät mit der Audiobibliothek...</translation>
+        <translation>Vergleiche das Gerät mit der Audiobibliothek…</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -2656,7 +2820,7 @@ Erstes Problem: {first_problem}</translation>
         <source>
 …and {more} more</source>
         <translation>
-...und {more} weitere</translation>
+…und {more} weitere</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -2690,7 +2854,7 @@ Erstes Problem: {first_problem}</translation>
     <message>
         <location line="+5"/>
         <source>Deleting {count} files from the device…</source>
-        <translation>Lösche {count} Dateien vom Gerät...</translation>
+        <translation>Lösche {count} Dateien vom Gerät…</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -2744,16 +2908,16 @@ Erstes Problem: {first_problem}</translation>
         <location filename="../src/drag_label.py" line="+40"/>
         <source>{name} and %n more song(s)…</source>
         <translation>
-            <numerusform>{name} und %n weiteres Lied...</numerusform>
-            <numerusform>{name} und %n weitere Lieder...</numerusform>
+            <numerusform>{name} und %n weiteres Lied…</numerusform>
+            <numerusform>{name} und %n weitere Lieder…</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>{name} and %n more item(s)…</source>
         <translation>
-            <numerusform>{name} und %n weiterer Eintrag...</numerusform>
-            <numerusform>{name} und %n weitere Einträge...</numerusform>
+            <numerusform>{name} und %n weiterer Eintrag…</numerusform>
+            <numerusform>{name} und %n weitere Einträge…</numerusform>
         </translation>
     </message>
     <message>
@@ -2928,7 +3092,7 @@ Ihre Wiedergaben, Bewertung und Plätze in Playlisten gehen an das behaltene Lie
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../src/track_list.py" line="+6"/>
+        <location filename="../src/track_list.py" line="-566"/>
         <source>Plays</source>
         <translation>Wiedergaben</translation>
     </message>
@@ -3005,7 +3169,7 @@ ersetzt diese Flagge. Die eingebauten sind im Ordner assets/flags von MusicHive.
     <message>
         <location line="+2"/>
         <source>Waiting for you to allow MusicHive in your browser…</source>
-        <translation>Warte darauf, dass du MusicHive in deinem Browser erlaubst...</translation>
+        <translation>Warte darauf, dass du MusicHive in deinem Browser erlaubst…</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -3099,17 +3263,17 @@ Das kann nicht rückgängig gemacht werden.</translation>
     <message>
         <location line="+7"/>
         <source>Downloading play counts…</source>
-        <translation>Lade Wiedergabezahlen herunter...</translation>
+        <translation>Lade Wiedergabezahlen herunter…</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Downloading play counts… page {page} of {total_pages}</source>
-        <translation>Lade Wiedergabezahlen herunter... Seite {page} von {total_pages}</translation>
+        <translation>Lade Wiedergabezahlen herunter… Seite {page} von {total_pages}</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Applying play counts…</source>
-        <translation>Übernehme Wiedergabezahlen...</translation>
+        <translation>Übernehme Wiedergabezahlen…</translation>
     </message>
     <message numerus="yes">
         <location line="+5"/>
@@ -3385,7 +3549,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     <message>
         <location line="+5"/>
         <source>Searching MusicBrainz…</source>
-        <translation>Durchsuche MusicBrainz...</translation>
+        <translation>Durchsuche MusicBrainz…</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -3400,7 +3564,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     <message>
         <location line="+26"/>
         <source>Fetching the tracks of this release…</source>
-        <translation>Lade die Lieder dieser Veröffentlichung...</translation>
+        <translation>Lade die Lieder dieser Veröffentlichung…</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -3667,7 +3831,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     <message>
         <location line="+113"/>
         <source>Searching for “{term}”…</source>
-        <translation>Suche nach „{term}“...</translation>
+        <translation>Suche nach „{term}“…</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -3677,7 +3841,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     <message>
         <location line="+8"/>
         <source>Reading the podcast&apos;s feed…</source>
-        <translation>Lese den Feed des Podcasts...</translation>
+        <translation>Lese den Feed des Podcasts…</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -3687,7 +3851,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     <message>
         <location line="+29"/>
         <source>Checking podcasts for new episodes…</source>
-        <translation>Durchsuche Abonnements nach neuen Folgen...</translation>
+        <translation>Durchsuche Abonnements nach neuen Folgen…</translation>
     </message>
     <message numerus="yes">
         <location line="+21"/>
@@ -3711,7 +3875,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
         </translation>
     </message>
     <message>
-        <location filename="../src/podcast_view.py" line="-549"/>
+        <location filename="../src/podcast_view.py" line="-548"/>
         <source>{minutes} min</source>
         <translation>{minutes} min</translation>
     </message>
@@ -3721,7 +3885,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
         <translation>{hours} h {minutes:02d} min</translation>
     </message>
     <message>
-        <location line="+231"/>
+        <location line="+230"/>
         <source>{new} new</source>
         <translation>{new} neu</translation>
     </message>
@@ -3755,8 +3919,8 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     <message>
         <location line="+4"/>
         <location line="+111"/>
-        <source>Unsubscribe...</source>
-        <translation>Abo beenden...</translation>
+        <source>Unsubscribe…</source>
+        <translation>Abo beenden…</translation>
     </message>
     <message>
         <location line="-87"/>
@@ -3765,16 +3929,19 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     </message>
     <message>
         <location line="+15"/>
+        <location filename="../src/subsonic_view.py" line="-22"/>
         <source>Searching for “{text}”…</source>
-        <translation>Suche nach „{text}“...</translation>
+        <translation>Suche nach „{text}“…</translation>
     </message>
     <message>
         <location line="+11"/>
+        <location filename="../src/subsonic_view.py" line="+14"/>
         <source>Results for “{text}”</source>
         <translation>Ergebnisse für „{text}“</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../src/subsonic_view.py" line="-2"/>
         <source>Nothing found for “{text}”</source>
         <translation>Nichts gefunden für „{text}“</translation>
     </message>
@@ -3857,7 +4024,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     <message>
         <location line="+2"/>
         <source>Downloading…</source>
-        <translation>Lade herunter...</translation>
+        <translation>Lade herunter…</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -3950,7 +4117,7 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     <message>
         <location line="+142"/>
         <source>Looking for stations…</source>
-        <translation>Suche nach Sendern...</translation>
+        <translation>Suche nach Sendern…</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -4028,8 +4195,8 @@ Die Lieder bekommen wieder ihre ursprüngliche Lautstärke. Alle müssten erneut
     </message>
     <message>
         <location line="+3"/>
-        <source>Rename...</source>
-        <translation>Umbenennen...</translation>
+        <source>Rename…</source>
+        <translation>Umbenennen…</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -4257,7 +4424,7 @@ Zu „{action}“ verschieben?</translation>
     <message>
         <location line="+21"/>
         <source>Searching…</source>
-        <translation>Suche...</translation>
+        <translation>Suche…</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -4388,8 +4555,8 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <location line="+7"/>
         <source>Undoing “{change}” in %n song(s)…</source>
         <translation>
-            <numerusform>Mache „{change}“ in %n Lied rückgängig...</numerusform>
-            <numerusform>Mache „{change}“ in %n Liedern rückgängig...</numerusform>
+            <numerusform>Mache „{change}“ in %n Lied rückgängig…</numerusform>
+            <numerusform>Mache „{change}“ in %n Liedern rückgängig…</numerusform>
         </translation>
     </message>
     <message>
@@ -4483,6 +4650,11 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <translation>Titel-Sortierung</translation>
     </message>
     <message>
+        <location line="+500"/>
+        <source>{title} is still being fetched from the server</source>
+        <translation>{title} wird noch vom Server geholt</translation>
+    </message>
+    <message>
         <location filename="../src/track_metadata.py" line="+262"/>
         <source>unknown file format</source>
         <translation>unbekanntes Dateiformat</translation>
@@ -4511,6 +4683,253 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <location line="+0"/>
         <source>Cannot make the folder: {error}</source>
         <translation>Der Ordner kann nicht erstellt werden: {error}</translation>
+    </message>
+    <message>
+        <location filename="../src/party.py" line="-141"/>
+        <source>MusicHive could not offer the party page on the network</source>
+        <translation>MusicHive konnte die Partyseite nicht im Netzwerk anbieten</translation>
+    </message>
+    <message>
+        <location line="+112"/>
+        <source>MusicHive is busy. Try again in a moment.</source>
+        <translation>MusicHive ist gerade beschäftigt. Versuche es gleich noch einmal.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Welcome to the party!</source>
+        <translation>Willkommen auf der Party!</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>What&apos;s your name? It&apos;s shown next to the songs you add.</source>
+        <translation>Wie heißt du? Dein Name steht neben den Liedern, die du hinzufügst.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Your name</source>
+        <translation>Dein Name</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Join</source>
+        <translation>Mitmachen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Change name</source>
+        <translation>Namen ändern</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Now playing</source>
+        <translation>Läuft gerade</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Nothing is playing yet</source>
+        <translation>Noch läuft nichts</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Up next</source>
+        <translation>Als Nächstes</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nothing queued. Add a song!</source>
+        <translation>Die Warteschlange ist leer. Füge ein Lied hinzu!</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Search for a song, artist or album</source>
+        <translation>Suche nach einem Lied, Künstler oder Album</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Nothing found</source>
+        <translation>Nichts gefunden</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add</source>
+        <translation>Hinzufügen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Vote to skip</source>
+        <translation>Fürs Überspringen stimmen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>You voted to skip</source>
+        <translation>Du hast fürs Überspringen gestimmt</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>{votes} of {needed} votes to skip</source>
+        <translation>{votes} von {needed} Stimmen zum Überspringen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lost the connection to MusicHive. Trying again…</source>
+        <translation>Die Verbindung zu MusicHive ist weg. Neuer Versuch…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The party has ended. Thanks for coming!</source>
+        <translation>Die Party ist vorbei. Danke, dass du da warst!</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+37"/>
+        <source>You have %n song(s) waiting already. Add another once one has played.</source>
+        <translation>
+            <numerusform>Du hast schon %n Lied in der Warteschlange. Füge ein weiteres hinzu, sobald eins gespielt wurde.</numerusform>
+            <numerusform>Du hast schon %n Lieder in der Warteschlange. Füge ein weiteres hinzu, sobald eins gespielt wurde.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Skipping by vote is turned off.</source>
+        <translation>Überspringen per Abstimmung ist ausgeschaltet.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Nothing is playing.</source>
+        <translation>Es läuft nichts.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Skipped!</source>
+        <translation>Übersprungen!</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Voted. {votes} of {needed} votes to skip.</source>
+        <translation>Abgestimmt. {votes} von {needed} Stimmen zum Überspringen.</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Tell us your name first.</source>
+        <translation>Sag uns zuerst deinen Namen.</translation>
+    </message>
+    <message>
+        <location line="+76"/>
+        <source>The library changed. Search again.</source>
+        <translation>Die Audiobibliothek hat sich geändert. Suche erneut.</translation>
+    </message>
+    <message>
+        <location filename="../src/subsonic.py" line="+241"/>
+        <source>Enter the server, user name and password in Settings, Subsonic.</source>
+        <translation>Gib Server, Benutzername und Passwort unter Einstellungen, Subsonic ein.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+80"/>
+        <source>The server answered: {error}</source>
+        <translation>Der Server antwortete: {error}</translation>
+    </message>
+    <message>
+        <location line="-77"/>
+        <source>Cannot reach the server: {error}</source>
+        <translation>Der Server ist nicht erreichbar: {error}</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+3"/>
+        <source>That doesn&apos;t look like a Subsonic server.</source>
+        <translation>Das sieht nicht nach einem Subsonic-Server aus.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The server refused the request.</source>
+        <translation>Der Server hat die Anfrage abgelehnt.</translation>
+    </message>
+    <message>
+        <location line="+62"/>
+        <source>Stopped</source>
+        <translation>Angehalten</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>The download failed: {error}</source>
+        <translation>Der Download ist fehlgeschlagen: {error}</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>The server sent no song.</source>
+        <translation>Der Server hat kein Lied geschickt.</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Too many files called {name}</source>
+        <translation>Zu viele Dateien mit dem Namen {name}</translation>
+    </message>
+    <message>
+        <location line="+52"/>
+        <source>{title} is a .{kind} file, which the library can&apos;t take yet.</source>
+        <translation>{title} ist eine .{kind}-Datei, die die Audiobibliothek noch nicht aufnehmen kann.</translation>
+    </message>
+    <message>
+        <location line="+217"/>
+        <source>Cannot save the song: {error}</source>
+        <translation>Das Lied kann nicht gespeichert werden: {error}</translation>
+    </message>
+    <message>
+        <location filename="../src/subsonic_view.py" line="-97"/>
+        <source>from {service}</source>
+        <translation>von {service}</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+72"/>
+        <source>Downloading %n on the server…</source>
+        <translation>
+            <numerusform>%n Lied wird auf dem Server heruntergeladen…</numerusform>
+            <numerusform>%n Lieder werden auf dem Server heruntergeladen…</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>Importing %n…</source>
+        <translation>
+            <numerusform>Importiere %n Lied…</numerusform>
+            <numerusform>Importiere %n Lieder…</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>Albums</source>
+        <translation>Alben</translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Opening {album}…</source>
+        <translation>Öffne {album}…</translation>
+    </message>
+    <message>
+        <location line="+95"/>
+        <source>Show Songs</source>
+        <translation>Lieder anzeigen</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+61"/>
+        <source>Downloaded %n song(s) on the server</source>
+        <translation>
+            <numerusform>%n Lied auf dem Server heruntergeladen</numerusform>
+            <numerusform>%n Lieder auf dem Server heruntergeladen</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+4"/>
+        <source>Imported %n song(s)</source>
+        <translation>
+            <numerusform>%n Lied importiert</numerusform>
+            <numerusform>%n Lieder importiert</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>on the server</source>
+        <translation>auf dem Server</translation>
     </message>
 </context>
 <context>
@@ -4552,12 +4971,12 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <location line="+359"/>
         <location line="+287"/>
         <location line="+127"/>
-        <location line="+2102"/>
+        <location line="+2322"/>
         <source>Artist</source>
         <translation>Künstler</translation>
     </message>
     <message>
-        <location line="-3063"/>
+        <location line="-3283"/>
         <location line="+193"/>
         <location line="+359"/>
         <location line="+287"/>
@@ -4588,8 +5007,8 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     </message>
     <message>
         <location line="+12"/>
-        <source>Search...</source>
-        <translation>Suchen...</translation>
+        <source>Search…</source>
+        <translation>Suchen…</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -4940,6 +5359,71 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     </message>
     <message>
         <location line="+20"/>
+        <source>Subsonic</source>
+        <translation>Subsonic</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>&lt;h3&gt;Your Subsonic server&lt;/h3&gt;&lt;p&gt;Connect MusicHive to a Subsonic server, such as Navidrome, to search it here. With octo-fiesta in front of it, you also find songs from Deezer, Qobuz and other services, and the server downloads them when you ask.&lt;/p&gt;</source>
+        <translation>&lt;h3&gt;Dein Subsonic-Server&lt;/h3&gt;&lt;p&gt;Verbinde MusicHive mit einem Subsonic-Server wie Navidrome, um ihn hier zu durchsuchen. Mit octo-fiesta davor findest du auch Lieder von Deezer, Qobuz und anderen Diensten, und der Server lädt sie herunter, wenn du es willst.&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Connect in Settings…</source>
+        <translation>In den Einstellungen verbinden…</translation>
+    </message>
+    <message>
+        <location line="+43"/>
+        <source>Back to the search results</source>
+        <translation>Zurück zu den Suchergebnissen</translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Search for songs and albums on your server</source>
+        <translation>Suche nach Liedern und Alben auf deinem Server</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Search the server</source>
+        <translation>Den Server durchsuchen</translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>Double-click a song to download and play it, or an album to see its songs. Right-click for more.</source>
+        <translation>Doppelklicke ein Lied, um es herunterzuladen und abzuspielen, oder ein Album, um seine Lieder zu sehen. Rechtsklick für mehr.</translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Have the server download the chosen songs or albums into its octo-fiesta folder. Nothing is saved on this computer.</source>
+        <translation>Lass den Server die ausgewählten Lieder oder Alben in seinen octo-fiesta-Ordner herunterladen. Auf diesem Rechner wird nichts gespeichert.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Download on Server</source>
+        <translation>Auf dem Server herunterladen</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Download the song on the server and play it from there. Afterwards the library carries on.</source>
+        <translation>Lade das Lied auf dem Server herunter und spiele es von dort ab. Danach geht es mit der Audiobibliothek weiter.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Download and Play</source>
+        <translation>Herunterladen und abspielen</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Copy the chosen songs or albums from the server into the open library, named with the Organise Files template.</source>
+        <translation>Kopiere die ausgewählten Lieder oder Alben vom Server in die geöffnete Audiobibliothek, benannt nach der Vorlage aus „Dateien organisieren“.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Import to Library</source>
+        <translation>In die Audiobibliothek importieren</translation>
+    </message>
+    <message>
+        <location line="+43"/>
         <source>Devices</source>
         <translation>Geräte</translation>
     </message>
@@ -5106,7 +5590,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+8"/>
         <source>Insert tag…</source>
-        <translation>Tag einfügen...</translation>
+        <translation>Tag einfügen…</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -5194,12 +5678,27 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <translation>Schlaftimer</translation>
     </message>
     <message>
-        <location line="+20"/>
-        <source>Cast To</source>
-        <translation>Casten</translation>
+        <location line="+1598"/>
+        <source>Cast To…</source>
+        <translation>Casten…</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+3"/>
+        <source>Play on a TV or speaker, or in a web browser</source>
+        <translation>Auf einem Fernseher, einem Lautsprecher oder in einem Webbrowser abspielen</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Party Mode…</source>
+        <translation>Partymodus…</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Let guests add songs to the queue from their phones</source>
+        <translation>Lass Gäste mit ihrem Handy Lieder zur Warteschlange hinzufügen</translation>
+    </message>
+    <message>
+        <location line="-1578"/>
         <source>&amp;Help</source>
         <translation>&amp;Hilfe</translation>
     </message>
@@ -5329,17 +5828,17 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+9"/>
         <source>Import playlist…</source>
-        <translation>Playlist importieren...</translation>
+        <translation>Playlist importieren…</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Export playlist…</source>
-        <translation>Playlist exportieren...</translation>
+        <translation>Playlist exportieren…</translation>
     </message>
     <message>
         <location line="+9"/>
-        <source>Add Library...</source>
-        <translation>Audiobibliothek hinzufügen...</translation>
+        <source>Add Library…</source>
+        <translation>Audiobibliothek hinzufügen…</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -5358,8 +5857,8 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     </message>
     <message>
         <location line="+12"/>
-        <source>Remove Library...</source>
-        <translation>Audiobibliothek entfernen...</translation>
+        <source>Remove Library…</source>
+        <translation>Audiobibliothek entfernen…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5444,7 +5943,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Auto-Tag Genres…</source>
-        <translation>Genres auto-taggen...</translation>
+        <translation>Genres auto-taggen…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5454,7 +5953,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Find Lyrics…</source>
-        <translation>Liedtexte finden...</translation>
+        <translation>Liedtexte finden…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5464,7 +5963,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Organise Files…</source>
-        <translation>Dateien organisieren...</translation>
+        <translation>Dateien organisieren…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5474,7 +5973,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Level Volume…</source>
-        <translation>Lautstärke pegeln...</translation>
+        <translation>Lautstärke pegeln…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5484,7 +5983,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Check Covers…</source>
-        <translation>Coverbilder überprüfen...</translation>
+        <translation>Coverbilder überprüfen…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5494,7 +5993,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Check Tags…</source>
-        <translation>Tags überprüfen...</translation>
+        <translation>Tags überprüfen…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5504,7 +6003,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Find Duplicates…</source>
-        <translation>Duplikate finden...</translation>
+        <translation>Duplikate finden…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5514,7 +6013,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Tag Change History…</source>
-        <translation>Tag-Verlauf...</translation>
+        <translation>Tag-Verlauf…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5524,7 +6023,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Convert Files…</source>
-        <translation>Dateien konvertieren...</translation>
+        <translation>Dateien konvertieren…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5534,7 +6033,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     <message>
         <location line="+12"/>
         <source>Settings…</source>
-        <translation>Einstellungen...</translation>
+        <translation>Einstellungen…</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -5553,8 +6052,8 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     </message>
     <message>
         <location line="+12"/>
-        <source>Last.fm...</source>
-        <translation>Last.fm...</translation>
+        <source>Last.fm…</source>
+        <translation>Last.fm…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -5563,13 +6062,13 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
     </message>
     <message>
         <location line="+12"/>
-        <source>Export Settings...</source>
-        <translation>Exporteinstellungen...</translation>
+        <source>Export Settings…</source>
+        <translation>Exporteinstellungen…</translation>
     </message>
     <message>
         <location line="+12"/>
-        <source>Import Settings...</source>
-        <translation>Importeinstellungen...</translation>
+        <source>Import Settings…</source>
+        <translation>Importeinstellungen…</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -5692,52 +6191,7 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <translation>Scrobblen</translation>
     </message>
     <message>
-        <location line="+14"/>
-        <source>This Computer</source>
-        <translation>Dieser Rechner</translation>
-    </message>
-    <message>
-        <location line="+11"/>
-        <source>No TVs or Speakers Found Yet</source>
-        <translation>Noch keine Fernseher oder Lautsprecher gefunden</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>Web Browser</source>
-        <translation>Webbrowser</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Play in a web page that you open in your TV&apos;s browser (or any browser), with the visualiser and lyrics.</source>
-        <translation>Spiele Musik in einem Webbrowser im lokalen Netzwerk.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>Open this address in the browser. Click to copy it.</source>
-        <translation>Öffne diese Adresse im Webbrowser. Klicken zum kopieren.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
-        <source>Show Visualiser and Lyrics on the TV</source>
-        <translation>Audiovisualisierer und Liedtext auf Fernseher anzeigen</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Cast a video with the visualiser and lyrics. The equaliser and crossfade work too, but pausing and skipping take a few seconds to reach the TV.</source>
-        <translation>Caste ein Video mit Audiovisualisierer und Liedtexten. Achtung: Hohe Verzögerung.</translation>
-    </message>
-    <message>
-        <location line="+12"/>
-        <source>Search for TVs and Speakers</source>
-        <translation>Suche nach Fernsehern und Lautsprechern</translation>
-    </message>
-    <message>
-        <location line="+3"/>
-        <source>Look for Chromecasts and DLNA TVs and speakers on your network.</source>
-        <translation>Suche nach ChromeCasts, DLNA Fernsehern und Lautsprechern im lokalen Netzwerk.</translation>
-    </message>
-    <message>
-        <location line="+12"/>
+        <location line="+42"/>
         <source>Equaliser</source>
         <translation>Equalizer</translation>
     </message>
@@ -5786,7 +6240,8 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
 &lt;a href=&quot;https://gstreamer.freedesktop.org&quot;&gt;GStreamer&lt;/a&gt;, LGPL-2.1&lt;br&gt;
 &lt;a href=&quot;https://pygobject.gnome.org&quot;&gt;PyGObject&lt;/a&gt;, LGPL-2.1&lt;br&gt;
 &lt;a href=&quot;https://github.com/quodlibet/mutagen&quot;&gt;Mutagen&lt;/a&gt;, GPL-2.0-or-later&lt;br&gt;
-&lt;a href=&quot;https://github.com/home-assistant-libs/pychromecast&quot;&gt;PyChromecast&lt;/a&gt;, MIT License
+&lt;a href=&quot;https://github.com/home-assistant-libs/pychromecast&quot;&gt;PyChromecast&lt;/a&gt;, MIT License&lt;br&gt;
+&lt;a href=&quot;https://github.com/heuer/segno&quot;&gt;segno&lt;/a&gt;, BSD-3-Clause
 &lt;/p&gt;
 &lt;h3&gt;Artwork&lt;/h3&gt;
 &lt;p&gt;
@@ -5809,7 +6264,8 @@ Lyrics from &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, radio
 &lt;a href=&quot;https://gstreamer.freedesktop.org&quot;&gt;GStreamer&lt;/a&gt;, LGPL-2.1&lt;br&gt;
 &lt;a href=&quot;https://pygobject.gnome.org&quot;&gt;PyGObject&lt;/a&gt;, LGPL-2.1&lt;br&gt;
 &lt;a href=&quot;https://github.com/quodlibet/mutagen&quot;&gt;Mutagen&lt;/a&gt;, GPL-2.0-or-later&lt;br&gt;
-&lt;a href=&quot;https://github.com/home-assistant-libs/pychromecast&quot;&gt;PyChromecast&lt;/a&gt;, MIT License
+&lt;a href=&quot;https://github.com/home-assistant-libs/pychromecast&quot;&gt;PyChromecast&lt;/a&gt;, MIT License&lt;br&gt;
+&lt;a href=&quot;https://github.com/heuer/segno&quot;&gt;segno&lt;/a&gt;, BSD-3-Clause
 &lt;/p&gt;
 &lt;h3&gt;Grafik&lt;/h3&gt;
 &lt;p&gt;
@@ -5824,7 +6280,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
 &lt;/p&gt;</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+45"/>
         <source>&lt;h3&gt;Translations&lt;/h3&gt;</source>
         <translation>&lt;h3&gt;Übersetzungen&lt;/h3&gt;</translation>
     </message>
@@ -6000,6 +6456,74 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
         <source>MusicHive on the TV</source>
         <translation>MusicHive auf dem Fernseher</translation>
     </message>
+    <message>
+        <location line="+156"/>
+        <source>Scan to add songs</source>
+        <translation>Scannen, um Lieder hinzuzufügen</translation>
+    </message>
+</context>
+<context>
+    <name>castWindow</name>
+    <message>
+        <location filename="../ui/cast_window.ui" line="+14"/>
+        <source>Cast To</source>
+        <translation>Casten</translation>
+    </message>
+    <message>
+        <location line="+53"/>
+        <source>&lt;h2&gt;Cast To&lt;/h2&gt;</source>
+        <translation>&lt;h2&gt;Casten&lt;/h2&gt;</translation>
+    </message>
+    <message>
+        <location line="+35"/>
+        <source>Click where the music should play</source>
+        <translation>Klicke darauf, wo die Musik spielen soll</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>This Computer</source>
+        <translation>Dieser Rechner</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Web Browser</source>
+        <translation>Webbrowser</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Play in a web page that you open in your TV&apos;s browser (or any browser), with the visualiser and lyrics.</source>
+        <translation>Spiele in einer Webseite, die du im Browser deines Fernsehers (oder in einem beliebigen Browser) öffnest, mit Audiovisualisierer und Liedtexten.</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Search Again</source>
+        <translation>Erneut suchen</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Look for Chromecasts and DLNA TVs and speakers on your network.</source>
+        <translation>Suche nach Chromecasts sowie DLNA-Fernsehern und -Lautsprechern in deinem Netzwerk.</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Open this address in the TV&apos;s browser:</source>
+        <translation>Öffne diese Adresse im Browser des Fernsehers:</translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>Copy the address</source>
+        <translation>Adresse kopieren</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Show visualiser and lyrics on the TV</source>
+        <translation>Audiovisualisierer und Liedtexte auf dem Fernseher zeigen</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>For Chromecasts and DLNA TVs: a video with the visualiser and lyrics. The equaliser and crossfade work too, but pausing and skipping take a few seconds to reach the TV. The web browser always shows them.</source>
+        <translation>Für Chromecasts und DLNA-Fernseher: ein Video mit Audiovisualisierer und Liedtexten. Equalizer und Liedübergänge funktionieren auch, aber Pausieren und Überspringen brauchen ein paar Sekunden bis zum Fernseher. Der Webbrowser zeigt beides immer.</translation>
+    </message>
 </context>
 <context>
     <name>checkCoversDialog</name>
@@ -6143,7 +6667,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+43"/>
         <source>Edit Tags…</source>
-        <translation>Tags bearbeiten...</translation>
+        <translation>Tags bearbeiten…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6153,7 +6677,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+10"/>
         <source>Find Cover…</source>
-        <translation>Coverbild finden...</translation>
+        <translation>Coverbild finden…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6198,7 +6722,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+10"/>
         <source>Save List…</source>
-        <translation>Liste speichern...</translation>
+        <translation>Liste speichern…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6379,7 +6903,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+23"/>
         <source>Look Up on MusicBrainz…</source>
-        <translation>Auf MusicBrainz nachschlagen...</translation>
+        <translation>Auf MusicBrainz nachschlagen…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6389,7 +6913,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+10"/>
         <source>Number Tracks…</source>
-        <translation>Lieder nummerieren...</translation>
+        <translation>Lieder nummerieren…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6399,7 +6923,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+18"/>
         <source>Edit Tags…</source>
-        <translation>Tags bearbeiten...</translation>
+        <translation>Tags bearbeiten…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6419,7 +6943,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+23"/>
         <source>Look Up All Albums…</source>
-        <translation>Alle Alben nachschlagen...</translation>
+        <translation>Alle Alben nachschlagen…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6449,7 +6973,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+10"/>
         <source>Save List…</source>
-        <translation>Liste speichern...</translation>
+        <translation>Liste speichern…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6565,7 +7089,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+7"/>
         <source>Browse…</source>
-        <translation>Durchsuchen...</translation>
+        <translation>Durchsuchen…</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -6585,7 +7109,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+2"/>
         <source>Insert tag…</source>
-        <translation>Tag einfügen...</translation>
+        <translation>Tag einfügen…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6719,7 +7243,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+2"/>
         <source>Save…</source>
-        <translation>Speichern...</translation>
+        <translation>Speichern…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -6873,7 +7397,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+10"/>
         <source>Keep This One…</source>
-        <translation>Dieses behalten...</translation>
+        <translation>Dieses behalten…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6893,7 +7417,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+10"/>
         <source>Edit Tags…</source>
-        <translation>Tags bearbeiten...</translation>
+        <translation>Tags bearbeiten…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -6933,7 +7457,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+10"/>
         <source>Save List…</source>
-        <translation>Liste speichern...</translation>
+        <translation>Liste speichern…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -7014,7 +7538,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+3"/>
         <source>Go to Secrets File…</source>
-        <translation>Zur Geheimnisdatei...</translation>
+        <translation>Zur Geheimnisdatei…</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -7029,7 +7553,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+7"/>
         <source>Import iPod Scrobble Log…</source>
-        <translation>iPod-Scrobble-Log importieren...</translation>
+        <translation>iPod-Scrobble-Log importieren…</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -7251,7 +7775,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+2"/>
         <source>Insert tag…</source>
-        <translation>Tag einfügen...</translation>
+        <translation>Tag einfügen…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -7325,6 +7849,89 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
 </context>
 <context>
+    <name>partyWindow</name>
+    <message>
+        <location filename="../ui/party.ui" line="+14"/>
+        <source>Party Mode</source>
+        <translation>Partymodus</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>&lt;h2&gt;Party Mode&lt;/h2&gt;</source>
+        <translation>&lt;h2&gt;Partymodus&lt;/h2&gt;</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Guests on the same Wi-Fi scan this code with their phone camera to add songs to the queue.</source>
+        <translation>Gäste im selben WLAN scannen diesen Code mit der Handykamera, um Lieder zur Warteschlange hinzuzufügen.</translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>The QR code needs the segno package. Guests can still type the address below.</source>
+        <translation>Für den QR-Code wird das Paket segno gebraucht. Gäste können die Adresse unten trotzdem eintippen.</translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Copy the address</source>
+        <translation>Adresse kopieren</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Show on TV</source>
+        <translation>Auf dem Fernseher zeigen</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Show the code in a corner of the TV while you cast to a web browser or with the visualiser and lyrics, so guests can join from there</source>
+        <translation>Zeige den Code in einer Ecke des Fernsehers, während du an einen Webbrowser oder mit Audiovisualisierer und Liedtexten castest, damit Gäste von dort aus mitmachen können</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>No guests yet</source>
+        <translation>Noch keine Gäste</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Let guests vote to skip a song</source>
+        <translation>Gäste dürfen abstimmen, ein Lied zu überspringen</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>A song is skipped once more than half of the guests vote for it.</source>
+        <translation>Ein Lied wird übersprungen, sobald mehr als die Hälfte der Gäste dafür stimmt.</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Songs each guest can have waiting:</source>
+        <translation>Wartende Lieder pro Gast:</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Type a number, or use the Up and Down keys. 0 means no limit.</source>
+        <translation>Tippe eine Zahl oder nutze die Pfeiltasten. 0 heißt keine Grenze.</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>0 means no limit. Songs still coming from the server count too. Once one of a guest&apos;s songs has played, they can add another.</source>
+        <translation>0 heißt keine Grenze. Lieder, die noch vom Server kommen, zählen mit. Sobald ein Lied eines Gastes gespielt wurde, kann er ein weiteres hinzufügen.</translation>
+    </message>
+    <message>
+        <location line="+32"/>
+        <source>End the Party</source>
+        <translation>Party beenden</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Keep Partying</source>
+        <translation>Weiterfeiern</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Close this window. The party goes on, and Playback → Party Mode opens it again.</source>
+        <translation>Schließt dieses Fenster. Die Party geht weiter, und Wiedergabe → Partymodus öffnet es wieder.</translation>
+    </message>
+</context>
+<context>
     <name>playlistEditDialog</name>
     <message>
         <location filename="../ui/auto_playlist_edit.ui" line="+14"/>
@@ -7341,7 +7948,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
         <location line="+23"/>
         <location filename="../ui/playlist_edit.ui" line="+23"/>
         <source>Choose…</source>
-        <translation>Wählen...</translation>
+        <translation>Wählen…</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -7659,8 +8266,8 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+24"/>
-        <source>Move...</source>
-        <translation>Verschieben...</translation>
+        <source>Move…</source>
+        <translation>Verschieben…</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -7669,13 +8276,13 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+11"/>
-        <source>Import Settings...</source>
-        <translation>Einstellungen importieren...</translation>
+        <source>Import Settings…</source>
+        <translation>Einstellungen importieren…</translation>
     </message>
     <message>
         <location line="+10"/>
-        <source>Export Settings...</source>
-        <translation>Einstellungen exportieren...</translation>
+        <source>Export Settings…</source>
+        <translation>Einstellungen exportieren…</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -7714,8 +8321,8 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+7"/>
-        <source>Choose...</source>
-        <translation>Wählen...</translation>
+        <source>Choose…</source>
+        <translation>Wählen…</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -7805,8 +8412,8 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+9"/>
-        <source>Equaliser...</source>
-        <translation>Equalizer...</translation>
+        <source>Equaliser…</source>
+        <translation>Equalizer…</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -7924,7 +8531,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+3"/>
         <source>Save…</source>
-        <translation>Speichern...</translation>
+        <translation>Speichern…</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -8147,7 +8754,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+3"/>
         <source>Custom Flags…</source>
-        <translation>Eigene Flaggen...</translation>
+        <translation>Eigene Flaggen…</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -8273,8 +8880,8 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="-432"/>
         <location line="+454"/>
-        <source>Change...</source>
-        <translation>Ändern...</translation>
+        <source>Change…</source>
+        <translation>Ändern…</translation>
     </message>
     <message>
         <location line="-444"/>
@@ -8390,12 +8997,12 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+25"/>
-        <location line="+419"/>
+        <location line="+598"/>
         <source>Last.fm</source>
         <translation>Last.fm</translation>
     </message>
     <message>
-        <location line="-410"/>
+        <location line="-589"/>
         <source>Only when scrobbling is switched on as well. Stations do not always send clean titles, so this is off unless you want it.</source>
         <translation>Nur wenn Scrobblen auch eingeschaltet ist. Sender schicken nicht immer saubere Titel, deshalb ist das aus, außer du willst es.</translation>
     </message>
@@ -8502,8 +9109,8 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+11"/>
-        <source>Add Library...</source>
-        <translation>Audiobibliothek hinzufügen...</translation>
+        <source>Add Library…</source>
+        <translation>Audiobibliothek hinzufügen…</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -8512,11 +9119,76 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+10"/>
-        <source>Remove Library...</source>
-        <translation>Audiobibliothek entfernen...</translation>
+        <source>Remove Library…</source>
+        <translation>Audiobibliothek entfernen…</translation>
     </message>
     <message>
         <location line="+47"/>
+        <source>Subsonic</source>
+        <translation>Subsonic</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Server</source>
+        <translation>Server</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Address:</source>
+        <translation>Adresse:</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>http://192.168.1.10:4533</source>
+        <translation>http://192.168.1.10:4533</translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>User name:</source>
+        <translation>Benutzername:</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>Password:</source>
+        <translation>Passwort:</translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Test Connection</source>
+        <translation>Verbindung testen</translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>&lt;p&gt;Works with any Subsonic server, such as Navidrome. With &lt;a href=&quot;https://github.com/V1ck3s/octo-fiesta&quot;&gt;octo-fiesta&lt;/a&gt; in front of it, a search also finds songs on Deezer, Qobuz and other services, and downloading one puts it into octo-fiesta&apos;s folder on the server (one song or its whole album, as octo-fiesta is set up).&lt;/p&gt;&lt;p&gt;&lt;b&gt;Import to Library&lt;/b&gt; copies songs into the open library, named with the Organise Files template. Songs that party guests asked for get the tag guestdownload=true.&lt;/p&gt;&lt;p&gt;The password is kept in the secrets file, not with the other settings, so it is not part of an export.&lt;/p&gt;</source>
+        <translation>&lt;p&gt;Funktioniert mit jedem Subsonic-Server, zum Beispiel Navidrome. Mit &lt;a href=&quot;https://github.com/V1ck3s/octo-fiesta&quot;&gt;octo-fiesta&lt;/a&gt; davor findet eine Suche auch Lieder bei Deezer, Qobuz und anderen Diensten, und beim Herunterladen landen sie im octo-fiesta-Ordner auf dem Server (ein Lied oder das ganze Album, je nachdem, wie octo-fiesta eingestellt ist).&lt;/p&gt;&lt;p&gt;&lt;b&gt;In die Audiobibliothek importieren&lt;/b&gt; kopiert Lieder in die geöffnete Audiobibliothek, benannt nach der Vorlage aus „Dateien organisieren“. Lieder, die sich Partygäste gewünscht haben, bekommen den Tag guestdownload=true.&lt;/p&gt;&lt;p&gt;Das Passwort steht in der Geheimnisdatei, nicht bei den anderen Einstellungen, und ist deshalb nicht Teil eines Exports.&lt;/p&gt;</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>Level the volume of imported songs</source>
+        <translation>Lautstärke importierter Lieder pegeln</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Measure each imported song as Tools → Level Volume does, so it plays at the library&apos;s volume</source>
+        <translation>Misst jedes importierte Lied wie Werkzeuge → Lautstärke pegeln, damit es mit der Lautstärke der Audiobibliothek spielt</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Find lyrics for imported songs</source>
+        <translation>Liedtexte für importierte Lieder finden</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Look up the lyrics of each imported song as Tools → Find Lyrics does, with the same choices (timed or plain, a .lrc file or in the tags)</source>
+        <translation>Sucht die Liedtexte jedes importierten Lieds wie Werkzeuge → Liedtexte finden, mit denselben Einstellungen (zeitlich abgestimmt oder einfach, als .lrc-Datei oder in den Tags)</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Party guests can search the server too</source>
+        <translation>Partygäste können auch den Server durchsuchen</translation>
+    </message>
+    <message>
+        <location line="+29"/>
         <source>Online</source>
         <translation>Online</translation>
     </message>
@@ -8527,8 +9199,8 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+9"/>
-        <source>Last.fm Account...</source>
-        <translation>Last.fm-Konto...</translation>
+        <source>Last.fm Account…</source>
+        <translation>Last.fm-Konto…</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -8537,8 +9209,8 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     </message>
     <message>
         <location line="+3"/>
-        <source>Go to Secrets File...</source>
-        <translation>Zur Geheimnisdatei...</translation>
+        <source>Go to Secrets File…</source>
+        <translation>Zur Geheimnisdatei…</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -8578,12 +9250,12 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
         <location line="+5"/>
         <location line="+34"/>
         <source>Find online…</source>
-        <translation>Online finden...</translation>
+        <translation>Online finden…</translation>
     </message>
     <message>
         <location line="-38"/>
         <source>Choose…</source>
-        <translation>Wählen...</translation>
+        <translation>Wählen…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -8808,7 +9480,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+4"/>
         <source>Which lyrics &quot;Find online…&quot; looks for. Timed lyrics follow the song in Now Playing.</source>
-        <translation>Welche Liedtexte „Online finden...“ sucht. Zeitlich abgestimmte Liedtexte folgen dem Lied in Spielt jetzt.</translation>
+        <translation>Welche Liedtexte „Online finden…“ sucht. Zeitlich abgestimmte Liedtexte folgen dem Lied in Spielt jetzt.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8923,7 +9595,7 @@ Liedtexte von &lt;a href=&quot;https://lrclib.net&quot;&gt;LRCLIB&lt;/a&gt;, Rad
     <message>
         <location line="+12"/>
         <source>Undo…</source>
-        <translation>Rückgängig machen...</translation>
+        <translation>Rückgängig machen…</translation>
     </message>
     <message>
         <location line="+3"/>

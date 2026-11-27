@@ -50,7 +50,7 @@ MAX_POST_BYTES = 4096
 MAX_NAME = 15  # characters of a guest's name
 MAX_GUEST_ID = 40
 MAX_QUERY = 100
-SEARCH_RESULTS = 40
+SEARCH_RESULTS = 25  # from each source
 UPCOMING_SHOWN = 15  # songs of the Upcoming list the page shows
 MAIN_THREAD_WAIT = 5.0  # seconds a guest's request waits for the main thread
 EVENTS_KEPT = 64  # events waiting for a page that does not read them: it is let go
@@ -63,14 +63,23 @@ class PartyError(Exception):
 
 
 class PartySource(Protocol):
-    """Somewhere songs come from. Ids of its results start with its name and ":"."""
+    """Somewhere songs come from. Ids of its results start with its name and ":".
+
+    search() and cover() run on the main thread, or, for a `threaded` source (one
+    that asks over the network), on the server's thread that answers the phone.
+    request() always runs on the main thread, and must not wait for the network.
+    """
 
     name: str
+    threaded: bool
 
     def search(self, text: str, limit: int) -> list[dict]:
         """Results: {"id", "title", "artist", "album", "cover"} ("cover" is a key for
-        PartyHost.cover_for, or ""), and optionally "note", a word about the result
-        such as that it has to be fetched first."""
+        cover(), or ""), and optionally "note", a word about the result such as that
+        it has to be fetched first."""
+
+    def cover(self, key: str) -> bytes | None:
+        """A small JPEG or PNG for a result's "cover" key."""
 
     def request(self, item: str, guest: "Guest") -> str:
         """Queue the result with this id (without the source's name). Returns what to
@@ -141,15 +150,17 @@ class PartyHost(QObject):
         self,
         state: Callable[[], PartyState],
         skip: Callable[[], None],
-        cover_for: Callable[[str, str], bytes | None],
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self._state = state
         self._skip = skip
-        self._cover_for = cover_for  # (source name, its cover key) -> JPEG bytes
         self.sources: dict[str, PartySource] = {}
         self.vote_skip = True
+        self.guest_limit = 0  # songs each guest may have waiting (0: no limit)
+        # How many of a guest's songs wait: queued and not played yet, or still being
+        # fetched. main.py sets it.
+        self.waiting_for: Callable[[Guest], int] | None = None
         self._guests: dict[str, Guest] = {}
         self._votes: set[str] = set()  # guest ids that want the playing song skipped
         self._song_key: object = None  # the playing song the votes are for
@@ -342,19 +353,28 @@ class PartyHost(QObject):
         }
 
     def search(self, text: str) -> list[dict]:
+        """On a server thread: each source is asked where it may be (see PartySource)."""
         text = text.strip()[:MAX_QUERY]
         if not text:
             return []
         results: list[dict] = []
-        for name, source in self.sources.items():
-            for result in source.search(text, SEARCH_RESULTS - len(results)):
+        for name, source in list(self.sources.items()):
+            try:
+                if source.threaded:
+                    found = source.search(text, SEARCH_RESULTS)
+                else:
+                    found = self.on_main(source.search, text, SEARCH_RESULTS)
+            except PartyError:
+                raise
+            except Exception as error:  # one source failing leaves the others
+                print(f"MusicHive: party search in {name} failed: {error}")
+                continue
+            for result in found:
                 result = dict(result)
                 result["id"] = f"{name}:{result['id']}"
                 if result.get("cover"):
                     result["cover"] = f"cover/{name}-{result['cover']}"
                 results.append(result)
-            if len(results) >= SEARCH_RESULTS:
-                break
         return results
 
     def request(self, guest_id: str, name: str, item: str) -> str:
@@ -363,6 +383,12 @@ class PartyHost(QObject):
         source = self.sources.get(source_name)
         if source is None or not rest:
             raise PartyError(tr("That song is no longer there. Search again."))
+        limit = self.guest_limit
+        if limit and self.waiting_for is not None and self.waiting_for(guest) >= limit:
+            raise PartyError(tr(
+                "You have %n song(s) waiting already. Add another once one has played.",
+                "", limit,
+            ))
         message = source.request(rest, guest)
         self.changed()
         return message
@@ -389,11 +415,14 @@ class PartyHost(QObject):
         return message
 
     def cover(self, name: str) -> bytes | None:
-        """A cover the page asked for: "now-<n>" or "<source>-<key>"."""
+        """On a server thread: a cover the page asked for, "now-<n>" or "<source>-<key>"."""
         if name.startswith("now-"):
             return self._now_cover
-        source, _dash, key = name.partition("-")
-        return self._cover_for(source, key) if key else None
+        source_name, _dash, key = name.partition("-")
+        source = self.sources.get(source_name)
+        if source is None or not key:
+            return None
+        return source.cover(key) if source.threaded else self.on_main(source.cover, key)
 
     def last_state(self) -> dict | None:
         return self._last_state
@@ -441,15 +470,21 @@ class LibrarySource:
     an old search result can't queue the wrong song."""
 
     name = "library"
+    threaded = False
 
     def __init__(
         self,
         songs: Callable[[], list[tuple[int, str, str, str, str | None]]],
         queue_song: Callable[[int, str], str],
+        cover: Callable[[str], bytes | None],
     ) -> None:
         self._songs = songs  # (row, title, artist, album, cover key)
         self._queue_song = queue_song  # (row, guest name) -> message for the guest
+        self._cover = cover  # cover key -> the library's JPEG thumbnail
         self.generation = 0
+
+    def cover(self, key: str) -> bytes | None:
+        return self._cover(key)
 
     def search(self, text: str, limit: int) -> list[dict]:
         words = text.casefold().split()
@@ -631,10 +666,10 @@ class _PartyHandler(BaseHTTPRequestHandler):
             elif what == "events":
                 self._send_events(query.get("guest", "")[:MAX_GUEST_ID])
             elif what == "search":
-                results = host.on_main(host.search, query.get("q", ""))
+                results = host.search(query.get("q", ""))
                 self._send_json({"results": results})
             elif what.startswith("cover/"):
-                data = host.on_main(host.cover, what[len("cover/"):])
+                data = host.cover(what[len("cover/"):])
                 if data:
                     self._send("image/jpeg", data)
                 else:

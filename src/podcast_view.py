@@ -372,7 +372,7 @@ class PodcastsTab(QObject):
                 lambda _checked=False: QDesktopServices.openUrl(QUrl(podcast.link))
             )
         menu.addSeparator()
-        menu.addAction(self._icon("calendar-off"), tr("Unsubscribe...")).triggered.connect(
+        menu.addAction(self._icon("calendar-off"), tr("Unsubscribe…")).triggered.connect(
             lambda _checked=False: self._unsubscribe(podcast)
         )
         menu.exec(self.w.podcastList.viewport().mapToGlobal(position))
@@ -483,7 +483,7 @@ class PodcastsTab(QObject):
         w.podcastSubscribeButton.setIcon(
             self._icon("calendar-off" if podcast.subscribed else "calendar")
         )
-        w.podcastSubscribeButton.setToolTip(tr("Unsubscribe...") if podcast.subscribed else tr("Subscribe"))
+        w.podcastSubscribeButton.setToolTip(tr("Unsubscribe…") if podcast.subscribed else tr("Subscribe"))
         self._showing = True
         self._keep_count.setValue(self.manager.keep_count(podcast))
         self._showing = False

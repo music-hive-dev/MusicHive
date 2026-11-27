@@ -178,6 +178,65 @@
     </widget>
    </item>
    <item>
+    <layout class="QHBoxLayout" name="partyGuestLimitRow">
+     <item>
+      <widget class="QLabel" name="partyGuestLimitLabel">
+       <property name="text">
+        <string>Songs each guest can have waiting:</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QLineEdit" name="partyGuestLimit">
+       <property name="maximumSize">
+        <size>
+         <width>70</width>
+         <height>16777215</height>
+        </size>
+       </property>
+       <property name="toolTip">
+        <string>Type a number, or use the Up and Down keys. 0 means no limit.</string>
+       </property>
+       <property name="minimum" stdset="0">
+        <number>0</number>
+       </property>
+       <property name="maximum" stdset="0">
+        <number>99</number>
+       </property>
+       <property name="value" stdset="0">
+        <number>0</number>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="partyGuestLimitSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QLabel" name="partyGuestLimitHint">
+     <property name="styleSheet">
+      <string notr="true">color: rgba(255, 255, 255, 170);</string>
+     </property>
+     <property name="text">
+      <string>0 means no limit. Songs still coming from the server count too. Once one of a guest's songs has played, they can add another.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
     <widget class="QLabel" name="partyVotes">
      <property name="text">
       <string notr="true"/>

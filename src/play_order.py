@@ -12,11 +12,22 @@ SMART_SHUFFLE_LOOKAHEAD = 60  # how far ahead a song by someone else is looked f
 
 
 @dataclass(slots=True)
+class Placeholder:
+    """A song a party guest asked for that is still on its way from the server.
+    It holds its place in the queue until it is there."""
+
+    key: str
+    title: str
+    artist: str
+
+
+@dataclass(slots=True)
 class Entry:
-    row: int  # library row of the track
+    row: int  # library row of the track; -1 while it is a placeholder
     queued: bool  # True if the user queued it (Play next / Add to queue)
     uid: int  # identifies this entry; the same track can appear more than once
     guest: str = ""  # the name of the party guest who queued it ("" for the user)
+    placeholder: Placeholder | None = None  # set until the song has arrived
 
 
 class PlayOrder:
@@ -71,6 +82,12 @@ class PlayOrder:
             return []
         return [entry.row for entry in self._entries[self._position :]]
 
+    def upcoming_placeholders(self) -> list[Placeholder | None]:
+        """For each of upcoming_rows(), the song still on its way (row -1), or None."""
+        if self._position < 0:
+            return []
+        return [entry.placeholder for entry in self._entries[self._position :]]
+
     def upcoming_guests(self) -> list[str]:
         """Who queued each of upcoming_rows() at a party ("" for the user)."""
         if self._position < 0:
@@ -117,6 +134,11 @@ class PlayOrder:
     def set_repeat(self, mode: str) -> None:
         if mode in self.REPEAT_MODES:
             self.repeat = mode
+
+    def library_rows_added(self, count: int) -> None:
+        """Tracks were added after the others: they can be queued, and the order
+        that follows the whole library takes them in from its next start."""
+        self._count += count
 
     def library_row_removed(self, row: int) -> None:
         """A library track was deleted: drop its entries and renumber the rest."""
@@ -178,6 +200,8 @@ class PlayOrder:
         position = self._position + offset
         if self._position < 0 or not 0 <= position < len(self._entries):
             return -1
+        if self._entries[position].placeholder is not None:
+            return -1  # still on its way
         self._position = position
         return self._entries[position].row
 
@@ -205,6 +229,54 @@ class PlayOrder:
         entry = self._new_entry(row, queued=True)
         entry.guest = guest
         self._entries.insert(index, entry)
+
+    def add_placeholder(self, placeholder: Placeholder, guest: str) -> bool:
+        """Queue a song that is still on its way, where add_to_queue would put it.
+        Returns False if nothing plays, so there is no queue to hold its place."""
+        if self._position < 0:
+            return False
+        index = self._position + 1
+        while index < len(self._entries) and self._entries[index].queued:
+            index += 1
+        entry = self._new_entry(-1, queued=True)
+        entry.guest = guest
+        entry.placeholder = placeholder
+        self._entries.insert(index, entry)
+        return True
+
+    def fill_placeholder(self, key: str, row: int) -> bool:
+        """The song has arrived as library row `row`: it takes the placeholder's
+        place. False if the placeholder was removed meanwhile."""
+        if not 0 <= row < self._count:
+            return False
+        for entry in self._entries[max(self._position, 0) :]:
+            if entry.placeholder is not None and entry.placeholder.key == key:
+                entry.row = row
+                entry.placeholder = None
+                return True
+        return False
+
+    def drop_placeholder(self, key: str) -> None:
+        """The song could not be fetched: its placeholder goes."""
+        self._entries = [
+            entry for index, entry in enumerate(self._entries)
+            if not (
+                index > self._position
+                and entry.placeholder is not None
+                and entry.placeholder.key == key
+            )
+        ]
+
+    def _step_over_placeholders(self) -> bool:
+        """The next entries are songs still on their way: the first ready one moves
+        in front of them, so they stay next in line. False if none is ready."""
+        index = self._position + 1
+        while index < len(self._entries) and self._entries[index].placeholder is not None:
+            index += 1
+        if index >= len(self._entries):
+            return False
+        self._entries.insert(self._position + 1, self._entries.pop(index))
+        return True
 
     def add_to_end(self, row: int) -> None:
         """Queue `row` at the very end of the Upcoming list, after everything else."""
@@ -280,7 +352,8 @@ class PlayOrder:
             return True
         if self.repeat in ("one", "all"):
             return False
-        return self._position + 1 >= len(self._entries)
+        # Songs still on their way from the server can't follow yet.
+        return all(entry.placeholder is not None for entry in self._entries[self._position + 1 :])
 
     # ----- moving through the order -----
 
@@ -294,6 +367,10 @@ class PlayOrder:
             return None
         if ended_naturally and self.repeat == "one":
             return self.current_row
+        following = self._position + 1
+        if following < len(self._entries) and self._entries[following].placeholder is not None:
+            if not self._step_over_placeholders():
+                return None  # only songs on their way are left: they are kept
         if self._position + 1 < len(self._entries):
             self._position += 1
             return self.current_row
@@ -312,17 +389,16 @@ class PlayOrder:
     # ----- saving and restoring -----
 
     def snapshot(self) -> tuple[list[int], list[bool], int, int]:
-        """Rows, queued flags, playing position and stop-after position."""
-        stop_index = -1
-        if self._stop_after is not None:
-            for index, entry in enumerate(self._entries):
-                if entry.uid == self._stop_after:
-                    stop_index = index
-                    break
+        """Rows, queued flags, playing position and stop-after position. Songs still
+        on their way are left out: they are not in the library yet."""
+        kept = [entry for entry in self._entries if entry.placeholder is None]
+        playing = self._entries[self._position].uid if 0 <= self._position < len(self._entries) else None
+        position = next((i for i, e in enumerate(kept) if e.uid == playing), -1)
+        stop_index = next((i for i, e in enumerate(kept) if e.uid == self._stop_after), -1)
         return (
-            [entry.row for entry in self._entries],
-            [entry.queued for entry in self._entries],
-            self._position,
+            [entry.row for entry in kept],
+            [entry.queued for entry in kept],
+            position,
             stop_index,
         )
 
