@@ -679,6 +679,7 @@ class CastMedia:
     # which simply goes on while MusicHive changes the song inside it).
     stand_in_url: str = ""
     lyrics: str | None = None  # for a browser page; None: not a song (no "No lyrics")
+    added_by: str = ""  # for a browser page: "added by <guest>" at a party
     gain_db: float = 0.0  # for a browser page: Level Volume's change for this song
     bars: dict | None = None  # for a browser page: the song's bar map (cast_bars.describe)
     bars_coming: bool = False  # …or it is being made, and follows when it is ready

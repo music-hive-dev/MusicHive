@@ -1,5 +1,6 @@
 """MusicHive: application startup and UI wiring."""
 
+import base64
 import datetime
 import faulthandler
 import signal
@@ -92,6 +93,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QHeaderView,
     QLabel,
+    QListWidgetItem,
     QMenu,
     QMessageBox,
     QProxyStyle,
@@ -199,6 +201,7 @@ from src.radio_stream import RadioStream, split_title
 from src.radio_view import RadioSettingsTab, RadioTab
 from src.sleep_timer import DEFAULT_FADE_SECONDS, FADE_KEY, SleepTimer
 from src.podcasts import PodcastManager
+from src.party import LibrarySource, PartyError, PartyHost, PartyState, qr_image, qr_png
 from src.shortcuts import Shortcuts, ShortcutsSettingsTab
 from src.lyrics_settings import LyricsSettings, LyricsSettingsTab, load_lyrics_settings
 from src.number_field import NumberField
@@ -279,6 +282,11 @@ FIND_DUPLICATES_UI_FILE = UI_DIR / "find_duplicates.ui"
 MUSICBRAINZ_UI_FILE = UI_DIR / "musicbrainz_lookup.ui"
 TAG_HISTORY_UI_FILE = UI_DIR / "tag_history.ui"
 COVER_WINDOW_UI_FILE = UI_DIR / "cover_window.ui"
+CAST_WINDOW_UI_FILE = UI_DIR / "cast_window.ui"
+PARTY_WINDOW_UI_FILE = UI_DIR / "party.ui"
+PARTY_QR_SIDE = 320  # points; the QR code in the Party Mode window
+PARTY_TV_QR_SIDE = 200  # pixels; the QR code on a cast video (cast_screen.ui)
+PARTY_PAGE_QR_SIDE = 600  # pixels; the QR code on a TV's browser page
 ABOUT_UI_FILE = UI_DIR / "about.ui"
 MINI_PLAYER_UI_FILE = UI_DIR / "mini_player.ui"
 CAST_SCREEN_UI_FILE = UI_DIR / "cast_screen.ui"
@@ -933,6 +941,8 @@ class MusicHive:
         setup_library_table(w.libraryList, self.library_proxy)
         self.restore_table_layout()
         w.libraryList.doubleClicked.connect(self.play_item)
+        # Early: the Upcoming list and the player tell the party what changed.
+        self.setup_party()
 
         # Upcoming tracks: the playing track first, then the tracks that will
         # follow it in play order. It reads its data from the library model.
@@ -1932,6 +1942,7 @@ class MusicHive:
         self.current_cover_colours = colours
         self.send_screen_style()
         memory.trim_soon()  # the previous song's cover and sound are freed by now
+        self.party.changed()  # a new song, or what the radio plays changed
 
     def set_visualiser_style(self, style: VisualiserSettings) -> None:
         """How the bars of both visualisers look (Settings, Visualiser)."""
@@ -2004,6 +2015,7 @@ class MusicHive:
         self.stop_station()  # finishes a tape and a scrobble
         self.podcasts.shutdown()
         self.radio.shutdown()
+        self.party.stop()
         self.artist_info.shutdown()
         self.online_search.shutdown()
         if self.level_tool is not None:
@@ -2741,9 +2753,12 @@ class MusicHive:
         scroll = scroll_bar.value()
 
         self.queue_model.set_rows(
-            self.play_order.upcoming_rows(), self.play_order.stop_after_offset()
+            self.play_order.upcoming_rows(),
+            self.play_order.stop_after_offset(),
+            self.play_order.upcoming_guests(),
         )
         self.update_stop_after_action()
+        self.party.changed()
         if self.queue_model.rowCount() > 0:
             # The playing track is always the first row of the Upcoming list.
             view.setCurrentIndex(self.queue_model.index(0, 0))
@@ -6360,52 +6375,67 @@ class MusicHive:
     # ----- casting -----
 
     def setup_casting(self) -> None:
-        """The Cast To menu and button: play on a Chromecast or a DLNA TV or speaker."""
+        """The Cast To window and button: play on a Chromecast, a DLNA TV or speaker,
+        or in a web browser (cast_window.ui)."""
         w = self.window
         self.cast_finder = CastFinder(w)
         self.cast_finder.found.connect(self.on_cast_devices_found)
         self.cast_devices: list[CastDevice] = []
-        self.cast_actions: list[QAction] = []
         self.cast_searched = False
-        w.actionCastVideo.setChecked(self.settings.value(CAST_VIDEO_KEY, False, type=bool))
-        w.actionCastVideo.toggled.connect(self.on_cast_video_toggled)
         self.local_volume: int | None = None  # this computer's volume, kept while casting
-        self.cast_group = QActionGroup(w)
-        self.cast_group.setExclusive(True)
-        self.cast_group.addAction(w.actionCastComputer)
-        self.cast_group.addAction(w.actionCastBrowser)
-        w.actionCastBrowser.triggered.connect(lambda _checked=False: self.cast_to_browser())
-        w.actionCastBrowserAddress.setVisible(False)
-        w.actionCastBrowserAddress.triggered.connect(
-            lambda _checked=False: QApplication.clipboard().setText(self.player.browser_address)
+
+        window = self.cast_window = load_dialog(CAST_WINDOW_UI_FILE, w)
+        window.castBrowserBox.setAttribute(Qt.WidgetAttribute.WA_StyledBackground)
+        window.castBrowserBox.hide()
+        window.castVideo.setChecked(self.settings.value(CAST_VIDEO_KEY, False, type=bool))
+        window.castVideo.toggled.connect(self.on_cast_video_toggled)
+        window.castDeviceList.itemClicked.connect(self.on_cast_item_clicked)
+        window.castSearch.clicked.connect(self.search_cast_devices)
+        window.castBrowserCopy.clicked.connect(
+            lambda: self.copy_text(self.player.browser_address, tr("Address copied"))
         )
-        w.actionCastComputer.triggered.connect(lambda _checked=False: self.cast_to(None))
-        w.actionCastSearch.triggered.connect(lambda _checked=False: self.search_cast_devices())
-        w.menuCast.aboutToShow.connect(self.on_cast_menu_shown)
-        w.castButton.clicked.connect(lambda _checked=False: self.show_cast_menu())
+        window.castButtonBox.rejected.connect(window.close)
+        window.castSearchStatus.setText(tr("No TVs or speakers found yet."))
+
+        w.actionCastWindow.triggered.connect(lambda _checked=False: self.show_cast_window())
+        w.castButton.clicked.connect(lambda _checked=False: self.show_cast_window())
         self.player.cast_volume.connect(self.on_cast_volume)
         self.player.cast_ended.connect(self.on_cast_ended)
         self.player.skip_requested.connect(self.on_cast_skip)
         self.player.cast_request.connect(self.on_cast_request)
+        self.update_cast_ui()
 
-    def show_cast_menu(self) -> None:
-        w = self.window
-        w.castButton.setChecked(self.player.casting)  # the click toggled it; the menu decides
-        w.menuCast.exec(w.castButton.mapToGlobal(w.castButton.rect().bottomLeft()))
-
-    def on_cast_menu_shown(self) -> None:
+    def show_cast_window(self) -> None:
+        window = self.cast_window
+        self.update_cast_ui()  # the button's click toggled it; casting decides
+        window.show()
+        window.raise_()
+        window.activateWindow()
         if not self.cast_searched:  # the first time, look without being asked
             self.search_cast_devices()
+
+    def on_cast_item_clicked(self, item: QListWidgetItem) -> None:
+        """A place to play was picked in the Cast To window."""
+        devices = self.cast_window.castDeviceList
+        row = devices.row(item)
+        if row == 0:
+            self.cast_to(None)
+        elif row == devices.count() - 1:
+            self.cast_to_browser()
+        elif 0 <= row - 1 < len(self.cast_devices):
+            self.cast_to(self.cast_devices[row - 1])
+        self.update_cast_ui()  # also when nothing changed, or casting failed
 
     def search_cast_devices(self) -> None:
         self.cast_searched = True
         if self.cast_finder.search():
-            self.window.actionCastSearch.setEnabled(False)
+            self.cast_window.castSearch.setEnabled(False)
+            self.cast_window.castSearchStatus.setText(tr("Looking for TVs and speakers…"))
             self.show_status(tr("Looking for TVs and speakers…"))
 
     def on_cast_devices_found(self, devices: list[CastDevice]) -> None:
-        w = self.window
-        w.actionCastSearch.setEnabled(True)
+        window = self.cast_window
+        window.castSearch.setEnabled(True)
         current = self.player.cast_device
         if (
             current is not None
@@ -6413,28 +6443,24 @@ class MusicHive:
             and all(d.id != current.id for d in devices)
         ):
             devices = [current, *devices]  # still in use, even if it did not answer now
-        for action in self.cast_actions:
-            self.cast_group.removeAction(action)
-            w.menuCast.removeAction(action)
-            action.deleteLater()
-        self.cast_actions = []
-        for device in devices:
-            action = QAction(device.name, w.menuCast)
-            action.setCheckable(True)
-            action.triggered.connect(lambda _checked=False, d=device: self.cast_to(d))
-            self.cast_group.addAction(action)
-            w.menuCast.insertAction(w.actionCastNoDevices, action)
-            self.cast_actions.append(action)
+        # The found devices go between This Computer (first) and Web Browser (last).
+        found = window.castDeviceList
+        while found.count() > 2:
+            found.takeItem(1)
+        icon = asset_icon("cast")
+        for offset, device in enumerate(devices, start=1):
+            item = QListWidgetItem(icon, device.name)
+            item.setToolTip("Chromecast" if device.kind == CHROMECAST else "DLNA")
+            found.insertItem(offset, item)
         self.cast_devices = devices
-        w.actionCastNoDevices.setVisible(not devices)
         self.update_cast_ui()
         if devices:
-            count = len(devices)
-            message = tr("Found %n TV(s) or speaker(s)", "", count)
+            message = tr("Found %n TV(s) or speaker(s)", "", len(devices))
         else:
             message = tr("No TVs or speakers found. Are they switched on and on the same network?")
         if not self.cast_finder.chromecast_support:
             message += tr(" (Chromecasts need the PyChromecast package)")
+        window.castSearchStatus.setText(message)
         self.show_status(message)
 
     def cast_to(self, device: CastDevice | None, again: bool = False) -> None:
@@ -6450,7 +6476,7 @@ class MusicHive:
                 self.back_on_computer()
                 self.show_status(tr("Stopped casting to {name}").format(name=current.name))
         elif again or current is None or current.id != device.id:
-            video = w.actionCastVideo.isChecked() and device.kind != BROWSER
+            video = self.cast_window.castVideo.isChecked() and device.kind != BROWSER
             try:
                 player.start_casting(device, video=video)
             except CastError as error:
@@ -6475,11 +6501,12 @@ class MusicHive:
             kind = "Chromecast" if device.kind == CHROMECAST else "DLNA"
             if device.kind == BROWSER:
                 self.send_screen_style()
+                self.send_party_to_tv()
                 self.prepare_next_bars()
                 self.show_status(
                     tr(
                         "Open {browser_address} in the TV's browser "
-                        "(click the address in the Cast To menu to copy it)"
+                        "(the Cast To window can copy it)"
                     ).format(browser_address=player.browser_address)
                 )
             elif video:
@@ -6540,7 +6567,9 @@ class MusicHive:
         self.player.set_muted(w.muteButton.isChecked())
 
     def update_cast_ui(self) -> None:
+        """The cast button and the Cast To window show where the music plays."""
         w = self.window
+        window = self.cast_window
         device = self.player.cast_device
         w.castButton.setChecked(device is not None)
         w.castButton.setToolTip(
@@ -6548,14 +6577,23 @@ class MusicHive:
             if device is not None
             else tr("Cast to a TV or speaker.")
         )
-        w.actionCastComputer.setChecked(device is None)
         browser = device is not None and device.kind == BROWSER
-        w.actionCastBrowser.setChecked(browser)
+        found = window.castDeviceList
+        if device is None:
+            row = 0
+            window.castStatus.setText(tr("Playing on this computer."))
+        else:
+            window.castStatus.setText(tr("Casting to {device}.").format(device=device.name))
+            row = found.count() - 1 if browser else next(
+                (offset for offset, d in enumerate(self.cast_devices, start=1) if d.id == device.id),
+                -1,
+            )
+        found.blockSignals(True)
+        found.setCurrentRow(row)
+        found.blockSignals(False)
         address = self.player.browser_address if browser else ""
-        w.actionCastBrowserAddress.setVisible(bool(address))
-        w.actionCastBrowserAddress.setText(address)
-        for action, found in zip(self.cast_actions, self.cast_devices):
-            action.setChecked(device is not None and found.id == device.id)
+        window.castBrowserBox.setVisible(bool(address))
+        window.castBrowserAddress.setText(address)
 
     def on_cast_volume(self, volume: int) -> None:
         """The device's own volume: the slider shows it, without changing it."""
@@ -6597,10 +6635,188 @@ class MusicHive:
         title = metadata.get("xesam:title", ("s", ""))[1]
         artist = ", ".join(metadata.get("xesam:artist", ("as", []))[1])
         album = metadata.get("xesam:album", ("s", ""))[1]
+        guest = self.playing_guest()
+        added_by = tr("added by {name}").format(name=guest) if guest else ""
         self.player.set_cast_details(
-            title, artist, album, self.full_cover_data, self.current_lyrics
+            title, artist, album, self.full_cover_data, self.current_lyrics, added_by
         )
-        self.cast_screen.set_details(title, artist)
+        self.cast_screen.set_details(title, artist, added_by)
+
+    def playing_guest(self) -> str:
+        """The party guest who asked for the playing song ("" for none)."""
+        if self.station_id is not None or self.episode_id is not None:
+            return ""
+        guests = self.play_order.upcoming_guests()
+        return guests[0] if guests else ""
+
+    # ----- Party Mode -----
+
+    def setup_party(self) -> None:
+        """Guests add songs to the queue from their phones (see party.py)."""
+        self.party = PartyHost(
+            state=self.party_state,
+            skip=self.play_next,
+            cover_for=self.party_cover,
+            parent=self.window,
+        )
+        library = LibrarySource(self.party_songs, self.party_queue_song)
+        self.party.sources[library.name] = library
+        # Search results name songs by their row; new rows make old results useless.
+        self.library_model.modelReset.connect(
+            lambda: setattr(library, "generation", library.generation + 1)
+        )
+        self.party.vote_skip = self.settings.value("partyVoteSkip", True, type=bool)
+        self.party.guests_changed.connect(self.update_party_window)
+        self.party.stopped.connect(self.send_party_to_tv)  # the TV's QR code goes away
+        self.party_window = None  # made the first time it opens
+        self.party_on_tv = False  # the QR code is shown on a TV cast to
+        self.window.actionPartyMode.triggered.connect(
+            lambda _checked=False: self.show_party_window()
+        )
+
+    def show_party_window(self) -> None:
+        """Start the party, if it hasn't started, and show its QR code."""
+        try:
+            address = self.party.start()
+        except OSError as error:
+            QMessageBox.warning(self.window, tr("Cannot start Party Mode"), str(error))
+            return
+        self.send_party_to_tv()  # the TV's page gets its QR button
+        if self.party_window is None:
+            window = self.party_window = load_dialog(PARTY_WINDOW_UI_FILE, self.window)
+            window.partyCopyAddress.clicked.connect(
+                lambda: self.copy_text(self.party.address(), tr("Address copied"))
+            )
+            window.partyVoteSkip.setChecked(self.party.vote_skip)
+            window.partyVoteSkip.toggled.connect(self.set_party_vote_skip)
+            window.partyEnd.clicked.connect(self.end_party)
+            window.partyClose.clicked.connect(window.close)
+            window.partyShowOnTv.toggled.connect(self.set_party_on_tv)
+        window = self.party_window
+        side = PARTY_QR_SIDE
+        ratio = window.devicePixelRatioF()
+        code = qr_image(address, round(side * ratio))
+        window.partyNoQr.setVisible(code is None)
+        window.partyQrImage.setVisible(code is not None)
+        if code is not None:
+            pixmap = QPixmap.fromImage(code)
+            pixmap.setDevicePixelRatio(ratio)
+            window.partyQrImage.setPixmap(pixmap)
+        window.partyAddress.setText(address)
+        self.update_party_window()
+        window.show()
+        window.raise_()
+        window.activateWindow()
+
+    def end_party(self) -> None:
+        self.party.stop()
+        if self.party_window is not None:
+            self.party_window.partyShowOnTv.setChecked(False)
+            self.party_window.close()
+        self.show_status(tr("The party has ended"))
+
+    def set_party_on_tv(self, shown: bool) -> None:
+        self.party_on_tv = shown
+        self.send_party_to_tv()
+        if shown and not self.player.casting:
+            self.show_status(tr("The code shows on the TV once you cast to it"))
+
+    def send_party_to_tv(self) -> None:
+        """Show the party's QR code on the TV cast to, or take it away."""
+        address = self.party.address()  # "" once the party has ended
+        shown = bool(address) and self.party_on_tv
+        self.cast_screen.set_party(
+            qr_image(address, PARTY_TV_QR_SIDE) if shown else None, address
+        )
+        # The browser page also gets the code while it is hidden, for its own QR
+        # button; no code there means no party.
+        png = qr_png(address, PARTY_PAGE_QR_SIDE) if address else None
+        self.player.send_party_card({
+            "shown": shown,
+            "qr": f"data:image/png;base64,{base64.b64encode(png).decode()}" if png else "",
+            "text": tr("Scan to add songs"),
+            "address": address,
+        })
+
+    def set_party_vote_skip(self, enabled: bool) -> None:
+        self.party.set_vote_skip(enabled)
+        self.settings.setValue("partyVoteSkip", enabled)
+
+    def update_party_window(self) -> None:
+        """Who is at the party, and the skip votes."""
+        window = self.party_window
+        if window is None:
+            return
+        names = self.party.guest_names()
+        if names:
+            window.partyGuests.setText(
+                tr("%n guest(s): {names}", "", len(names)).format(names=", ".join(names))
+            )
+        else:
+            window.partyGuests.setText(tr("No guests yet"))
+        votes, needed = self.party.votes()
+        window.partyVotes.setVisible(self.party.vote_skip and votes > 0)
+        window.partyVotes.setText(
+            tr("Votes to skip this song: {votes} of {needed}").format(votes=votes, needed=needed)
+        )
+
+    def party_state(self) -> PartyState:
+        """What the guests' phones show: the playing song and what comes next."""
+        w = self.window
+        state = PartyState(
+            cover=self.full_cover_data, playing=self.playback_state == "playing"
+        )
+        if self.station_id is not None or self.episode_id is not None:
+            state.title = w.currentTrackLabel.text()
+            return state
+        info = self.library_model.info(self.current_index)
+        if info is None:
+            return state
+        state.title, state.artist = info.title, info.artist
+        rows = self.play_order.upcoming_rows()
+        guests = self.play_order.upcoming_guests()
+        state.guest = guests[0] if guests else ""
+        for row, guest in list(zip(rows, guests))[1:]:
+            song = self.library_model.info(row)
+            if song is None:
+                continue
+            state.upcoming.append({
+                "title": song.title,
+                "artist": song.artist,
+                "guest": guest,
+                "cover": f"cover/library-{song.cover_key}" if song.cover_key else "",
+            })
+        return state
+
+    def party_songs(self) -> list[tuple[int, str, str, str, str | None]]:
+        """Every song of the library, for the guests' search."""
+        model = self.library_model
+        songs = []
+        for row in range(model.rowCount()):
+            info = model.info(row)
+            songs.append((row, info.title, info.artist, info.album, info.cover_key))
+        return songs
+
+    def party_queue_song(self, row: int, guest: str) -> str:
+        """A guest asked for a song: it goes to the queue, or starts if nothing plays."""
+        info = self.library_model.info(row)
+        if info is None or not 0 <= row < len(self.tracks):
+            raise PartyError(tr("That song is no longer there. Search again."))
+        if self.station_id is not None or self.episode_id is not None:
+            raise PartyError(tr("Songs can be added once music from the library plays again."))
+        if self.current_index < 0:
+            self.play_order.start_at(row, self.play_source_rows())
+            self.play_index(row)
+            self.play_order.set_current_guest(guest)
+        else:
+            self.play_order.add_to_queue(row, guest)
+        self.refresh_upcoming(keep_scroll=True)
+        self.show_status(tr("{name} added {title}").format(name=guest, title=info.title))
+        return tr("Added {title} to the queue").format(title=info.title)
+
+    def party_cover(self, source: str, key: str) -> bytes | None:
+        """A small cover for the guests' phones."""
+        return self.library_model.cover_data(key) if source == "library" else None
 
     def setup_sleep_timer(self) -> None:
         w = self.window
@@ -6886,6 +7102,7 @@ class MusicHive:
 
     def on_state_changed(self, state: str) -> None:
         self.playback_state = state
+        self.party.changed()
         w = self.window
         if state == "paused":
             self.save_episode_position()

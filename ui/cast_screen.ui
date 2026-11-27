@@ -29,6 +29,26 @@ QLabel#castArtist {
     color: rgba(255, 255, 255, 170);
     font-size: 15pt;
 }
+QLabel#castAddedBy {
+    color: #ffffff;
+    background-color: #312d34;
+    border-radius: 12px;
+    padding: 3px 12px;
+    font-size: 12pt;
+}
+QWidget#castParty {
+    background-color: rgba(34, 32, 35, 230);
+    border-radius: 20px;
+}
+QLabel#castPartyText {
+    color: #ffffff;
+    font-size: 14pt;
+    font-weight: bold;
+}
+QLabel#castPartyAddress {
+    color: rgba(255, 255, 255, 170);
+    font-size: 10pt;
+}
 QListWidget#castLyrics,
 QListWidget#castLyrics::item,
 QListWidget#castLyrics::item:hover {
@@ -92,6 +112,84 @@ QListWidget#castLyrics::item:hover {
      </property>
     </widget>
    </item>
+   <item row="0" column="0" alignment="Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTop">
+    <widget class="QWidget" name="castPartyArea" native="true">
+     <layout class="QVBoxLayout" name="castPartyAreaLayout">
+      <property name="leftMargin">
+       <number>0</number>
+      </property>
+      <property name="topMargin">
+       <number>32</number>
+      </property>
+      <property name="rightMargin">
+       <number>40</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QWidget" name="castParty" native="true">
+        <layout class="QVBoxLayout" name="castPartyLayout">
+         <property name="spacing">
+          <number>8</number>
+         </property>
+         <property name="leftMargin">
+          <number>18</number>
+         </property>
+         <property name="topMargin">
+          <number>18</number>
+         </property>
+         <property name="rightMargin">
+          <number>18</number>
+         </property>
+         <property name="bottomMargin">
+          <number>14</number>
+         </property>
+         <item alignment="Qt::AlignmentFlag::AlignHCenter">
+          <widget class="QLabel" name="castPartyQr">
+           <property name="minimumSize">
+            <size>
+             <width>200</width>
+             <height>200</height>
+            </size>
+           </property>
+           <property name="maximumSize">
+            <size>
+             <width>200</width>
+             <height>200</height>
+            </size>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="castPartyText">
+           <property name="text">
+            <string>Scan to add songs</string>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QLabel" name="castPartyAddress">
+           <property name="text">
+            <string notr="true"/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignmentFlag::AlignCenter</set>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </widget>
+   </item>
    <item row="1" column="0">
     <widget class="QWidget" name="castInfo" native="true">
      <layout class="QVBoxLayout" name="castInfoLayout">
@@ -119,6 +217,13 @@ QListWidget#castLyrics::item:hover {
       </item>
       <item>
        <widget class="QLabel" name="castArtist">
+        <property name="text">
+         <string/>
+        </property>
+       </widget>
+      </item>
+      <item alignment="Qt::AlignmentFlag::AlignLeft">
+       <widget class="QLabel" name="castAddedBy">
         <property name="text">
          <string/>
         </property>

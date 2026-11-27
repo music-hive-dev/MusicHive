@@ -33,9 +33,9 @@ cp -a "/usr/lib/$python" "$app/usr/lib/"
 find "$app/usr/lib/$python" -name __pycache__ -prune -exec rm -rf {} +
 cp -a /usr/lib/python3/dist-packages/gi "$site/"
 
-echo "Installing PySide6, Mutagen and PyChromecast..."
+echo "Installing PySide6, Mutagen, PyChromecast and segno..."
 python3 -m pip install -q --break-system-packages --no-compile --target "$site" \
-    "PySide6>=6.9" "mutagen>=1.47" "PyChromecast>=14"
+    "PySide6>=6.9" "mutagen>=1.47" "PyChromecast>=14" "segno>=1.5"
 rm -rf "$site/bin"
 # Leave out the parts of Qt MusicHive doesn't use. Qt WebEngine alone is a few
 # hundred megabytes.

@@ -24,6 +24,8 @@ Recommends:     gstreamer1-plugin-libav
 Recommends:     gstreamer1-plugins-ugly-free
 # For casting to Chromecasts (DLNA TVs and speakers work without it).
 Recommends:     python3-pychromecast
+# The QR code guests scan in Party Mode (they can type the address without it).
+Recommends:     python3-segno
 # For casting the visualiser and lyrics to a DLNA TV (H.264 video).
 Recommends:     gstreamer1-plugin-openh264
 # For ejecting and opening portable devices.

@@ -93,15 +93,17 @@ its position.
 ### Casting
 
 Send the music to your TV, from the cast button next to the equaliser or
-Playback → Cast To. Songs, podcasts and radio all work, and going back to This
-Computer carries on where the TV was. There are three ways to do it:
+Playback → Cast To…. That opens the Cast To window, which lists This Computer,
+the TVs and speakers it finds and the web browser; click one to play there.
+Songs, podcasts and radio all work, and going back to This Computer carries on
+where the TV was. There are three ways to do it:
 
 **Chromecasts and DLNA TVs or speakers.** MusicHive finds them on your network.
 The TV shows the title, artist and cover, and the play button, seek bar and
 volume in MusicHive control it. On a Chromecast, previous and next also work
 from the TV, the phone notification and Google Home.
 
-**With the visualiser and lyrics.** Turn on *Show Visualiser and Lyrics on the
+**With the visualiser and lyrics.** Turn on *Show visualiser and lyrics on the
 TV* and MusicHive sends a video instead: your visualiser and the lyrics, with the
 title and artist underneath. The sound goes through your equaliser, crossfade and
 Level Volume, and the pictures are made together with it, so they stay in time
@@ -135,6 +137,24 @@ casting, and only answers the device you're casting to (or, for the browser page
 whoever has its address). Chromecasts need the PyChromecast package; DLNA TVs need
 an H.264 encoder such as openh264 for the video mode; the browser page needs
 nothing extra. The AppImage and the Windows version have all of that built in.
+
+### Party Mode
+
+Let your friends pick the music. Playback → Party Mode shows a QR code with the
+MusicHive logo in the middle; guests on the same Wi-Fi scan it with their phone
+camera, type their name once and get a page where they can:
+
+- see what's playing and what's coming up,
+- search your library and add songs to the queue,
+- vote to skip the playing song. It's skipped once more than half of the guests
+  vote for it, and you can turn voting off.
+
+Their songs show up in your Upcoming list with "added by" and their name, and
+you can move or remove them like any other. While you cast to a web browser or
+with the visualiser and lyrics, the TV shows who added the song too, and *Show on
+TV* puts the QR code in a corner of the TV so people can join from there. The
+browser page also gets a QR button next to play and pause. The page uses the same ports as
+casting (8471 to 8480), and the address stops working when you end the party.
 
 ### Playlists
 

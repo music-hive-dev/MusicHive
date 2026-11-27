@@ -1,0 +1,231 @@
+/* The Party Mode page, made for phones. MusicHive's own colours. */
+
+:root {
+  --window: #151416;
+  --panel: #222023;
+  --surface: #312d34;
+  --raised: #433d47;
+  --highlight: #6c53a6;
+  --text: #ffffff;
+  --dimmed: rgba(255, 255, 255, 0.67);
+  --radius: 16px;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  background: var(--window);
+  color: var(--text);
+  font-family: Inter, "Segoe UI", Roboto, "Noto Sans", system-ui, sans-serif;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+[hidden] { display: none !important; }
+
+.dimmed { color: var(--dimmed); }
+.small { font-size: 0.85rem; }
+
+header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  padding-top: max(12px, env(safe-area-inset-top));
+  background: var(--window);
+}
+.logo { width: 28px; height: 28px; }
+.brand { font-weight: 700; flex: 1; }
+
+main {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 0 16px max(24px, env(safe-area-inset-bottom));
+}
+
+.card {
+  background: var(--panel);
+  border-radius: var(--radius);
+}
+
+button, input { font: inherit; color: inherit; }
+
+.pill {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  background: var(--surface);
+  cursor: pointer;
+}
+.pill:active { background: var(--raised); }
+.pill.accent { background: var(--highlight); }
+.pill.accent:active { filter: brightness(1.15); }
+.pill:disabled { opacity: 0.5; }
+.pill.wide { width: 100%; padding: 12px; }
+
+/* ----- what plays now ----- */
+
+#now {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: 14px;
+  align-items: center;
+  padding: 14px;
+}
+#nowCover, .cover-placeholder {
+  width: 96px;
+  height: 96px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+.cover-placeholder {
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--dimmed);
+  font-size: 2.2rem;
+}
+.now-text { min-width: 0; }
+.label {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--dimmed);
+  margin-bottom: 2px;
+}
+.title {
+  font-size: 1.15rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+.guest {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: var(--surface);
+  font-size: 0.8rem;
+}
+#skip {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* ----- searching ----- */
+
+#find { margin-top: 16px; }
+#search {
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: var(--surface);
+  outline: none;
+}
+#search:focus { box-shadow: 0 0 0 2px var(--highlight); }
+#search::placeholder { color: var(--dimmed); }
+
+h2 {
+  font-size: 1rem;
+  margin: 24px 4px 8px;
+}
+
+.songs {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+}
+.songs li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px;
+  border-radius: 12px;
+}
+.songs li:nth-child(odd) { background: var(--panel); }
+.songs img, .songs .cover-placeholder {
+  flex: none;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  font-size: 1.2rem;
+}
+.song-text {
+  flex: 1;
+  min-width: 0;
+}
+.song-text div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.song-text .dimmed { font-size: 0.85rem; }
+.song-text .guest { margin-top: 3px; }
+.songs .pill { flex: none; }
+.empty { padding: 12px 8px; }
+
+/* ----- messages ----- */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: max(20px, env(safe-area-inset-bottom));
+  transform: translate(-50%, 20px);
+  max-width: calc(100% - 32px);
+  padding: 10px 18px;
+  border-radius: 999px;
+  background: var(--raised);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 5;
+}
+#toast.shown { opacity: 1; transform: translate(-50%, 0); }
+
+#banner {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 10px 16px;
+  padding-top: max(10px, env(safe-area-inset-top));
+  background: var(--highlight);
+  text-align: center;
+  z-index: 4;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(21, 20, 22, 0.92);
+  z-index: 6;
+}
+.dialog {
+  width: 100%;
+  max-width: 380px;
+  padding: 24px;
+  text-align: center;
+}
+.dialog h1 { font-size: 1.4rem; margin: 8px 0; }
+.dialog-logo { width: 64px; height: 64px; }
+#nameInput {
+  width: 100%;
+  margin: 8px 0 14px;
+  border: none;
+  border-radius: 999px;
+  padding: 12px 18px;
+  background: var(--surface);
+  outline: none;
+  text-align: center;
+}
+#nameInput:focus { box-shadow: 0 0 0 2px var(--highlight); }

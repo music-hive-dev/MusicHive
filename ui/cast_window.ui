@@ -1,0 +1,251 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>castWindow</class>
+ <widget class="QDialog" name="castWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>420</width>
+    <height>560</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Cast To</string>
+  </property>
+  <property name="styleSheet">
+   <string notr="true">QListWidget#castDeviceList {
+    background-color: #222023;
+    border: none;
+    border-radius: 14px;
+    padding: 6px;
+}
+QListWidget#castDeviceList::item {
+    border-radius: 10px;
+    padding: 8px 6px;
+}
+QListWidget#castDeviceList::item:hover {
+    background-color: #312d34;
+}
+QListWidget#castDeviceList::item:selected {
+    background-color: #6c53a6;
+    color: #ffffff;
+}
+QWidget#castBrowserBox {
+    background-color: #222023;
+    border-radius: 14px;
+}
+QToolButton#castBrowserCopy {
+    border-radius: 14px;
+    min-width: 28px;
+    min-height: 28px;
+}
+QPushButton#castSearch {
+    border-radius: 14px;
+    padding: 6px 16px;
+}</string>
+  </property>
+  <layout class="QVBoxLayout" name="castLayout">
+   <property name="spacing">
+    <number>12</number>
+   </property>
+   <property name="leftMargin">
+    <number>20</number>
+   </property>
+   <property name="topMargin">
+    <number>20</number>
+   </property>
+   <property name="rightMargin">
+    <number>20</number>
+   </property>
+   <property name="bottomMargin">
+    <number>20</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="castTitle">
+     <property name="text">
+      <string>&lt;h2&gt;Cast To&lt;/h2&gt;</string>
+     </property>
+     <property name="textFormat">
+      <enum>Qt::TextFormat::RichText</enum>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="castStatus">
+     <property name="styleSheet">
+      <string notr="true">color: rgba(255, 255, 255, 170);</string>
+     </property>
+     <property name="text">
+      <string notr="true"/>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QListWidget" name="castDeviceList">
+     <property name="focusPolicy">
+      <enum>Qt::FocusPolicy::StrongFocus</enum>
+     </property>
+     <property name="iconSize">
+      <size>
+       <width>22</width>
+       <height>22</height>
+      </size>
+     </property>
+     <property name="spacing">
+      <number>2</number>
+     </property>
+     <property name="toolTip">
+      <string>Click where the music should play</string>
+     </property>
+     <item>
+      <property name="text">
+       <string>This Computer</string>
+      </property>
+      <property name="icon">
+       <iconset>
+        <normaloff>../assets/monitor-smartphone.svg</normaloff>../assets/monitor-smartphone.svg</iconset>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Web Browser</string>
+      </property>
+      <property name="toolTip">
+       <string>Play in a web page that you open in your TV's browser (or any browser), with the visualiser and lyrics.</string>
+      </property>
+      <property name="icon">
+       <iconset>
+        <normaloff>../assets/globe.svg</normaloff>../assets/globe.svg</iconset>
+      </property>
+     </item>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="castSearchRow">
+     <property name="spacing">
+      <number>8</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="castSearchStatus">
+       <property name="styleSheet">
+        <string notr="true">color: rgba(255, 255, 255, 170);</string>
+       </property>
+       <property name="text">
+        <string notr="true"/>
+       </property>
+       <property name="wordWrap">
+        <bool>true</bool>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QPushButton" name="castSearch">
+       <property name="text">
+        <string>Search Again</string>
+       </property>
+       <property name="toolTip">
+        <string>Look for Chromecasts and DLNA TVs and speakers on your network.</string>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>../assets/refresh-cw.svg</normaloff>../assets/refresh-cw.svg</iconset>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item>
+    <widget class="QWidget" name="castBrowserBox" native="true">
+     <layout class="QVBoxLayout" name="castBrowserLayout">
+      <property name="spacing">
+       <number>4</number>
+      </property>
+      <property name="leftMargin">
+       <number>14</number>
+      </property>
+      <property name="topMargin">
+       <number>10</number>
+      </property>
+      <property name="rightMargin">
+       <number>10</number>
+      </property>
+      <property name="bottomMargin">
+       <number>10</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="castBrowserHint">
+        <property name="styleSheet">
+         <string notr="true">color: rgba(255, 255, 255, 170);</string>
+        </property>
+        <property name="text">
+         <string>Open this address in the TV's browser:</string>
+        </property>
+        <property name="wordWrap">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <layout class="QHBoxLayout" name="castBrowserRow">
+        <item>
+         <widget class="QLabel" name="castBrowserAddress">
+          <property name="text">
+           <string notr="true">http://…</string>
+          </property>
+          <property name="textInteractionFlags">
+           <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QToolButton" name="castBrowserCopy">
+          <property name="toolTip">
+           <string>Copy the address</string>
+          </property>
+          <property name="icon">
+           <iconset>
+            <normaloff>../assets/clipboard-copy.svg</normaloff>../assets/clipboard-copy.svg</iconset>
+          </property>
+         </widget>
+        </item>
+       </layout>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="castVideo">
+     <property name="text">
+      <string>Show visualiser and lyrics on the TV</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="castVideoHint">
+     <property name="styleSheet">
+      <string notr="true">color: rgba(255, 255, 255, 170);</string>
+     </property>
+     <property name="text">
+      <string>For Chromecasts and DLNA TVs: a video with the visualiser and lyrics. The equaliser and crossfade work too, but pausing and skipping take a few seconds to reach the TV. The web browser always shows them.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QDialogButtonBox" name="castButtonBox">
+     <property name="standardButtons">
+      <set>QDialogButtonBox::StandardButton::Close</set>
+     </property>
+    </widget>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

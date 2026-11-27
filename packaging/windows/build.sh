@@ -26,8 +26,8 @@ pacman -S --needed --noconfirm \
     "$p-gstreamer" "$p-gst-plugins-base" "$p-gst-plugins-good" "$p-gst-plugins-bad" \
     "$p-gst-plugins-ugly" "$p-libsoup3" "$p-glib-networking" \
     "$p-pyinstaller" "$p-pyinstaller-hooks-contrib" git unzip zip
-# MSYS2 does not package these two; both are plain Python.
-python -m pip install -q --no-deps --break-system-packages "PyChromecast>=14" casttube
+# MSYS2 does not package these three; all are plain Python.
+python -m pip install -q --no-deps --break-system-packages "PyChromecast>=14" casttube "segno>=1.5"
 
 echo "Checking that everything loads..."
 python - <<'EOF'
@@ -37,7 +37,7 @@ gi.require_version("GstApp", "1.0")
 gi.require_version("GstVideo", "1.0")
 from gi.repository import Gst, GstApp, GstVideo  # noqa: F401
 from PySide6 import QtMultimedia, QtNetwork, QtUiTools  # noqa: F401
-import mutagen, pychromecast  # noqa: F401, E401
+import mutagen, pychromecast, segno  # noqa: F401, E401
 Gst.init(None)
 missing = [name for name in ("playbin", "autoaudiosink", "equalizer-nbands", "spectrum",
                              "level", "rganalysis", "souphttpsrc", "appsrc", "x264enc")

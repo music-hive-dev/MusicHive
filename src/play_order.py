@@ -16,6 +16,7 @@ class Entry:
     row: int  # library row of the track
     queued: bool  # True if the user queued it (Play next / Add to queue)
     uid: int  # identifies this entry; the same track can appear more than once
+    guest: str = ""  # the name of the party guest who queued it ("" for the user)
 
 
 class PlayOrder:
@@ -69,6 +70,12 @@ class PlayOrder:
         if self._position < 0:
             return []
         return [entry.row for entry in self._entries[self._position :]]
+
+    def upcoming_guests(self) -> list[str]:
+        """Who queued each of upcoming_rows() at a party ("" for the user)."""
+        if self._position < 0:
+            return []
+        return [entry.guest for entry in self._entries[self._position :]]
 
     def stop_after_offset(self) -> int:
         """Where in upcoming_rows() playback is set to end, or -1."""
@@ -182,14 +189,22 @@ class PlayOrder:
         if self._position >= 0 and 0 <= row < self._count:
             self._entries.insert(self._position + 1, self._new_entry(row, queued=True))
 
-    def add_to_queue(self, row: int) -> None:
-        """Queue `row` after the other queued tracks, ahead of the rest."""
+    def set_current_guest(self, guest: str) -> None:
+        """Note that a party guest asked for the playing track."""
+        if 0 <= self._position < len(self._entries):
+            self._entries[self._position].guest = guest
+
+    def add_to_queue(self, row: int, guest: str = "") -> None:
+        """Queue `row` after the other queued tracks, ahead of the rest. `guest` is
+        the party guest who asked for it."""
         if self._position < 0 or not 0 <= row < self._count:
             return
         index = self._position + 1
         while index < len(self._entries) and self._entries[index].queued:
             index += 1
-        self._entries.insert(index, self._new_entry(row, queued=True))
+        entry = self._new_entry(row, queued=True)
+        entry.guest = guest
+        self._entries.insert(index, entry)
 
     def add_to_end(self, row: int) -> None:
         """Queue `row` at the very end of the Upcoming list, after everything else."""

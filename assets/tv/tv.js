@@ -115,6 +115,7 @@ on("stop", () => {
   setLyrics(null);
 });
 on("volume", (d) => { volume = d.percent / 100; applyVolume(); });
+on("party", showParty);
 on("mute", (d) => { muted = d.muted; applyVolume(); });
 on("style", (d) => { style = d; applyStyle(); });
 on("bars", (d) => {
@@ -239,8 +240,26 @@ el("track").addEventListener("click", (event) => {
   control("seek", Math.round(share * audio.duration * 1000));
 });
 
+// ----- Party Mode -----
+
+// MusicHive shows or hides the card; the QR button on the page does the same here.
+function showParty(d) {
+  const running = Boolean(d.qr);
+  el("partyButton").hidden = !running;
+  el("party").hidden = !(running && d.shown);
+  if (running) {
+    el("partyQr").src = d.qr;
+    el("partyText").textContent = d.text || "";
+    el("partyAddress").textContent = d.address || "";
+  }
+}
+el("partyButton").addEventListener("click", () => {
+  el("party").hidden = !el("party").hidden;
+});
+
 // A remote's media keys, and left/right to move between the buttons.
-const buttons = ["previous", "playPause", "next"];
+const allButtons = ["previous", "playPause", "next", "partyButton"];
+let buttons = allButtons;
 document.addEventListener("keydown", (event) => {
   const actions = {
     MediaPlayPause: () => control("playpause"),
@@ -257,6 +276,7 @@ document.addEventListener("keydown", (event) => {
     return;
   }
   if (el("start").classList.contains("shown")) return;
+  buttons = allButtons.filter((id) => !el(id).hidden);
   const at = buttons.indexOf(document.activeElement && document.activeElement.id);
   if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
     const step = event.key === "ArrowRight" ? 1 : -1;
@@ -274,6 +294,8 @@ document.addEventListener("keydown", (event) => {
 function showInfo(d) {
   el("title").textContent = d ? d.title : "";
   el("artist").textContent = d ? [d.artist, d.album].filter(Boolean).join(" · ") : "";
+  el("addedBy").textContent = d && d.addedBy ? d.addedBy : "";
+  el("addedBy").hidden = !(d && d.addedBy);
   el("cover").src = d && d.cover ? d.cover : "";
   el("progress").classList.toggle("hidden", !d || d.live);
   shownSecond = -1; // the times are written again

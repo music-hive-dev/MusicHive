@@ -1,0 +1,244 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>partyWindow</class>
+ <widget class="QDialog" name="partyWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>440</width>
+    <height>700</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Party Mode</string>
+  </property>
+  <layout class="QVBoxLayout" name="partyLayout">
+   <property name="spacing">
+    <number>12</number>
+   </property>
+   <property name="leftMargin">
+    <number>24</number>
+   </property>
+   <property name="topMargin">
+    <number>24</number>
+   </property>
+   <property name="rightMargin">
+    <number>24</number>
+   </property>
+   <property name="bottomMargin">
+    <number>24</number>
+   </property>
+   <item>
+    <widget class="QLabel" name="partyTitle">
+     <property name="text">
+      <string>&lt;h2&gt;Party Mode&lt;/h2&gt;</string>
+     </property>
+     <property name="textFormat">
+      <enum>Qt::TextFormat::RichText</enum>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="partyIntro">
+     <property name="styleSheet">
+      <string notr="true">color: rgba(255, 255, 255, 170);</string>
+     </property>
+     <property name="text">
+      <string>Guests on the same Wi-Fi scan this code with their phone camera to add songs to the queue.</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="partyQrImage">
+     <property name="minimumSize">
+      <size>
+       <width>320</width>
+       <height>320</height>
+      </size>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="partyNoQr">
+     <property name="styleSheet">
+      <string notr="true">color: rgba(255, 255, 255, 170);</string>
+     </property>
+     <property name="text">
+      <string>The QR code needs the segno package. Guests can still type the address below.</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="partyAddressRow">
+     <property name="spacing">
+      <number>8</number>
+     </property>
+     <item>
+      <widget class="QLabel" name="partyAddress">
+       <property name="text">
+        <string notr="true">http://…</string>
+       </property>
+       <property name="alignment">
+        <set>Qt::AlignmentFlag::AlignCenter</set>
+       </property>
+       <property name="textInteractionFlags">
+        <set>Qt::TextInteractionFlag::TextSelectableByMouse</set>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <widget class="QToolButton" name="partyCopyAddress">
+       <property name="toolTip">
+        <string>Copy the address</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QToolButton { border-radius: 14px; min-width: 28px; min-height: 28px; }</string>
+       </property>
+       <property name="icon">
+        <iconset>
+         <normaloff>../assets/clipboard-copy.svg</normaloff>../assets/clipboard-copy.svg</iconset>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+   <item alignment="Qt::AlignmentFlag::AlignHCenter">
+    <widget class="QPushButton" name="partyShowOnTv">
+     <property name="text">
+      <string>Show on TV</string>
+     </property>
+     <property name="toolTip">
+      <string>Show the code in a corner of the TV while you cast to a web browser or with the visualiser and lyrics, so guests can join from there</string>
+     </property>
+     <property name="checkable">
+      <bool>true</bool>
+     </property>
+     <property name="icon">
+      <iconset>
+       <normaloff>../assets/cast.svg</normaloff>../assets/cast.svg</iconset>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">QPushButton { border-radius: 14px; padding: 6px 16px; }</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="partyGuests">
+     <property name="text">
+      <string>No guests yet</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignmentFlag::AlignCenter</set>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QCheckBox" name="partyVoteSkip">
+     <property name="text">
+      <string>Let guests vote to skip a song</string>
+     </property>
+     <property name="checked">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="partyVoteHint">
+     <property name="styleSheet">
+      <string notr="true">color: rgba(255, 255, 255, 170);</string>
+     </property>
+     <property name="text">
+      <string>A song is skipped once more than half of the guests vote for it.</string>
+     </property>
+     <property name="wordWrap">
+      <bool>true</bool>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="partyVotes">
+     <property name="text">
+      <string notr="true"/>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <spacer name="partySpacer">
+     <property name="orientation">
+      <enum>Qt::Orientation::Vertical</enum>
+     </property>
+     <property name="sizeHint" stdset="0">
+      <size>
+       <width>20</width>
+       <height>0</height>
+      </size>
+     </property>
+    </spacer>
+   </item>
+   <item>
+    <layout class="QHBoxLayout" name="partyButtons">
+     <item>
+      <widget class="QPushButton" name="partyEnd">
+       <property name="text">
+        <string>End the Party</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QPushButton { border-radius: 14px; padding: 6px 16px; }</string>
+       </property>
+      </widget>
+     </item>
+     <item>
+      <spacer name="partyButtonSpacer">
+       <property name="orientation">
+        <enum>Qt::Orientation::Horizontal</enum>
+       </property>
+       <property name="sizeHint" stdset="0">
+        <size>
+         <width>0</width>
+         <height>20</height>
+        </size>
+       </property>
+      </spacer>
+     </item>
+     <item>
+      <widget class="QPushButton" name="partyClose">
+       <property name="text">
+        <string>Keep Partying</string>
+       </property>
+       <property name="toolTip">
+        <string>Close this window. The party goes on, and Playback → Party Mode opens it again.</string>
+       </property>
+       <property name="styleSheet">
+        <string notr="true">QPushButton { border-radius: 14px; padding: 6px 16px; }</string>
+       </property>
+      </widget>
+     </item>
+    </layout>
+   </item>
+  </layout>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>

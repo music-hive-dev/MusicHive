@@ -416,6 +416,7 @@ class _CastDetails:
     album: str = ""
     cover: bytes | None = None
     lyrics: str | None = None  # for a browser page; None for episodes and radio
+    added_by: str = ""  # "added by <guest>" at a party, for a browser page
 
 
 class AudioPlayer(QObject):
@@ -822,10 +823,13 @@ class AudioPlayer(QObject):
         album: str,
         cover: bytes | None,
         lyrics: str | None = None,
+        added_by: str = "",
     ) -> None:
         """What a device should show for the track that just started (also while
         not casting, for when casting begins mid-track)."""
-        self._cast_details = _CastDetails(title, artist, album, cover or None, lyrics)
+        self._cast_details = _CastDetails(
+            title, artist, album, cover or None, lyrics, added_by
+        )
 
     @property
     def browser_address(self) -> str:
@@ -836,6 +840,11 @@ class AudioPlayer(QObject):
         """How a browser page cast to should look (cast_browser.screen_style)."""
         if self._cast is not None and hasattr(self._cast, "set_style"):
             self._cast.set_style(style)
+
+    def send_party_card(self, card: dict) -> None:
+        """Show or hide the Party Mode QR code on a browser page cast to."""
+        if self._cast is not None and hasattr(self._cast, "set_party"):
+            self._cast.set_party(card)
 
     def start_casting(self, device: CastDevice, video: bool = False) -> None:
         """Play on `device` from now on, carrying on where the computer was.
@@ -1046,6 +1055,7 @@ class AudioPlayer(QObject):
             autoplay=autoplay,
             stand_in_url=stand_in,
             lyrics=details.lyrics,
+            added_by=details.added_by,
             gain_db=self._gain_for(track),  # 0 for streams and with Level Volume off
             bars=bars,
             bars_coming=bars_coming,

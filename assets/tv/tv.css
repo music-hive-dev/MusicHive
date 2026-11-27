@@ -105,7 +105,45 @@ html, body {
   text-overflow: ellipsis;
 }
 #title { font-size: 2.3vw; font-weight: 700; }
-#artist { font-size: 1.6vw; color: var(--dimmed); margin-top: 0.3vh; }
+#artistLine {
+  display: flex;
+  align-items: center;
+  gap: 1vw;
+  min-width: 0;
+  margin-top: 0.3vh;
+}
+#artist {
+  flex: 0 1 auto; /* gives way first, so "added by" keeps its room */
+  min-width: 0;
+  font-size: 1.6vw;
+  color: var(--dimmed);
+}
+#addedBy {
+  flex: none;
+  white-space: nowrap;
+  padding: 0.3vh 1vw;
+  border-radius: 999px;
+  background: rgba(49, 45, 52, 0.85); /* #312d34 */
+  font-size: 1.15vw;
+  text-shadow: none;
+}
+[hidden] { display: none !important; }
+
+/* Party Mode: the code guests scan, on a card in the top right corner. */
+#party {
+  position: fixed;
+  top: 4vh;
+  right: 3vw;
+  width: 19vw;
+  padding: 1.4vw 1.4vw 1vw;
+  border-radius: 1.6vw;
+  background: rgba(34, 32, 35, 0.92); /* #222023 */
+  text-align: center;
+  box-shadow: 0 0.6vh 3vh rgba(0, 0, 0, 0.45);
+}
+#partyQr { display: block; width: 100%; height: auto; }
+#partyText { margin-top: 1vw; font-size: 1.4vw; font-weight: 700; }
+#partyAddress { margin-top: 0.4vw; font-size: 0.95vw; color: var(--dimmed); overflow-wrap: anywhere; }
 #progress {
   display: flex;
   align-items: center;

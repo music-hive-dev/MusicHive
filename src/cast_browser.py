@@ -36,7 +36,7 @@ from src.visualiser_settings import (
     bar_colours,
 )
 
-_KEPT = ("style", "volume", "mute")  # sent again to a page that (re)connects
+_KEPT = ("style", "volume", "mute", "party")  # sent again to a page that (re)connects
 _PAGE_EVENTS = 256  # events waiting for a page that does not read them: it is let go
 
 
@@ -149,6 +149,10 @@ class BrowserSession(CastSession):
         """How the page should look (see screen_style)."""
         self._queue(self._send, "style", style)
 
+    def set_party(self, card: dict) -> None:
+        """The Party Mode card: {shown, qr (a data: address), text, address}."""
+        self._queue(self._send, "party", card)
+
     # ----- events -----
 
     def _send(self, name: str, data: dict) -> None:
@@ -195,6 +199,7 @@ class BrowserSession(CastSession):
             "title": media.title,
             "artist": media.artist,
             "album": media.album,
+            "addedBy": media.added_by,
             "cover": media.cover_url,
             "live": media.live,
             "lyrics": {"texts": lyrics.texts, "times": lyrics.times_ms},

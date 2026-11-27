@@ -52,7 +52,8 @@ Depends: python3, python3-pyside6.qtcore, python3-pyside6.qtgui,
  gir1.2-gstreamer-1.0, gir1.2-gst-plugins-base-1.0,
  gstreamer1.0-plugins-base, gstreamer1.0-plugins-good, curl, fonts-inter
 Recommends: gstreamer1.0-plugins-bad, gstreamer1.0-libav,
- gstreamer1.0-plugins-ugly, udisks2, dolphin, python3-pychromecast
+ gstreamer1.0-plugins-ugly, udisks2, dolphin, python3-pychromecast,
+ python3-segno
 Description: Simple local music player
  MusicHive is a local music player with playlists, an equaliser, lyrics,
  Last.fm scrobbling and a mini player.

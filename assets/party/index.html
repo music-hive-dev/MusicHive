@@ -1,0 +1,73 @@
+<!doctype html>
+<!-- The Party Mode page guests open on their phones (src/party.py serves it).
+     Its words come from MusicHive, in the user's language; these are stand-ins. -->
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#151416">
+  <title>MusicHive Party</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="party.css">
+</head>
+<body>
+  <header id="top">
+    <img src="logo.svg" alt="" class="logo">
+    <span class="brand">MusicHive Party</span>
+    <button id="changeName" class="pill" data-text="changeName">Change name</button>
+  </header>
+
+  <main>
+    <section id="now" class="card">
+      <img id="nowCover" alt="" hidden>
+      <div id="nowPlaceholder" class="cover-placeholder">♪</div>
+      <div class="now-text">
+        <div id="nowLabel" class="label" data-text="nowPlaying">Now playing</div>
+        <div id="nowTitle" class="title"></div>
+        <div id="nowArtist" class="dimmed"></div>
+        <div id="nowGuest" class="guest" hidden></div>
+      </div>
+      <div id="skip" hidden>
+        <button id="voteSkip" class="pill accent" data-text="voteSkip">Vote to skip</button>
+        <div id="votes" class="dimmed small"></div>
+      </div>
+    </section>
+
+    <section id="find">
+      <input id="search" type="search" autocomplete="off" enterkeyhint="search"
+             data-placeholder="search" placeholder="Search for a song, artist or album">
+      <ul id="results" class="songs"></ul>
+      <div id="noResults" class="dimmed empty" data-text="noResults" hidden>Nothing found</div>
+    </section>
+
+    <section id="next">
+      <h2 data-text="upNext">Up next</h2>
+      <ul id="upcoming" class="songs"></ul>
+      <div id="nothingNext" class="dimmed empty" data-text="nothingNext" hidden>Nothing queued. Add a song!</div>
+    </section>
+  </main>
+
+  <div id="toast" role="status" aria-live="polite"></div>
+  <div id="banner" hidden></div>
+
+  <div id="nameDialog" class="overlay" hidden>
+    <form id="nameForm" class="card dialog">
+      <img src="logo.svg" alt="" class="dialog-logo">
+      <h1 data-text="welcome">Welcome to the party!</h1>
+      <p class="dimmed" data-text="askName">What's your name? It's shown next to the songs you add.</p>
+      <input id="nameInput" maxlength="15" autocomplete="nickname" required
+             data-placeholder="namePlaceholder" placeholder="Your name">
+      <button type="submit" class="pill accent wide" data-text="join">Join</button>
+    </form>
+  </div>
+
+  <div id="endedScreen" class="overlay" hidden>
+    <div class="card dialog">
+      <img src="logo.svg" alt="" class="dialog-logo">
+      <p data-text="ended">The party has ended. Thanks for coming!</p>
+    </div>
+  </div>
+
+  <script src="party.js"></script>
+</body>
+</html>

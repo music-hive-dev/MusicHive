@@ -301,6 +301,10 @@ class TrackListModel(QAbstractTableModel):
         """The tags of the track in `row`, or None if there is no such row."""
         return self._infos[row] if 0 <= row < len(self._infos) else None
 
+    def cover_data(self, key: str | None) -> bytes | None:
+        """The JPEG thumbnail kept for this cover key, or None."""
+        return self._cover_data.get(key) if key else None
+
     def sort_key(self, row: int, column: int):
         """What `row` sorts by in `column`."""
         return self.columns[column].sort_key(self._infos[row])
@@ -621,13 +625,18 @@ class QueueModel(QAbstractListModel):
         super().__init__(parent)
         self._library = library_model
         self._rows: list[int] = []
+        self._guests: list[str] = []  # who queued each row at a party ("" for the user)
         self._stop_after = -1  # row of this list playback ends after, or -1
         library_model.modelReset.connect(self._on_library_reset)
 
-    def set_rows(self, rows: list[int], stop_after: int = -1) -> None:
-        """Show these library rows, in this order."""
+    def set_rows(
+        self, rows: list[int], stop_after: int = -1, guests: list[str] | None = None
+    ) -> None:
+        """Show these library rows, in this order. `guests` names the party guest
+        who queued each one."""
         self.beginResetModel()
         self._rows = list(rows)
+        self._guests = list(guests) if guests is not None else []
         self._stop_after = stop_after
         self.endResetModel()
 
@@ -688,7 +697,15 @@ class QueueModel(QAbstractListModel):
         if role == Qt.ItemDataRole.DisplayRole:
             role = TrackListModel.TitleRole
         elif role == TrackListModel.SubtitleRole:
-            role = TrackListModel.ArtistRole  # the second line here is only the artist
+            # The second line here is only the artist, and who asked for it at a party.
+            artist = self._library.data(
+                self._library.index(library_row, 0), TrackListModel.ArtistRole
+            )
+            guest = self._guests[index.row()] if index.row() < len(self._guests) else ""
+            if not guest:
+                return artist
+            added = tr("added by {name}").format(name=guest)
+            return f"{artist} · {added}" if artist else added
         return self._library.data(self._library.index(library_row, 0), role)
 
     def _on_library_reset(self) -> None:
