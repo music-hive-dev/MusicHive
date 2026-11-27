@@ -201,7 +201,14 @@ from src.radio_stream import RadioStream, split_title
 from src.radio_view import RadioSettingsTab, RadioTab
 from src.subsonic import LEVEL_KEY as SUBSONIC_LEVEL_KEY
 from src.subsonic import LYRICS_KEY as SUBSONIC_LYRICS_KEY
-from src.subsonic import SubsonicConfig, SubsonicService, SubsonicSong, load_config, save_password
+from src.subsonic import (
+    SubsonicConfig,
+    SubsonicService,
+    SubsonicSong,
+    load_config,
+    match_key,
+    save_password,
+)
 from src.subsonic_view import SubsonicPartySource, SubsonicTab
 from src.sleep_timer import DEFAULT_FADE_SECONDS, FADE_KEY, SleepTimer
 from src.podcasts import PodcastManager
@@ -6700,10 +6707,17 @@ class MusicHive:
         """The Subsonic tab, its settings, songs played from the server, and the
         party's way to the server (see subsonic.py and subsonic_view.py)."""
         self.subsonic = SubsonicService(self.settings, self.window)
+        # The library's songs by match_key, to tell which server songs it has
+        # already. Replaced whole when the library changes, so the party's server
+        # threads can read it while the main thread makes a new one.
+        self.library_match: dict[str, int] = {}
+        self.library_model.modelReset.connect(self.refresh_library_match)
+        self.refresh_library_match()
         self.subsonic_tab = SubsonicTab(
             self.window,
             self.subsonic,
             library_root=lambda: self.loaded_library.root if self.loaded_library else None,
+            in_library=self.library_row_of,
             parent=self.window,
         )
         self.subsonic_tab.play_song.connect(self.play_server_song)
@@ -6714,8 +6728,22 @@ class MusicHive:
         self.subsonic.job_done.connect(self.on_party_import_done)
         self.party_imports: dict[int, PartyImport] = {}  # by job number
         self._party_import_job = 0
-        self.subsonic_party_source = SubsonicPartySource(self.subsonic, self.party_import)
+        self.subsonic_party_source = SubsonicPartySource(
+            self.subsonic, self.party_import, lambda: self.library_match
+        )
         self.use_subsonic_at_party(self.settings.value("subsonic/party", True, type=bool))
+
+    def refresh_library_match(self) -> None:
+        model = self.library_model
+        match: dict[str, int] = {}
+        for row in range(model.rowCount()):
+            info = model.info(row)
+            match.setdefault(match_key(info.artist, info.title), row)
+        self.library_match = match
+
+    def library_row_of(self, song: SubsonicSong) -> int:
+        """The library's copy of a server song, or -1 if it has none."""
+        return self.library_match.get(match_key(song.artist, song.title), -1)
 
     def use_subsonic_at_party(self, enabled: bool) -> None:
         source = self.subsonic_party_source
@@ -6910,6 +6938,9 @@ class MusicHive:
         library = self.loaded_library
         if library is None:
             raise PartyError(tr("MusicHive has no library open."))
+        row = self.library_row_of(song)
+        if row >= 0:  # the library has it already: nothing to download
+            return self.party_queue_song(row, guest.name)
         self._party_import_job += 1
         job = self._party_import_job  # positive: the tab's own jobs are negative
         # Its place in the queue is kept from now on, so songs asked for later stay

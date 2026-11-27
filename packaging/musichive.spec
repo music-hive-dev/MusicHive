@@ -1,5 +1,5 @@
 Name:           musichive
-Version:        1.9.0
+Version:        1.9.1
 Release:        1%{?dist}
 Summary:        Simple local music player
 License:        GPL-3.0-or-later
@@ -69,6 +69,12 @@ install -Dm644 packaging/musichive.desktop \
 %{_datadir}/icons/hicolor/scalable/apps/%{name}.svg
 
 %changelog
+* Fri Nov 27 2026 MusicHive - 1.9.1-1
+- Search results say where a song is: in your library, on the Subsonic server, or from Deezer and the like
+- Party guests aren't offered songs from the server or Deezer that the library already has, and a request for one queues the library's copy instead of downloading it
+- Import to Library leaves out songs the library already has
+- Doubles are found by artist and title, also when one has "feat." or a remaster note in its title
+
 * Fri Nov 27 2026 MusicHive - 1.9.0-1
 - Party Mode: guests on the same Wi-Fi scan a QR code and add songs to the queue from their phones, with their name next to each song
 - Party guests can vote to skip a song, and you can limit how many songs each guest has waiting

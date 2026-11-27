@@ -75,8 +75,9 @@ class PartySource(Protocol):
 
     def search(self, text: str, limit: int) -> list[dict]:
         """Results: {"id", "title", "artist", "album", "cover"} ("cover" is a key for
-        cover(), or ""), and optionally "note", a word about the result such as that
-        it has to be fetched first."""
+        cover(), or ""), and optionally "badge", {"kind", "text"}: where the song is
+        ("library", "server" or "stream"), shown as a coloured label, and "note", a
+        word more about it."""
 
     def cover(self, key: str) -> bytes | None:
         """A small JPEG or PNG for a result's "cover" key."""
@@ -498,6 +499,7 @@ class LibrarySource:
                     "artist": artist,
                     "album": album,
                     "cover": cover or "",
+                    "badge": {"kind": "library", "text": tr("In the library")},
                 })
                 if len(results) >= limit:
                     break

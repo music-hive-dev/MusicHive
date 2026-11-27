@@ -169,6 +169,22 @@ h2 {
 .song-text .dimmed { font-size: 0.85rem; }
 .song-text .guest { margin-top: 3px; }
 .songs .pill { flex: none; }
+
+/* Where a search result is: the library has it (nothing to download), the server
+   has it, or it comes from a streaming service (downloaded first). */
+.badge {
+  display: inline-block;
+  margin-right: 6px;
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  line-height: 1.5;
+  color: var(--text);
+  vertical-align: 1px;
+}
+.badge.library { background: var(--highlight); }
+.badge.server { background: var(--raised); }
+.badge.stream { box-shadow: inset 0 0 0 1px var(--dimmed); color: var(--dimmed); }
 .empty { padding: 12px 8px; }
 
 /* ----- messages ----- */

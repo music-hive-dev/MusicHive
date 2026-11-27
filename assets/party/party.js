@@ -147,7 +147,14 @@ function songRow(song, onAdd) {
   title.textContent = song.title;
   const second = document.createElement("div");
   second.className = "dimmed";
-  second.textContent = [song.artist, song.album, song.note].filter(Boolean).join(" · ");
+  // Where the song is (the library, the server, a streaming service), as a label.
+  if (song.badge && song.badge.text) {
+    const badge = document.createElement("span");
+    badge.className = `badge ${["library", "server", "stream"].includes(song.badge.kind) ? song.badge.kind : "server"}`;
+    badge.textContent = song.badge.text;
+    second.append(badge);
+  }
+  second.append([song.artist, song.album, song.note].filter(Boolean).join(" · "));
   words.append(title, second);
   if (song.guest) {
     const guest = document.createElement("div");

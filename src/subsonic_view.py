@@ -26,6 +26,7 @@ from src.subsonic import (
     SubsonicError,
     SubsonicService,
     SubsonicSong,
+    match_key,
     provider_name,
 )
 
@@ -33,11 +34,22 @@ COVER_SIDE = 96  # pixels asked of the server for a result's cover
 ICON_SIDE = 48
 
 
-def _from(item: SubsonicSong | SubsonicAlbum) -> str:
-    """"from Deezer" for something only a streaming service has so far."""
-    if not item.external:
-        return ""
-    return tr("from {service}").format(service=provider_name(item.provider))
+# Where a song is, for the label on each result. The guests' phones colour them.
+IN_LIBRARY, ON_SERVER, STREAMING = "library", "server", "stream"
+
+
+def where_text(where: str, item: SubsonicSong | SubsonicAlbum | None = None) -> str:
+    if where == IN_LIBRARY:
+        return tr("In your library")
+    if where == STREAMING and item is not None:
+        return tr("From {service}").format(service=provider_name(item.provider))
+    return tr("On the server")
+
+
+def where_is(item: SubsonicSong | SubsonicAlbum, in_library: bool) -> str:
+    if in_library:
+        return IN_LIBRARY
+    return STREAMING if item.external else ON_SERVER
 
 
 class SubsonicTab(QObject):
@@ -52,12 +64,14 @@ class SubsonicTab(QObject):
         w,
         service: SubsonicService,
         library_root: Callable[[], Path | None],
+        in_library: Callable[[SubsonicSong], int],
         parent: QObject | None = None,
     ) -> None:
         super().__init__(parent)
         self.w = w
         self.service = service
         self._library_root = library_root
+        self._in_library = in_library  # the library's row of a server song, or -1
         self._songs: list[SubsonicSong] = []
         self._albums: list[SubsonicAlbum] = []
         self._search_request = 0
@@ -147,13 +161,15 @@ class SubsonicTab(QObject):
             self._add_heading(tr("Songs"))
             for index, song in enumerate(songs):
                 length = format_time(song.duration_s * 1000) if song.duration_s else ""
-                second = " · ".join(p for p in (song.artist, song.album, length, _from(song)) if p)
+                where = where_text(where_is(song, self._in_library(song) >= 0), song)
+                second = " · ".join(p for p in (where, song.artist, song.album, length) if p)
                 self._add_row(song.title, second, ("song", index), song.cover)
         if albums:
             self._add_heading(tr("Albums"))
             for index, album in enumerate(albums):
                 count = tr("%n song(s)", "", album.song_count) if album.song_count else ""
-                second = " · ".join(p for p in (album.artist, album.year, count, _from(album)) if p)
+                where = where_text(where_is(album, False), album)
+                second = " · ".join(p for p in (where, album.artist, album.year, count) if p)
                 self._add_row(album.name, second, ("album", index), album.cover)
         self._update_buttons()
 
@@ -328,8 +344,14 @@ class SubsonicTab(QObject):
             return
 
         def bring_in(songs: list[SubsonicSong]) -> None:
-            job = self._start_job("import", root)
-            self.service.import_songs(job, songs, root)
+            # Songs the library has already are left out, so nothing comes in twice.
+            new = [song for song in songs if self._in_library(song) < 0]
+            had = len(songs) - len(new)
+            if not new:
+                self._set_status(tr("The library has %n of these already", "", had))
+                return
+            job = self._start_job("import", (root, had))
+            self.service.import_songs(job, new, root)
 
         self._with_songs(bring_in)
 
@@ -350,9 +372,13 @@ class SubsonicTab(QObject):
             if not self._jobs:
                 self._set_status(tr("Downloaded %n song(s) on the server", "", result))
         elif kind == "import":
-            self.songs_imported.emit(what, result)
+            root, had = what
+            self.songs_imported.emit(root, result)
             if not self._jobs:
-                self._set_status(tr("Imported %n song(s)", "", len(result)))
+                text = tr("Imported %n song(s)", "", len(result))
+                if had:
+                    text += " · " + tr("%n already in your library", "", had)
+                self._set_status(text)
 
 
 class SubsonicPartySource:
@@ -367,9 +393,11 @@ class SubsonicPartySource:
         self,
         service: SubsonicService,
         request_import: Callable[[SubsonicSong, Guest], str],
+        library_match: Callable[[], dict[str, int]],
     ) -> None:
         self._service = service
         self._request_import = request_import
+        self._library_match = library_match  # main.py's: match_key -> library row
         self._found: dict[str, SubsonicSong] = {}  # what guests were shown, by id
         self._lock = threading.Lock()
 
@@ -380,18 +408,30 @@ class SubsonicPartySource:
             songs, _albums = self._service.client.search(text)
         except SubsonicError:
             return []
-        results = []
+        # Guests are only offered what the library hasn't got (the library's own
+        # copy shows up in their search already), and a streaming service's copy
+        # only when the server hasn't got the song either.
+        library = self._library_match()
+        on_server = {match_key(s.artist, s.title) for s in songs if not s.external}
+        results, seen = [], set()
         with self._lock:
-            for song in songs[:limit]:
+            for song in songs:
+                key = match_key(song.artist, song.title)
+                if key in library or key in seen or (song.external and key in on_server):
+                    continue
+                seen.add(key)
                 self._found[song.id] = song
+                where = where_is(song, False)
                 results.append({
                     "id": song.id,
                     "title": song.title,
                     "artist": song.artist,
                     "album": song.album,
                     "cover": song.cover,
-                    "note": _from(song) or tr("on the server"),
+                    "badge": {"kind": where, "text": where_text(where, song)},
                 })
+                if len(results) >= limit:
+                    break
         return results
 
     def cover(self, key: str) -> bytes | None:

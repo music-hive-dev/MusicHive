@@ -12,6 +12,7 @@ Nothing here touches the GUI; SubsonicService (below) runs the work on threads.
 import hashlib
 import json
 import os
+import re
 import secrets
 import shutil
 import tempfile
@@ -27,7 +28,7 @@ from PySide6.QtCore import QObject, QRunnable, QSettings, QThreadPool, Signal
 
 from src import library_db
 from src.i18n import tr
-from src.library_db import ScannedTrack
+from src.library_db import ScannedTrack, track_key
 from src.level_volume import GAIN_TAG, PEAK_TAG, measure_loudness
 from src.library_scanner import scan_file
 from src.music_library import SUPPORTED_EXTENSIONS
@@ -128,6 +129,27 @@ def save_password(password: str) -> None:
     temp.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     os.chmod(temp, 0o600)
     os.replace(temp, path)
+
+
+# ----- telling doubles apart -----
+
+# "(feat. X)", "[ft X]", "- 2011 Remaster", "(Remastered Version)" and the like:
+# streaming services add these, but it is the same recording.
+_FEATURING = re.compile(r"\s*[\(\[]\s*(feat\.?|ft\.?|featuring|with)\s[^\)\]]*[\)\]]", re.IGNORECASE)
+_REMASTER = re.compile(
+    r"\s*(?:[\(\[][^\)\]]*remaster[^\)\]]*[\)\]]|\s-\s[^-]*remaster.*$)", re.IGNORECASE
+)
+# Only the first artist counts: "A, B", "A & B", "A feat. B" and "A x B" match "A".
+_MORE_ARTISTS = re.compile(r"\s*(?:,|;|&|\bfeat\.?\s|\bft\.?\s|\bfeaturing\s|\swith\s|\sx\s).*$", re.IGNORECASE)
+
+
+def match_key(artist: str, title: str) -> str:
+    """Artist and title, made so that the same song matches wherever it comes
+    from (the library, the server, a streaming service). Live versions, remixes
+    and the like stay apart: they are different recordings."""
+    title = _REMASTER.sub("", _FEATURING.sub("", title))
+    artist = _MORE_ARTISTS.sub("", artist) or artist
+    return track_key(artist, title)
 
 
 # ----- what the server has -----

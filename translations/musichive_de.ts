@@ -4,7 +4,7 @@
 <context>
     <name></name>
     <message>
-        <location filename="../main.py" line="+350"/>
+        <location filename="../main.py" line="+357"/>
         <source>Repeat off</source>
         <translation>Wiederholen aus</translation>
     </message>
@@ -690,12 +690,12 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <location line="+24"/>
         <location line="+402"/>
         <location line="+1634"/>
-        <location line="+1554"/>
+        <location line="+1575"/>
         <location filename="../src/check_covers.py" line="-772"/>
         <location filename="../src/check_tags.py" line="-489"/>
         <location filename="../src/library_groups.py" line="+31"/>
         <location filename="../src/musicbrainz_dialog.py" line="+22"/>
-        <location filename="../src/subsonic_view.py" line="+155"/>
+        <location filename="../src/subsonic_view.py" line="+170"/>
         <source>%n song(s)</source>
         <translation>
             <numerusform>%n Lied</numerusform>
@@ -703,7 +703,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         </translation>
     </message>
     <message>
-        <location line="-3610"/>
+        <location line="-3631"/>
         <source>Playing next: {what}</source>
         <translation>Als Nächstes: {what}</translation>
     </message>
@@ -951,7 +951,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <location line="+17"/>
         <location line="+18"/>
         <location line="+61"/>
-        <location filename="../src/subsonic_view.py" line="+88"/>
+        <location filename="../src/subsonic_view.py" line="+89"/>
         <location line="+84"/>
         <source>Open a library first</source>
         <translation>Öffne zuerst eine Audiobibliothek</translation>
@@ -1134,7 +1134,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
     <message>
         <location line="+4"/>
         <location line="+50"/>
-        <location line="+2863"/>
+        <location line="+2887"/>
         <location filename="../src/podcast_view.py" line="+349"/>
         <location line="+335"/>
         <location filename="../src/radio_view.py" line="-263"/>
@@ -1142,7 +1142,7 @@ Das passiert beim nächsten Start von MusicHive, also starte es bitte neu.</tran
         <translation>Abspielen</translation>
     </message>
     <message>
-        <location line="-2910"/>
+        <location line="-2934"/>
         <source>Show</source>
         <translation>Anzeigen</translation>
     </message>
@@ -1751,12 +1751,12 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
     </message>
     <message>
         <location line="+61"/>
-        <location line="+557"/>
+        <location line="+581"/>
         <source>Address copied</source>
         <translation>Adresse kopiert</translation>
     </message>
     <message>
-        <location line="-554"/>
+        <location line="-578"/>
         <source>No TVs or speakers found yet.</source>
         <translation>Noch keine Fernseher oder Lautsprecher gefunden.</translation>
     </message>
@@ -1832,14 +1832,14 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
     </message>
     <message>
         <location line="+55"/>
-        <location filename="../src/party.py" line="+344"/>
+        <location filename="../src/party.py" line="+345"/>
         <location filename="../src/track_list.py" line="+571"/>
         <location line="+31"/>
         <source>added by {name}</source>
         <translation>hinzugefügt von {name}</translation>
     </message>
     <message>
-        <location line="+81"/>
+        <location line="+102"/>
         <source>Cannot save the password: {error}</source>
         <translation>Das Passwort kann nicht gespeichert werden: {error}</translation>
     </message>
@@ -1874,7 +1874,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
         <translation>In MusicHive ist keine Audiobibliothek geöffnet.</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+18"/>
         <source>{name} asked for {title}; fetching it from the server…</source>
         <translation>{name} wünscht sich {title}; es wird vom Server geholt…</translation>
     </message>
@@ -1950,7 +1950,7 @@ Das löscht nur die Daten, die MusicHive dazu gespeichert hat. Deine Musikdateie
     <message>
         <location line="+27"/>
         <location filename="../src/party.py" line="+41"/>
-        <location filename="../src/subsonic_view.py" line="+77"/>
+        <location filename="../src/subsonic_view.py" line="+101"/>
         <source>That song is no longer there. Search again.</source>
         <translation>Das Lied ist nicht mehr da. Suche erneut.</translation>
     </message>
@@ -2352,7 +2352,7 @@ ohne Coverbild</translation>
     <message>
         <location line="+18"/>
         <location filename="../src/check_tags.py" line="+6"/>
-        <location filename="../src/subsonic_view.py" line="-257"/>
+        <location filename="../src/subsonic_view.py" line="-283"/>
         <source>Songs</source>
         <translation>Lieder</translation>
     </message>
@@ -4813,12 +4813,17 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <translation>Sag uns zuerst deinen Namen.</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+68"/>
+        <source>In the library</source>
+        <translation>In der Audiobibliothek</translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>The library changed. Search again.</source>
         <translation>Die Audiobibliothek hat sich geändert. Suche erneut.</translation>
     </message>
     <message>
-        <location filename="../src/subsonic.py" line="+241"/>
+        <location filename="../src/subsonic.py" line="+263"/>
         <source>Enter the server, user name and password in Settings, Subsonic.</source>
         <translation>Gib Server, Benutzername und Passwort unter Einstellungen, Subsonic ein.</translation>
     </message>
@@ -4875,12 +4880,22 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <translation>Das Lied kann nicht gespeichert werden: {error}</translation>
     </message>
     <message>
-        <location filename="../src/subsonic_view.py" line="-97"/>
-        <source>from {service}</source>
-        <translation>von {service}</translation>
+        <location filename="../src/subsonic_view.py" line="-108"/>
+        <source>In your library</source>
+        <translation>In deiner Audiobibliothek</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>From {service}</source>
+        <translation>Von {service}</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>On the server</source>
+        <translation>Auf dem Server</translation>
     </message>
     <message numerus="yes">
-        <location line="+72"/>
+        <location line="+80"/>
         <source>Downloading %n on the server…</source>
         <translation>
             <numerusform>%n Lied wird auf dem Server heruntergeladen…</numerusform>
@@ -4896,12 +4911,12 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         </translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>Albums</source>
         <translation>Alben</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+43"/>
         <source>Opening {album}…</source>
         <translation>Öffne {album}…</translation>
     </message>
@@ -4911,7 +4926,15 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         <translation>Lieder anzeigen</translation>
     </message>
     <message numerus="yes">
-        <location line="+61"/>
+        <location line="+45"/>
+        <source>The library has %n of these already</source>
+        <translation>
+            <numerusform>Die Audiobibliothek hat %n davon schon</numerusform>
+            <numerusform>Die Audiobibliothek hat %n davon schon</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+22"/>
         <source>Downloaded %n song(s) on the server</source>
         <translation>
             <numerusform>%n Lied auf dem Server heruntergeladen</numerusform>
@@ -4919,17 +4942,20 @@ Wenn diese Tags seitdem erneut geändert wurden, wird das auch ersetzt.</numerus
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Imported %n song(s)</source>
         <translation>
             <numerusform>%n Lied importiert</numerusform>
             <numerusform>%n Lieder importiert</numerusform>
         </translation>
     </message>
-    <message>
-        <location line="+38"/>
-        <source>on the server</source>
-        <translation>auf dem Server</translation>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n already in your library</source>
+        <translation>
+            <numerusform>%n schon in deiner Audiobibliothek</numerusform>
+            <numerusform>%n schon in deiner Audiobibliothek</numerusform>
+        </translation>
     </message>
 </context>
 <context>
