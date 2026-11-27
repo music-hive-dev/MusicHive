@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from src.cover_view import load_cover
 from src.elided_label import ElidedLabel
 from src.formatting import format_time
 from src.i18n import tr
@@ -159,8 +160,8 @@ class RadioTab(QObject):
         return square_pixmap(image, side, rounded)
 
     def logo_image(self, station_id: int) -> QImage | None:
-        image = QImage(str(self.manager.logo_file(station_id)))
-        return None if image.isNull() else image
+        """The station's logo at a size for the screen, for the player's info panel."""
+        return load_cover(self.manager.logo_file(station_id))
 
     def refresh_list(self) -> None:
         view = self.w.radioList

@@ -45,6 +45,7 @@ from PySide6.QtWidgets import (
 )
 
 from src import theme
+from src.cover_view import load_cover
 from src.elided_label import ElidedLabel
 from src.header_box import HeaderBox
 from src.i18n import tr
@@ -302,9 +303,8 @@ class PodcastsTab(QObject):
         return square_pixmap(image, side, rounded)
 
     def cover_image(self, podcast_id: int) -> QImage | None:
-        """The podcast's cover at full size, for the player's info panel."""
-        image = QImage(str(self.manager.cover_file(podcast_id)))
-        return None if image.isNull() else image
+        """The podcast's cover at a size for the screen, for the player's info panel."""
+        return load_cover(self.manager.cover_file(podcast_id))
 
     def refresh_list(self) -> None:
         view = self.w.podcastList

@@ -1,11 +1,45 @@
 """Showing a cover image as a square inside a QLabel."""
 
-from PySide6.QtCore import QEvent, QObject, Qt
-from PySide6.QtGui import QIcon, QImage, QPixmap
+from pathlib import Path
+
+from PySide6.QtCore import QBuffer, QByteArray, QEvent, QIODevice, QObject, QSize, Qt
+from PySide6.QtGui import QIcon, QImage, QImageReader, QPixmap
 from PySide6.QtWidgets import QLabel, QSizePolicy
 
 MAX_SIDE = 512  # the cover never grows beyond this many pixels
 WORKING_SIDE = 1024  # huge covers are shrunk to this once, so resizing stays fast
+
+
+def _read_shrunk(reader: QImageReader, max_side: int) -> QImage | None:
+    """Read the image so that its shorter side is at most `max_side` pixels.
+
+    The reader shrinks it while decoding, so a huge cover never has to be held
+    at full size: a 3000 x 3000 picture would take 36 MB, this one about 4 MB.
+    """
+    size = reader.size()
+    shorter = min(size.width(), size.height())
+    if shorter > max_side:
+        scale = max_side / shorter
+        reader.setScaledSize(
+            QSize(max(1, round(size.width() * scale)), max(1, round(size.height() * scale)))
+        )
+    image = reader.read()
+    return None if image.isNull() else image
+
+
+def decode_cover(data: bytes | None, max_side: int = WORKING_SIDE) -> QImage | None:
+    """A cover from its bytes, at a size for the screen (None if there is none)."""
+    if not data:
+        return None
+    buffer = QBuffer()
+    buffer.setData(QByteArray(data))
+    buffer.open(QIODevice.OpenModeFlag.ReadOnly)
+    return _read_shrunk(QImageReader(buffer), max_side)
+
+
+def load_cover(path: Path, max_side: int = WORKING_SIDE) -> QImage | None:
+    """A cover from an image file, at a size for the screen (None if unreadable)."""
+    return _read_shrunk(QImageReader(str(path)), max_side)
 
 
 def _centre_square(image: QImage) -> QImage:

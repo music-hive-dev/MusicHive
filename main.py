@@ -41,6 +41,11 @@ def log_to_file() -> None:
 if __name__ == "__main__" and (sys.stdout is None or sys.stderr is None):
     log_to_file()
 
+# Before Qt and GStreamer start their threads (see memory.py).
+from src import memory  # noqa: E402
+
+memory.limit_pools()
+
 import shiboken6
 from PySide6.QtCore import (
     QDir,
@@ -108,7 +113,7 @@ from src.audio_player import AudioPlayer
 from src.cast import BROWSER, CHROMECAST, CastDevice, CastError, CastFinder
 from src.cast_browser import screen_style
 from src.cast_screen import CastScreen
-from src.cover_view import SquareCover
+from src.cover_view import SquareCover, decode_cover
 from src.drag_label import LabelDragUiLoader
 from src.formatting import format_long_duration, format_size, format_time
 from src.library_db import LibraryInfo, SavedSession
@@ -1118,8 +1123,9 @@ class MusicHive:
 
         # Track info panel (filled whenever a track starts playing)
         self.cover_view = SquareCover(w.trackInfoCoverImg, asset_icon("eighth-notes"))
-        self.full_cover: QImage | None = None  # the playing track's cover, at full size
-        self.full_cover_data: bytes | None = None  # the same cover, as stored in the file
+        # The playing track's cover as stored in the file. Everything on screen uses a
+        # copy shrunk for the screen; only the cover window decodes it at full size.
+        self.full_cover_data: bytes | None = None
         self.track_audio_format = ""  # for example "FLAC 44.1 kHz @ 906k Stereo"
         self.cover_window = None  # created the first time a cover is opened
         self._cover_click = ClickFilter(w.trackInfoCoverImg)
@@ -1925,6 +1931,7 @@ class MusicHive:
         self.cast_screen.lyrics.set_cover_colour(colours.lyrics if colours is not None else None)
         self.current_cover_colours = colours
         self.send_screen_style()
+        memory.trim_soon()  # the previous song's cover and sound are freed by now
 
     def set_visualiser_style(self, style: VisualiserSettings) -> None:
         """How the bars of both visualisers look (Settings, Visualiser)."""
@@ -2536,10 +2543,9 @@ class MusicHive:
             else ""
         )
         self.update_window_title(details.title, details.artist)
-        cover = QImage.fromData(details.cover) if details.cover else None
-        self.full_cover = cover if cover is not None and not cover.isNull() else None
-        self.set_visualiser_cover(self.full_cover)
-        self.full_cover_data = details.cover if self.full_cover is not None else None
+        cover = decode_cover(details.cover)
+        self.set_visualiser_cover(cover)
+        self.full_cover_data = details.cover if cover is not None else None
         self.mpris_art_url = cover_file_url(details.cover) if details.cover else ""
         self.lyrics_view.set_lyrics(details.lyrics)
         self.lyrics_view.set_position(self.position_ms)
@@ -2609,17 +2615,20 @@ class MusicHive:
 
     def show_full_cover(self) -> None:
         """Open the playing track's cover at its full resolution."""
-        image = self.full_cover
-        if image is None:
+        data = self.full_cover_data
+        image = QImage.fromData(data) if data else None
+        if image is None or image.isNull():
             return
         if self.cover_window is None:
             self.cover_window = load_dialog(COVER_WINDOW_UI_FILE, self.window)
             label = self.cover_window.coverWindowImage
             label.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
             label.customContextMenuRequested.connect(self.show_cover_window_menu)
+            # The full-size picture is only kept while the window is open.
+            self.cover_window.finished.connect(lambda _result: label.clear())
         window = self.cover_window
         # What the window keeps showing, even after the song changes.
-        self.shown_cover = (image, self.full_cover_data, self.cover_file_name())
+        self.shown_cover = (data, self.cover_file_name())
         title = self.window.currentTrackLabel.text()
         window.setWindowTitle(f"{title} – {image.width()} × {image.height()}")
 
@@ -2647,12 +2656,12 @@ class MusicHive:
 
     def show_cover_window_menu(self, pos) -> None:
         """Right-click menu of the large cover window."""
-        image, data, name = self.shown_cover
+        data, name = self.shown_cover
         label = self.cover_window.coverWindowImage
         menu = QMenu(label)
         add = self.add_menu_item
         add(menu, tr("Save image…"), "save_image", lambda: self.save_cover(data, name))
-        add(menu, tr("Copy image"), "copy", lambda: self.copy_image(image))
+        add(menu, tr("Copy image"), "copy", lambda: self.copy_cover(data))
         menu.exec(label.mapToGlobal(pos))
 
     def save_cover(self, data: bytes, name: str) -> None:
@@ -2700,7 +2709,6 @@ class MusicHive:
             w.trackInfoFile,
         ):
             label.clear()
-        self.full_cover = None
         self.set_visualiser_cover(None)
         self.full_cover_data = None
         self.track_audio_format = ""
@@ -2923,13 +2931,12 @@ class MusicHive:
         add = self.add_menu_item
 
         if widget is window.trackInfoCoverImg:
-            image = self.full_cover
-            add(
-                menu, tr("Copy image"), "copy", lambda: self.copy_image(image),
-                enabled=image is not None,
-                tip="" if image is not None else tr("This song has no cover"),
-            )
             data = self.full_cover_data
+            add(
+                menu, tr("Copy image"), "copy", lambda: self.copy_cover(data),
+                enabled=data is not None,
+                tip="" if data is not None else tr("This song has no cover"),
+            )
             name = self.cover_file_name()
             add(
                 menu, tr("Save image…"), "save_image", lambda: self.save_cover(data, name),
@@ -2969,7 +2976,11 @@ class MusicHive:
         )
         menu.exec(widget.mapToGlobal(pos))
 
-    def copy_image(self, image: QImage) -> None:
+    def copy_cover(self, data: bytes | None) -> None:
+        """Copy a cover at its full size, decoded just for this."""
+        image = QImage.fromData(data) if data else QImage()
+        if image.isNull():
+            return
         QApplication.clipboard().setImage(image)
         self.show_status(tr("Image copied"))
 
@@ -4321,10 +4332,8 @@ class MusicHive:
             header.set_picture(QPixmap.fromImage(make_square_icon(image)), image)
 
     def album_image(self, group: TrackGroup) -> QImage | None:
-        """The album's full-size cover, read from its first song."""
-        cover = read_track_details(self.tracks[group.rows[0]]).cover
-        image = QImage.fromData(cover) if cover else None
-        return image if image is not None and not image.isNull() else None
+        """The album's cover, read from its first song, at a size for the screen."""
+        return decode_cover(read_track_details(self.tracks[group.rows[0]]).cover)
 
     def on_artist_updated(self, name: str) -> None:
         """A picture or description arrived from the internet."""
@@ -5986,7 +5995,6 @@ class MusicHive:
         )
         self.update_window_title(episode.title, podcast.title)
         cover = self.podcast_tab.cover_image(podcast.id)
-        self.full_cover = cover
         self.set_visualiser_cover(cover)
         try:
             data = self.podcasts.cover_file(podcast.id).read_bytes() if cover else None
@@ -6314,7 +6322,6 @@ class MusicHive:
         )
         self.update_window_title(title, artist or station.name)
         logo = self.radio_tab.logo_image(station.id)
-        self.full_cover = logo
         self.set_visualiser_cover(logo)
         try:
             data = self.radio.logo_file(station.id).read_bytes() if logo else None
