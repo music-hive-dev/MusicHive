@@ -8,7 +8,9 @@
 
 MusicHive plays your local library on Linux and Windows. It has the things I wanted from a
 music player: proper playlists, lyrics that follow the song, a real equaliser,
-Last.fm scrobbling and syncing to a portable player (my beloved iPod lol). It's written in Python with Qt for the interface and GStreamer for the sound, and I run it on Fedora KDE
+Last.fm scrobbling and syncing to a portable player (my beloved iPod lol). Friends
+at a party can add songs from their phones, and it can search and import from
+your own Subsonic server. It's written in Python with Qt for the interface and GStreamer for the sound, and I run it on Fedora KDE
 Plasma. Yes, this project is heavily inspired by [MusicBee](https://getmusicbee.com/).
 
 <p align="center">
@@ -144,7 +146,8 @@ Connect MusicHive to your own Subsonic server, such as Navidrome, in Settings �
 Subsonic, and search it from the Subsonic tab. With
 [octo-fiesta](https://github.com/V1ck3s/octo-fiesta) in front of the server, a
 search also finds songs on Deezer, Qobuz and other services; those are marked
-"from Deezer" and so on.
+"from Deezer" and so on. For that, enter octo-fiesta's address and port, not
+Navidrome's, with your usual Navidrome login (octo-fiesta passes it on).
 
 - **Download on Server** has the server download songs or whole albums into
   octo-fiesta's folder. Whether one song or its whole album comes down is
@@ -157,7 +160,8 @@ search also finds songs on Deezer, Qobuz and other services; those are marked
   and its lyrics are looked up on the way in, as Level Volume and Find Lyrics do.
 - Party guests can search the server too (a setting). Their song is imported,
   tagged `guestdownload=true` so you can find those later, and queued with their
-  name.
+  name. It keeps its place in the queue while it downloads, shown as "fetching…";
+  if it isn't there by its turn, the next song plays and it stays next in line.
 
 The password is kept in the secrets file, not with the other settings, so it
 isn't part of a settings export. MusicHive logs in with Subsonic's token login,
@@ -173,6 +177,10 @@ camera, type their name once and get a page where they can:
 - search your library and add songs to the queue,
 - vote to skip the playing song. It's skipped once more than half of the guests
   vote for it, and you can turn voting off.
+
+With a Subsonic server set up, guests can also search that (see above). In the
+Party Mode window you can limit how many songs each guest can have waiting; once
+one of theirs has played, they can add another.
 
 Their songs show up in your Upcoming list with "added by" and their name, and
 you can move or remove them like any other. While you cast to a web browser or
@@ -338,14 +346,16 @@ On Fedora, the libraries are all available as system packages:
 ```
 sudo dnf install python3-pyside6 python3-mutagen python3-gobject \
     gstreamer1-plugins-good gstreamer1-plugins-bad-free rsms-inter-fonts \
-    python3-pychromecast
+    python3-pychromecast python3-segno
 python3 main.py
 ```
 
 On another distribution you'll need the equivalent packages. Python 3 with
 PySide6, Mutagen and PyGObject, plus GStreamer and its good plugins, should be
-enough. The interface uses the Inter font if it's installed, and PyChromecast
-is only needed for casting to Chromecasts.
+enough. The interface uses the Inter font if it's installed, PyChromecast is
+only needed for casting to Chromecasts, and segno only for Party Mode's QR code
+(without it, guests type the address). `pip install -r requirements.txt` installs
+the Python ones.
 
 ## Translating
 
@@ -380,8 +390,8 @@ Artifacts). To publish a release, raise the version in `packaging/musichive.spec
 add a `%changelog` entry, then push a tag with that version:
 
 ```
-git tag 1.6.9
-git push origin 1.6.9
+git tag 1.9.0
+git push origin 1.9.0
 ```
 
 GitHub then builds all packages and makes the release, with the changelog entries
@@ -402,6 +412,9 @@ button that opens this file):
 
 Restart MusicHive and log in from the Last.fm window.
 
+The same file holds your Subsonic password (`subsonic_password`). MusicHive
+writes that one itself when you enter it in Settings → Subsonic.
+
 ## Where your data lives
 
 Libraries, playlists and cached images are kept in `~/Music/.musichive`
@@ -416,6 +429,9 @@ from Last.fm, lyrics come from
 [LRCLIB](https://lrclib.net), album details for Check Tags from
 [MusicBrainz](https://musicbrainz.org), podcasts from Apple Podcasts and radio stations from
 Radio Browser, and Last.fm gets your plays if you've turned scrobbling on.
+The Subsonic tab only talks to the server you set up; with octo-fiesta, that
+server in turn fetches songs from the streaming services it's set up for.
+Party Mode's page is only offered on your own network, while a party is on.
 Discord can only show images that are online, so with Rich Presence on, the cover
 of the current song is uploaded to a file host:
 [Litterbox](https://litterbox.catbox.moe), with [Catbox](https://catbox.moe) and
@@ -428,6 +444,7 @@ of the current song is uploaded to a file host:
 - [PyGObject](https://pygobject.gnome.org/), LGPL-2.1
 - [Mutagen](https://mutagen.readthedocs.io/), GPL-2.0-or-later
 - [PyChromecast](https://github.com/home-assistant-libs/pychromecast), MIT License
+- [segno](https://github.com/heuer/segno), BSD-3-Clause
 - Icons from [Lucide](https://lucide.dev/), ISC License, some derived from Feather, MIT License
 - Emoji from [Twemoji](https://github.com/twitter/twemoji), CC BY 4.0, in the Twemoji Mozilla font
 - Album data from [MusicBrainz](https://musicbrainz.org), CC0 (public domain)
